@@ -38,7 +38,7 @@ capture_failure_diagnostics() {
     echo
     echo "=== APP CONNECTION / TLS ERROR MARKERS (NO MESSAGE BODIES) ==="
     timeout --signal=TERM --kill-after=2s 8s adb logcat -d -v time 2>&1 |
-      grep -Ei 'JetsonPoC|SSLHandshakeException|CertPathValidatorException|Trust anchor|UnknownHostException|ConnectException|SocketTimeoutException|WebSocket|TLS|certificate|handshake|connection.*(fail|error|closed)|auth.*(fail|error)' |
+      grep -Ei 'JetsonPoC|MSG-Sync|CONV-Sync|MSG-UploadPubKey|CON-Conn|SSLHandshakeException|CertPathValidatorException|Trust anchor|UnknownHostException|ConnectException|SocketTimeoutException|WebSocket|TLS|certificate|handshake|connection.*(fail|error|closed)|auth.*(fail|error)' |
       tail -n 160 |
       sed -E 's/((token|authorization|appsecret|app_secret|password)[=: ]+)[^ ,"]+/\1[REDACTED]/Ig' || true
     echo
