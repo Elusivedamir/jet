@@ -24,7 +24,7 @@ run_bounded() {
 }
 
 adb_bounded() {
-  run_bounded 5s adb "$@"
+  run_bounded 5 adb "$@"
 }
 
 {
@@ -40,13 +40,13 @@ adb_bounded() {
   echo
 
   echo "=== HOST ==="
-  run_bounded 3s uname -a
+  run_bounded 3 uname -a
   echo "-- memory --"
-  run_bounded 3s free -h
+  run_bounded 3 free -h
   echo "-- disk --"
-  run_bounded 3s df -h "$HOME" "$PWD"
+  run_bounded 3 df -h "$HOME" "$PWD"
   echo "-- CPU virtualization flags --"
-  run_bounded 3s grep -m 1 -E '^(flags|Features)[[:space:]]*:' /proc/cpuinfo | tr ' ' '\n' | grep -E '^(vmx|svm)$' || true
+  run_bounded 3 grep -m 1 -E '^(flags|Features)[[:space:]]*:' /proc/cpuinfo | tr ' ' '\n' | grep -E '^(vmx|svm)$' || true
   echo "-- KVM device --"
   if [[ -e /dev/kvm ]]; then
     ls -l /dev/kvm 2>&1
@@ -58,19 +58,19 @@ adb_bounded() {
   echo
 
   echo "=== TOOL VERSIONS ==="
-  command -v java >/dev/null 2>&1 && run_bounded 5s java -version
+  command -v java >/dev/null 2>&1 && run_bounded 5 java -version
   command -v adb >/dev/null 2>&1 && adb_bounded version
-  command -v emulator >/dev/null 2>&1 && run_bounded 5s emulator -version
+  command -v emulator >/dev/null 2>&1 && run_bounded 5 emulator -version
   echo
 
   echo "=== ADB DEVICES ==="
-  ADB_DEVICES="$(run_bounded 5s adb devices -l 2>&1)"
+  ADB_DEVICES="$(run_bounded 5 adb devices -l 2>&1)"
   ADB_DEVICES_RC=$?
   printf '%s\n' "$ADB_DEVICES"
   echo
 
   echo "=== EMULATOR PROCESSES ==="
-  run_bounded 3s pgrep -af '[e]mulator|[q]emu-system' | sed -E 's/(--?password[ =])[^ ]+/\1[REDACTED]/g' || true
+  run_bounded 3 pgrep -af '[e]mulator|[q]emu-system' | sed -E 's/(--?password[ =])[^ ]+/\1[REDACTED]/g' || true
   echo
 
   echo "=== ANDROID BOOT PROPERTIES (only for connected devices) ==="
@@ -91,17 +91,17 @@ adb_bounded() {
   echo
 
   echo "=== ANDROID RUNTIME ERRORS (bounded; no app message logs) ==="
-  run_bounded 8s adb logcat -d -t 300 -s AndroidRuntime:E | tail -n 300
+  run_bounded 8 adb logcat -d -t 300 -s AndroidRuntime:E | tail -n 300
   echo
 
   echo "=== AVD CONFIGURATION (selected non-secret keys only) ==="
   if [[ -d "$HOME/.android/avd" ]]; then
-    run_bounded 5s find "$HOME/.android/avd" -maxdepth 3 -type f -name config.ini -print
+    run_bounded 5 find "$HOME/.android/avd" -maxdepth 3 -type f -name config.ini -print
     while IFS= read -r config; do
       [[ -z "$config" ]] && continue
       echo "-- $config --"
-      run_bounded 3s grep -E '^(AvdId|abi.type|image.sysdir.1|hw.cpu.arch|hw.ramSize|hw.gpu.enabled|hw.gpu.mode|fastboot.forceColdBoot|fastboot.forceFastBoot|disk.dataPartition.size)=' "$config"
-    done < <(run_bounded 5s find "$HOME/.android/avd" -maxdepth 3 -type f -name config.ini -print)
+      run_bounded 3 grep -E '^(AvdId|abi.type|image.sysdir.1|hw.cpu.arch|hw.ramSize|hw.gpu.enabled|hw.gpu.mode|fastboot.forceColdBoot|fastboot.forceFastBoot|disk.dataPartition.size)=' "$config"
+    done < <(run_bounded 5 find "$HOME/.android/avd" -maxdepth 3 -type f -name config.ini -print)
   else
     echo "AVD directory absent"
   fi
@@ -112,8 +112,8 @@ adb_bounded() {
     while IFS= read -r log; do
       [[ -z "$log" ]] && continue
       echo "-- $log (last 300 lines) --"
-      run_bounded 3s tail -n 300 "$log"
-    done < <(run_bounded 5s find "$HOME/.android/avd" -maxdepth 4 -type f -name 'emulator*.log' -print)
+      run_bounded 3 tail -n 300 "$log"
+    done < <(run_bounded 5 find "$HOME/.android/avd" -maxdepth 4 -type f -name 'emulator*.log' -print)
   fi
 } >"$REPORT" 2>&1
 
