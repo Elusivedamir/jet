@@ -15,6 +15,7 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Deep-dive backend comparison](docs/research/DEEP_DIVE_BACKEND_COMPARISON_01.md)
 - [Deep-dive message delivery and persistence](docs/research/DEEP_DIVE_MESSAGE_DELIVERY_02.md)
 - [Candidate scorecard template](docs/research/CANDIDATE_SCORECARD_TEMPLATE.md)
+- [High-star projects and independent ratings](docs/research/POPULARITY_AND_RATINGS_TRACK.md)
 - [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
 
 ## Current status
