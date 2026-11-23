@@ -233,3 +233,6 @@ The following remain open and must not be silently decided:
 
 
 - **2026-11-23 — E2E diagnostic refinement:** Run 45208871446 built both APKs and booted the emulator, but Bob remained CONNECTING. The live snapshot captured repeated JWebSocket frames; the first filter omitted the exception header/cause. Follow-up commit a5f4975 adds a bounded, redacted System.err / AndroidRuntime stack capture. Next diagnostic run must inspect the exception header/cause. No TLS/token/server root cause is confirmed; no production or main changes.
+
+
+- **2026-11-23 — Confirmed JuggleIM Android connection failure root cause:** E2E run 45211331834 diagnostics show `java.lang.IllegalArgumentException: Empty key` at `SecretKeySpec` → `JUtility.createSignature` → `JWebSocket.addConnectHeader`. Pinned SDK source shows `IConnectionManager.setConnectParams(signKey, headers)` supplies the signing key. PoC omitted this call. Commits `263a324`, `54637f7`, `8268213`, `8b14e2e` pass the isolated server App Secret as masked CI `JUGGLE_SIGN_KEY` and a debug-only one-shot intent extra; Activity removes it and sets connection params before `connect`. Local test file remains permission 0600. This is test-only; production app secrets must not be embedded in APKs. Awaiting E2E verification; no TLS cause confirmed.
