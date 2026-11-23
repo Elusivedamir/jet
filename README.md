@@ -19,11 +19,12 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Deep-dive message delivery and persistence](docs/research/DEEP_DIVE_MESSAGE_DELIVERY_02.md)
 - [Candidate scorecard template](docs/research/CANDIDATE_SCORECARD_TEMPLATE.md)
 - [High-star projects and independent ratings](docs/research/POPULARITY_AND_RATINGS_TRACK.md)
+- [Deep dive 03 — popular messaging platforms](docs/research/DEEP_DIVE_POPULAR_PRODUCTS_03.md)
 - [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
 
 ## Current status
 
-**Stage 0 — discovery.** No backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. No visual design is binding.
+**Requirements and discovery.** The owner's full business-plan text has been structured into staged requirements and user journeys. Repository landscape research continues; no backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. Detailed UI remains iterative.
 
 Research up to 1,000 relevant public repositories in transparent tiers. No repository is adopted wholesale. Existing projects are learning sources only; choices require evidence and comparison against the business plan.
 
