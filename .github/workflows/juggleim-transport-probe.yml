@@ -50,7 +50,7 @@ jobs:
 
       - name: Build Bob debug APK
         working-directory: android/poc
-        run: gradle --no-daemon --stacktrace :app:assembleBobDebug
+        run: gradle --no-daemon --stacktrace :app:assembleBobDebug -PjuggleAppKey="${JUGGLE_APP_KEY:?missing}" -PjuggleWssUrl="${JUGGLE_WSS_URL:?missing}"
 
       - name: Enable Android emulator KVM acceleration
         shell: bash
