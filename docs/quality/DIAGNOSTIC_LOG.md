@@ -63,3 +63,19 @@
 **Diagnostic instrumentation commits:** `a948c61062ce95221c702d425a8ad67136c50539` and `f9a3317cccba3bd712dc24120169421bcd14a792`.
 
 **Next gate:** run the focused transport probe with the new response diagnostics, inspect the HTTP response metadata/body, and only then change the handshake request or proxy configuration. SDK handshake/auth and Alice/Bob round-trip remain unverified.
+
+
+## 2026-11-23 — Transport probe runner configuration defect
+
+**CI run:** 45222366250  
+**Failing step:** Run TLS and WebSocket Upgrade probe  
+**Artifact evidence:** `transport-probe.log` records:
+- `PoC is not configured. No IM connection will be opened.`
+- `POC_TRANSPORT_PROBE_FAILED type=IllegalArgumentException`
+- `Configured endpoint is not a valid WSS URI`
+
+**Root cause:** The isolated probe workflow built Bob APK without passing Gradle properties `juggleAppKey` and `juggleWssUrl`. `MainActivity` therefore compiled with an empty `BuildConfig.JUGGLE_WSS_URL`, and the debug-only probe was called with an empty endpoint. The emulator, CA installation, APK installation and app launch all completed; no HTTP request was sent. This run does **not** establish any server-side WebSocket failure or success.
+
+**Fix:** Workflow build command now passes the ephemeral `JUGGLE_APP_KEY` and `JUGGLE_WSS_URL` provisioned by bootstrap as Gradle properties. The App Secret and user tokens are not passed to the probe APK. Commit: `718d09ab501d02b8f983d18396f8ee27f13fcc5c`.
+
+**Next gate:** rerun the isolated probe. Required evidence is a TLS handshake followed by HTTP 101. If the probe still fails, inspect its bounded response metadata/body and server logs. SDK handshake/auth and Alice/Bob round-trip remain separate unverified gates.
