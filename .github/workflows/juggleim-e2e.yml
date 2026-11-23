@@ -72,6 +72,7 @@ jobs:
           BOB_TOKEN: ${{ env.BOB_TOKEN }}
           ALICE_TOKEN: ${{ env.ALICE_TOKEN }}
           ALICE_USER_ID: ${{ env.ALICE_USER_ID }}
+          BOB_USER_ID: ${{ env.BOB_USER_ID }}
           E2E_MESSAGE: ${{ env.E2E_MESSAGE }}
         with:
           api-level: 34
@@ -81,44 +82,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -writable-system
           disable-animations: true
           emulator-boot-timeout: 600
-          script: |
-            # android-emulator-runner executes this script with /bin/sh,
-            # so avoid Bash-only options such as pipefail.
-            set -eu
-            adb root
-            adb wait-for-device
-            bash deploy/juggleim-poc/scripts/install-ca-on-emulator.sh
-
-            adb install -r android/poc/app/build/outputs/apk/alice/debug/app-alice-debug.apk
-            adb install -r android/poc/app/build/outputs/apk/bob/debug/app-bob-debug.apk
-            adb logcat -c
-
-            # Keep each am command on one line: the runner's /bin/sh wrapper
-            # previously split continuation arguments and treated --es as shell options.
-            # Do not use am start -W; slow software emulators can exceed its wait timeout.
-            adb shell am start -n com.jetson.poc.bob/com.jetson.poc.MainActivity --es poc_test_token "$BOB_TOKEN" --es poc_expected_message "$E2E_MESSAGE"
-
-            wait_for_log() {
-              pattern="$1"
-              for _ in $(seq 1 90); do
-                if adb logcat -d -s JetsonPoC:I | grep -Fq "$pattern"; then
-                  echo "Verified emulator event: $pattern"
-                  return 0
-                fi
-                sleep 2
-              done
-              adb logcat -d -s JetsonPoC:I || true
-              adb logcat -d -s AndroidRuntime:E || true
-              return 1
-            }
-
-            wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.bob"
-
-            adb shell am start -n com.jetson.poc.alice/com.jetson.poc.MainActivity --es poc_test_token "$ALICE_TOKEN" --es poc_peer_user_id "$BOB_USER_ID" --es poc_test_message "$E2E_MESSAGE"
-
-            wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.alice"
-            wait_for_log "POC_MESSAGE_SENT package=com.jetson.poc.alice"
-            wait_for_log "POC_MESSAGE_RECEIVED package=com.jetson.poc.bob"
+          script: bash deploy/juggleim-poc/scripts/run-android-e2e.sh
 
       - name: Upload two E2E-tested APKs
         if: success()
