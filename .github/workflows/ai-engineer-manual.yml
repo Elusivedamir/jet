@@ -1,0 +1,120 @@
+name: AI Engineer (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Focused engineering task for the agent"
+        required: true
+        type: string
+      base_branch:
+        description: "Approved project branch to base the agent work on"
+        required: true
+        default: "project/foundation-and-juggleim-poc"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ai-engineer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    if: ${{ secrets.OPENAI_API_KEY != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate target branch
+        env:
+          REQUESTED_BASE: ${{ inputs.base_branch }}
+        run: |
+          set -euo pipefail
+          if [ "$REQUESTED_BASE" = "main" ]; then
+            echo "Refusing to target main."
+            exit 1
+          fi
+          case "$REQUESTED_BASE" in
+            project/*|feature/*|fix/*) ;;
+            *) echo "Base branch must be an approved project/feature/fix branch."; exit 1 ;;
+          esac
+
+      - name: Checkout approved base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+
+      - name: Create isolated agent branch
+        id: branch
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          branch="agent/auto-${RUN_ID}"
+          git switch -c "$branch"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Run Codex
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/engineering-agent.md
+          prompt: |
+            Owner task:
+            ${{ inputs.task }}
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+          output-file: codex-report.md
+
+      - name: Validate patch
+        run: |
+          set -euo pipefail
+          git diff --check
+          if git diff --quiet; then
+            echo "Agent made no changes; no PR will be created."
+            exit 0
+          fi
+          git status --short
+          git diff --stat
+
+      - name: Commit and push isolated branch
+        id: publish
+        env:
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "agent: focused engineering change"
+          git push --set-upstream origin "$BRANCH_NAME"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open draft pull request
+        if: steps.publish.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh pr create --draft \
+            --base "$BASE_BRANCH" \
+            --head "$BRANCH_NAME" \
+            --title "AI Engineer: automated focused change (run $RUN_ID)" \
+            --body-file codex-report.md
+
+    - name: Explain missing API key
+      if: ${{ secrets.OPENAI_API_KEY == '' }}
+      run: |
+        echo "::notice::AI execution skipped safely: add OPENAI_API_KEY as a GitHub Actions secret after setting provider-side usage limits."
