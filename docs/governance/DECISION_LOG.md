@@ -82,6 +82,15 @@ The owner approved the consolidated engineering additions (36 controls). They ap
 - Compose Multiplatform remains a candidate with a web maturity caveat; official Compose Web/Wasm support is currently documented as Beta.
 - This is research, not approval: no framework, stack, JuggleIM dependency, or deployment topology has been selected.
 
+## JuggleIM Flutter SDK audit (2026-11-23)
+
+- Static audit recorded in [JUGGLEIM_FLUTTER_SDK_AUDIT.md](../research/JUGGLEIM_FLUTTER_SDK_AUDIT.md).
+- Inspected plugin package declares Android and iOS implementations only; no Web or Windows plugin implementations are declared.
+- Android and iOS native dependency versions differ in the inspected plugin (JuggleIM 1.8.39 vs 1.9.0).
+- The current Flutter plugin is therefore not accepted as a single four-platform JuggleIM client solution.
+- Flutter may remain a candidate for Android+iOS only, subject to runtime feature-parity and license/provenance checks.
+- No technology stack or JuggleIM dependency is approved by this audit. Android APK build/runtime PoC remains pending because this execution environment lacks Flutter/Dart and Android SDK tooling.
+
 ## Open product decisions
 
 The following remain open and must not be silently decided:
