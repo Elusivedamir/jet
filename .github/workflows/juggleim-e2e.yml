@@ -93,9 +93,10 @@ jobs:
             adb install -r android/poc/app/build/outputs/apk/bob/debug/app-bob-debug.apk
             adb logcat -c
 
-            adb shell am start -W -n com.jetson.poc.bob/com.jetson.poc.MainActivity \
-              --es poc_test_token "$BOB_TOKEN" \
-              --es poc_expected_message "$E2E_MESSAGE"
+            # Keep each am command on one line: the runner's /bin/sh wrapper
+            # previously split continuation arguments and treated --es as shell options.
+            # Do not use am start -W; slow software emulators can exceed its wait timeout.
+            adb shell am start -n com.jetson.poc.bob/com.jetson.poc.MainActivity --es poc_test_token "$BOB_TOKEN" --es poc_expected_message "$E2E_MESSAGE"
 
             wait_for_log() {
               pattern="$1"
@@ -113,10 +114,7 @@ jobs:
 
             wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.bob"
 
-            adb shell am start -W -n com.jetson.poc.alice/com.jetson.poc.MainActivity \
-              --es poc_test_token "$ALICE_TOKEN" \
-              --es poc_peer_user_id "$BOB_USER_ID" \
-              --es poc_test_message "$E2E_MESSAGE"
+            adb shell am start -n com.jetson.poc.alice/com.jetson.poc.MainActivity --es poc_test_token "$ALICE_TOKEN" --es poc_peer_user_id "$BOB_USER_ID" --es poc_test_message "$E2E_MESSAGE"
 
             wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.alice"
             wait_for_log "POC_MESSAGE_SENT package=com.jetson.poc.alice"
