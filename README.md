@@ -5,11 +5,14 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 ## Canonical product source
 
 - [Original business plan (PDF)](2_5197266343509931487_261123_112332.pdf) — authoritative source for product, business model, features, commercial assumptions and roadmap.
-- [Business-plan index and traceability](docs/product/BUSINESS_PLAN_BASELINE.md) — working transcription only; subordinate to the PDF and must be checked against it.
+- [Verified business-plan baseline](docs/product/BUSINESS_PLAN_BASELINE.md) — structured from the complete 15-section, seven-page text supplied by the owner.
+- [Product requirements and acceptance framework](docs/product/PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md) — staged requirements and release gates.
+- [User journeys](docs/product/USER_JOURNEYS.md) — personal user, business owner and recipient flows.
 - [Master prompt](docs/governance/MASTER_PROMPT.md)
 - [Branch strategy](docs/governance/BRANCHING_STRATEGY.md)
 - [Repository and branch inventory](docs/governance/REPOSITORY_INVENTORY.md)
 - [Repository landscape research method and progress](docs/research/REPOSITORY_LANDSCAPE_METHOD.md)
+- [Jetson-specific repository evaluation criteria](docs/research/JETSON_REPOSITORY_EVALUATION_CRITERIA.md)
 - [Consolidated discovery index — 1,185 candidates](docs/research/CONSOLIDATED_DISCOVERY_INDEX.md)
 - [Initial README screening](docs/research/INITIAL_README_SCREENING.md)
 - [Deep-dive backend comparison](docs/research/DEEP_DIVE_BACKEND_COMPARISON_01.md)
