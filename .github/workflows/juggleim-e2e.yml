@@ -1,13 +1,7 @@
 name: JuggleIM Android end-to-end PoC
 
 on:
-  push:
-    branches:
-      - project/foundation-and-juggleim-poc
-    paths:
-      - "android/poc/**"
-      - "deploy/juggleim-poc/**"
-      - ".github/workflows/juggleim-e2e.yml"
+  # Full emulator E2E is intentionally manual: run it only after the focused test gates pass.
   workflow_dispatch:
 
 permissions:
