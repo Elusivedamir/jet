@@ -1,0 +1,67 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: jim_db
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql/imserver.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./sql/02-connect-address.sql:/docker-entrypoint-initdb.d/02-connect-address.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks: [im-net]
+
+  im-server:
+    build:
+      context: https://github.com/juggleim/im-server.git#471425fe0acfa0f9658e62eff69a3ba5bb622515
+      dockerfile: Dockerfile
+    image: jetson-poc/juggleim:471425f
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      POD_NAME: jetson-poc-node
+      POD_IP: 127.0.0.1
+      MSG_STORE_ENGINE: mysql
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ADDR: mysql:3306
+      MYSQL_DB_NAME: jim_db
+      MONGODB_ADDR: unused
+      MONGODB_ROOT_PASSWORD: unused
+      WS_PORT: 9003
+      API_HTTP_PORT: 9001
+      NAV_HTTP_PORT: 9002
+      ADMIN_HTTP_PORT: 8090
+    ports:
+      - "127.0.0.1:9001:9001"
+      - "127.0.0.1:9003:9003"
+      - "127.0.0.1:8090:8090"
+    networks: [im-net]
+
+  wss-proxy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - im-server
+    ports:
+      - "127.0.0.1:8443:8443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/etc/caddy/certs:ro
+    networks: [im-net]
+
+networks:
+  im-net:
+    driver: bridge
+
+volumes:
+  mysql-data:
