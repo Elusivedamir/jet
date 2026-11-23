@@ -150,3 +150,15 @@ The following remain open and must not be silently decided:
 - Implementation and limits are documented in [JUGGLEIM_ANDROID_SESSION_POC.md](../research/JUGGLEIM_ANDROID_SESSION_POC.md) and [android/poc/README.md](../../android/poc/README.md).
 - CI is running for the implementation on the working branch. Do not describe the feature as live-connected until a test session reaches CONNECTED and messaging tests pass.
 - No production technology stack or production use of JuggleIM is approved by this PoC. No merge to `main`.
+
+## JuggleIM isolated Android E2E PoC (2026-11-23)
+
+- [ПРЕДЛОЖЕНИЕ] Added a disposable, loopback-only Docker Compose environment using the JuggleIM server at pinned upstream commit `471425fe0acfa0f9658e62eff69a3ba5bb622515`, MySQL and a local WSS reverse proxy. This is test infrastructure, not a production deployment or an approved stack selection.
+- Added server-side provisioning of two synthetic IM users using the JuggleIM REST API. AppSecret and admin authorization remain outside APKs; synthetic user tokens are stored only in ignored local files / masked CI variables.
+- Added separate debug-only Alice and Bob Android variants and SDK-level private text-message send/receive callbacks. Test token Intent extras are accepted only in debug builds and removed immediately.
+- Added GitHub Actions workflow `.github/workflows/juggleim-e2e.yml` to build the isolated server, provision users, connect two emulator clients over WSS, send a private message and verify sender/receiver callbacks.
+- The Android build previously failed because Maven Central returned HTTP 429 for a transitive dependency. Added Google's Maven Central mirror before the standard Maven Central repository; retry verification is in progress.
+- [ВЫВОД] Static review of the current upstream JuggleChat Server login source found unsalted SHA-1 password hashing. It is not adopted as Jetson's production authentication backend; any reuse requires a security redesign and independent review.
+- The upstream JuggleIM REST signing protocol uses SHA-1 of `app_secret + nonce + timestamp`. The secret remains server-side. This is an upstream protocol limitation to include in the threat model; the PoC does not expose this signing operation to clients.
+- [НЕ ПРОВЕРЕНО] Live SDK connection and private-message exchange remain unverified until the new GitHub Actions E2E run completes successfully.
+- This PoC does not implement Jetson account authentication, secure password storage, session lifecycle, production token issuance/revocation, account mapping, authorization, or business services. No production architecture is approved and no merge to `main` is authorized.
