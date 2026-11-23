@@ -74,6 +74,14 @@ The owner approved the consolidated engineering additions (36 controls). They ap
 35. Handoff checklist for specification, code, tests, build, dependencies, secrets, permissions, docs, Git, limitations.
 36. Priority order: approved concept, security, correctness, data integrity, reliability, maintainability, performance, extensibility, speed.
 
+## Platform architecture research (2026-11-23)
+
+- Comparative research is recorded in [CROSS_PLATFORM_CLIENT_ARCHITECTURE.md](../research/CROSS_PLATFORM_CLIENT_ARCHITECTURE.md).
+- Preliminary recommendation for validation: native SDK clients (Kotlin/Android, TypeScript/Web, Electron/Windows reusing Web, Swift/iOS) behind one Jetson Backend and common API contracts.
+- Flutter remains a candidate pending direct JuggleIM Flutter SDK platform/feature-parity audit and a small proof of concept.
+- Compose Multiplatform remains a candidate with a web maturity caveat; official Compose Web/Wasm support is currently documented as Beta.
+- This is research, not approval: no framework, stack, JuggleIM dependency, or deployment topology has been selected.
+
 ## Open product decisions
 
 The following remain open and must not be silently decided:
