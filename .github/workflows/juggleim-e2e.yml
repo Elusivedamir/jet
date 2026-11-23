@@ -66,6 +66,9 @@ jobs:
       - name: Connect two clients and exchange a private message
         uses: reactivecircus/android-emulator-runner@v2
         env:
+          # GitHub-hosted Linux runners may not expose KVM. Explicitly allow
+          # the Android emulator's software CPU translator (TCG) in that case.
+          ANDROID_I_WANT_MY_TCG: "yes"
           BOB_TOKEN: ${{ env.BOB_TOKEN }}
           ALICE_TOKEN: ${{ env.ALICE_TOKEN }}
           ALICE_USER_ID: ${{ env.ALICE_USER_ID }}
