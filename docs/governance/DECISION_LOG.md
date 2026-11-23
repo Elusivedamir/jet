@@ -236,3 +236,12 @@ The following remain open and must not be silently decided:
 
 
 - **2026-11-23 — Confirmed JuggleIM Android connection failure root cause:** E2E run 45211331834 diagnostics show `java.lang.IllegalArgumentException: Empty key` at `SecretKeySpec` → `JUtility.createSignature` → `JWebSocket.addConnectHeader`. Pinned SDK source shows `IConnectionManager.setConnectParams(signKey, headers)` supplies the signing key. PoC omitted this call. Commits `263a324`, `54637f7`, `8268213`, `8b14e2e` pass the isolated server App Secret as masked CI `JUGGLE_SIGN_KEY` and a debug-only one-shot intent extra; Activity removes it and sets connection params before `connect`. Local test file remains permission 0600. This is test-only; production app secrets must not be embedded in APKs. Awaiting E2E verification; no TLS cause confirmed.
+
+
+## Independent WSS transport probe added (2026-11-23)
+
+- [ИЗМЕНЕНО] Added a debug-only raw Android TLS + WebSocket Upgrade probe that bypasses JuggleIM SDK and sends no credentials or message content.
+- [ИЗМЕНЕНО] The E2E workflow runs the probe before Bob's SDK connection and requires HTTP 101 Switching Protocols before proceeding.
+- [ЦЕЛЬ] Separate emulator-to-proxy/upstream transport failures from JuggleIM SDK connection/signature/protocol failures using one controlled experiment.
+- [НЕ ПРОВЕРЕНО] Probe outcome awaits the next GitHub Actions E2E run. HTTP 101 is transport evidence only, not proof of authenticated JuggleIM connection or message delivery.
+- No production architecture decision and no merge to main.
