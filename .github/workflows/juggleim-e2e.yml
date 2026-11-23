@@ -1,7 +1,14 @@
 name: JuggleIM Android end-to-end PoC
 
 on:
-  # Full emulator E2E is intentionally manual: run it only after the focused test gates pass.
+  # Run the full E2E when this workflow definition is deliberately changed on the project branch.
+  # This permits a controlled CI trigger without changing application runtime code.
+  push:
+    branches:
+      - project/foundation-and-juggleim-poc
+    paths:
+      - .github/workflows/juggleim-e2e.yml
+  # Keep manual execution available for later acceptance runs.
   workflow_dispatch:
 
 permissions:
