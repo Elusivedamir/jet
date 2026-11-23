@@ -1,30 +1,22 @@
-# MASTER PROMPT — canonical source recovery status
+# MASTER PROMPT — source recovery status
 
-Status: [ЧАСТИЧНО ВОССТАНОВЛЕНО] The owner has supplied the verbatim text of engineering-regulation sections 28–46.
+Status: [ПОЛНЫЙ ПРЕДОСТАВЛЕННЫЙ ТЕКСТ ЗАФИКСИРОВАН] The owner supplied the complete MASTER PROMPT — JETSON MESSENGER text in the conversation on 2026-11-23. It is preserved in the canonical source file below.
 
-## Recovered source
+## Canonical source
 
-The exact owner-provided text of sections 28–46 is preserved in:
-- [ENGINEERING_REGULATION_28-46.md](ENGINEERING_REGULATION_28-46.md)
+- [MASTER_PROMPT_CANONICAL.md](MASTER_PROMPT_CANONICAL.md) — full prompt supplied by the owner, including Parts I–XII, the approved-concept section, unresolved-question register, 16-step workflow, execution rules, and engineering additions 26–52.
+- The source document preserves the source's own status labels. In particular, Parts VII and VIII are explicitly marked in the supplied text as additions requiring approval; their presence in the source capture must not be treated by itself as proof that each clause has separately received approval. Any later explicit owner approvals recorded in the decision log remain applicable.
+- [ENGINEERING_REGULATION_28-46.md](ENGINEERING_REGULATION_28-46.md) — a separate engineering-regulation text supplied by the owner. It overlaps substantially with the engineering controls in the canonical prompt but has its own numbering and wording. It is retained as a separate source and must not be silently merged into, substituted for, or used to renumber the canonical prompt.
 
-The recovered material covers technology-stack selection, separation of technologies by responsibility, architecture-before-code, project structure, coding standards, implementation correctness, component contracts, database integrity, Git, CI, performance, resilience, environments, observability, safe code changes, unknown code, ADR/technical debt, handoff readiness and engineering priorities.
+## Preservation and interpretation rules
 
-**Preservation rule:** the recovered sections are recorded as supplied. They have not been silently rewritten, renumbered or replaced by a summary.
+- The canonical prompt is preserved as the owner-provided source for the Jetson Messenger product and engineering workflow.
+- Do not silently rewrite, summarize, renumber, or alter the canonical source. Proposed amendments must be separate, traceable, and explicitly approved where required.
+- Distinguish the fact that a text was supplied and archived from the approval status of individual requirements. Preserve [СОГЛАСОВАНО], [ДОПОЛНЕНИЕ — ТРЕБУЕТ СОГЛАСОВАНИЯ], [ВОПРОС], and other source labels.
+- The canonical prompt does not erase the separately approved engineering control standard, foundation addendum, LansetSpBot audit, or decision-log entries. These remain supplements and must be checked for overlap or conflict without changing the source text.
+- If two source documents overlap or appear inconsistent, record the conflict and resolve it through a traceable decision; do not silently choose one wording.
+- The prompt's staged-work rule remains in force: do not advance to the next numbered product-design point without the owner's approval. This does not prohibit non-destructive research, documentation, or isolated PoC work already allowed by recorded decisions, provided it does not silently become production implementation.
 
-## What remains unresolved
+## Recovery result
 
-This recovery does not establish that the entire canonical MASTER PROMPT has been recovered. The complete original document/version and all of its sections have not yet been verified as one canonical source.
-
-Previously recorded owner-approved product requirements and the 16-stage product sequence remain in force, but working notes and summaries are not a substitute for the complete original wording.
-
-## Mandatory handling
-
-Until the complete canonical source is assembled and verified:
-- do not claim that this file set is the complete original MASTER PROMPT;
-- do not invent missing sections, version numbers or acceptance criteria;
-- preserve recovered owner-provided wording;
-- keep engineering addenda clearly separate from recovered original text;
-- do not begin production implementation that depends on unresolved requirements;
-- continue only non-destructive repository preparation and evidence-based research that does not depend on missing requirements.
-
-When additional original sections are supplied, append or preserve them as separately traceable verbatim source material and update this recovery status.
+The previously missing full prompt has now been supplied and captured in the repository. The earlier recovery warning that the full original wording was unavailable is superseded by this status update. No claim is made that this conversation proves the historical creation date or version number of the prompt; no version number has been invented.
