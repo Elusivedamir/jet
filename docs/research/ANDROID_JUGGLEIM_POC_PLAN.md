@@ -142,3 +142,28 @@ Additional findings:
 - Root Gradle configuration mixes plugin versions; a clean build is required to establish a reproducible toolchain.
 
 These are static findings only. No Gradle build, APK build, APK inspection, or runtime test has been executed. Production selection remains open.
+
+
+## Minimal Android build scaffold (2026-11-23)
+
+A dedicated, isolated Android PoC scaffold was added under `android/poc/`; it is not the Jetson product UI or a production APK.
+
+- Gradle 8.7 and Android Gradle Plugin 8.6.1 are pinned in the build workflow/project. The official Android compatibility table lists Gradle 8.7 as the minimum for AGP 8.6; JDK 17 is used for this AGP 8.x toolchain.
+- Android compile/target SDK 35; PoC-only minSdk 24. The final product minimum Android API remains open and is not approved by this technical scaffold.
+- JuggleIM artifact pinned to 1.9.0 per current upstream README. Quick-start dependency versions are pinned explicitly for WebSocket, Protobuf Lite, and Qiniu.
+- The app initializes JuggleIM only when a public AppKey and a WSS URL are explicitly supplied as Gradle properties. Default build contains empty values and opens no network session.
+- No user token, server secret, admin credential, or demo token is included. User-token issuance and connection are not implemented yet; they must come from the Jetson Backend.
+- A small runtime-config unit test suite checks empty credentials and rejects non-WSS endpoints.
+- GitHub Actions workflow `.github/workflows/android-poc.yml` installs JDK 17, Android platform 35 and Gradle 8.7, builds the debug APK, runs unit tests, and uploads the APK artifact.
+
+### Current verification state
+
+- [x] Source scaffold and CI workflow committed to the working branch.
+- [x] Key build files re-fetched from GitHub and checked for the intended pinned versions/configuration.
+- [ ] GitHub Actions build result not yet confirmed in this audit.
+- [ ] APK artifact not yet retrieved or installed.
+- [ ] Device/emulator runtime tests not performed.
+- [ ] Backend-issued test-token integration not implemented.
+- [ ] Two-user send/receive, ACK, offline sync, reconnect, multi-device, and security tests remain pending.
+
+This scaffold is a build-validation starting point only. A successful CI build will prove compilation/package assembly, not that the JuggleIM server integration or production security is correct.
