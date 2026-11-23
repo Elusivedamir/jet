@@ -108,6 +108,30 @@ jobs:
 
             Final report must list evidence, exact upstream commit SHAs, inspected source paths, changed files, tests actually run (or explicitly not run), remaining risks, and whether the report is complete.
 
+      - name: Normalize generated research Markdown
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import pathlib
+          import subprocess
+
+          changed = set(subprocess.check_output(
+              ["git", "diff", "--name-only"], text=True
+          ).splitlines())
+          changed.update(subprocess.check_output(
+              ["git", "ls-files", "--others", "--exclude-standard"], text=True
+          ).splitlines())
+
+          for name in sorted(changed):
+              path = pathlib.Path(name)
+              if not name.startswith("docs/research/") or path.suffix.lower() != ".md" or not path.is_file():
+                  continue
+              text = path.read_text(encoding="utf-8")
+              normalized = "\\n".join(line.rstrip() for line in text.splitlines()).rstrip() + "\\n"
+              path.write_text(normalized, encoding="utf-8")
+              print(f"Normalized Markdown whitespace: {name}")
+          PY
+
       - name: Validate patch
         id: validate
         run: |
@@ -137,6 +161,7 @@ jobs:
 
       - name: Open draft pull request
         if: steps.validate.outputs.changed == 'true'
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH_NAME: ${{ steps.branch.outputs.name }}
@@ -144,11 +169,14 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          gh pr create --draft \
+          if ! gh pr create --draft \
             --base "$BASE_BRANCH" \
             --head "$BRANCH_NAME" \
             --title "AI Engineer (KLINCH): focused change (run $RUN_ID)" \
-            --body-file "${{ runner.temp }}/codex-report.md"
+            --body-file "${{ runner.temp }}/codex-report.md"; then
+            echo "::warning::The branch was pushed, but GitHub blocked PR creation. Enable Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests, or create the draft PR manually."
+            exit 0
+          fi
 
       - name: Upload agent report
         if: always()
