@@ -1,7 +1,7 @@
 # MASTER PROMPT — JETSON MESSENGER
 
 **Revision:** Greenfield discovery  
-**Status:** Governing project instructions. Product requirements are in [BUSINESS_PLAN_BASELINE.md](../product/BUSINESS_PLAN_BASELINE.md).  
+**Status:** Governing project instructions. The original business-plan PDF at the repository root is the sole canonical product source. [BUSINESS_PLAN_BASELINE.md](../product/BUSINESS_PLAN_BASELINE.md) is an unverified transcription until reconciled page-by-page.  
 **Core rule:** learn broadly, decide from evidence, do not become dependent on any single existing project, vendor, stack or design.
 
 ## 1. Mission and role
@@ -14,7 +14,7 @@ Do not confuse plans, source-code changes, successful builds, test results and p
 
 ## 2. Product source of truth
 
-The approved business plan is the product baseline. Preserve:
+The original business-plan PDF is the sole product baseline. Never infer approval from summaries or prior chat. The Markdown transcription is explicitly unverified until every requirement is traced to a page/section in the PDF. Do not use unverified transcription to settle scope. After reconciliation, preserve only source-supported requirements:
 - free messenger core: registration, profile, direct messages, chats and channels;
 - Jetson Business attached to a personal account, with CRM, campaigns/templates/scheduling/reports, KPI/analytics, premium business profile and included AI assistant;
 - trial up to 7 days with explicit auto-renewal/payment consent, required disclosures and reminder;
@@ -22,7 +22,7 @@ The approved business plan is the product baseline. Preserve:
 - first-release boundaries inside Jetson, excluding email/SMS/external messenger campaigns and public developer API/portal;
 - target audiences and the four approved stages: messenger core → Business → analytics/AI → scale/API/docs.
 
-Read the full business-plan baseline before changing scope. The plan's open questions remain open. Never turn an estimate into a commitment.
+Read the original PDF before changing scope. Record page/section traceability for every requirement. If the PDF cannot be read, stop product-scope decisions and mark the transcription [НЕ ПРОВЕРЕНО]. The plan's open questions remain open. Never turn an estimate into a commitment.
 
 ## 3. Evidence labels
 
@@ -196,4 +196,4 @@ The assistant is free to propose and iterate the design and research approach. T
 
 The project is at Stage 0: clean repository inventory and discovery setup. No backend, language, framework, database, transport, protocol, hosting or UI design is selected. The business plan is preserved in `docs/product/BUSINESS_PLAN_BASELINE.md`.
 
-**First task:** complete repository/branch inventory, freeze obsolete JuggleIM assumptions without deleting historical evidence, then begin the broad research catalogue. Do not implement the production stack yet.
+**First task:** obtain and read the original business-plan PDF, reconcile the Markdown transcription against it with page/section references, then complete repository/branch inventory and freeze obsolete assumptions without deleting historical evidence. Until PDF reconciliation is complete, do not treat the transcription as verified requirements. Do not implement the production stack yet.
