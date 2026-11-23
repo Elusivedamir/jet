@@ -63,12 +63,25 @@ jobs:
           echo "::add-mask::$MESSAGE"
           echo "E2E_MESSAGE=$MESSAGE" >> "$GITHUB_ENV"
 
+      - name: Enable Android emulator KVM acceleration (fall back safely when unavailable)
+        shell: bash
+        run: |
+          if [[ -e /dev/kvm ]]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+          fi
+
+          if [[ -r /dev/kvm && -w /dev/kvm ]]; then
+            echo "KVM is available; Android Emulator will use hardware CPU acceleration."
+          else
+            echo "::warning::KVM is unavailable to this runner; Android Emulator must use slow software CPU emulation (TCG)."
+            echo "ANDROID_I_WANT_MY_TCG=yes" >> "$GITHUB_ENV"
+          fi
+
       - name: Connect two clients and exchange a private message
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          # GitHub-hosted Linux runners may not expose KVM. Explicitly allow
-          # the Android emulator's software CPU translator (TCG) in that case.
-          ANDROID_I_WANT_MY_TCG: "yes"
           BOB_TOKEN: ${{ env.BOB_TOKEN }}
           ALICE_TOKEN: ${{ env.ALICE_TOKEN }}
           ALICE_USER_ID: ${{ env.ALICE_USER_ID }}
