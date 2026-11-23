@@ -90,3 +90,8 @@ The CI workflow must show:
 - Bob receives the exact synthetic test message.
 
 A successful CI run verifies this narrow Android/JuggleIM integration path only. It does not establish production security, scalability, multi-device behavior, offline synchronization, push, release signing, or the final architecture decision.
+
+
+## CI / emulator notes
+
+GitHub-hosted Linux runners may not expose KVM to the Android emulator. The E2E workflow sets `ANDROID_I_WANT_MY_TCG=yes` so the emulator can use its software CPU translator when hardware acceleration is unavailable. This is a slower fallback; it does not change the app's runtime networking or TLS configuration.
