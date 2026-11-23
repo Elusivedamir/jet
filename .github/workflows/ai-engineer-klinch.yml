@@ -37,8 +37,8 @@ jobs:
             exit 1
           fi
           case "$REQUESTED_BASE" in
-            project/greenfield-reset|research/*|work/*|fix/*) ;;
-            *) echo "::error::Base must be project/greenfield-reset, research/*, work/* or fix/*; legacy branches and main are forbidden."; exit 1 ;;
+            research/*) ;;
+            *) echo "::error::Research agent must target research/*; product branches, legacy branches and main are forbidden."; exit 1 ;;
           esac
           if [ "$REQUESTED_BASE" = "main" ]; then
             echo "::error::Refusing to target main."
