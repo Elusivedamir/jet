@@ -5,6 +5,7 @@ on:
       - project/foundation-and-juggleim-poc
     paths:
       - "android/poc/**"
+      - "deploy/juggleim-poc/scripts/prepare-android-ca-resource.sh"
       - ".github/workflows/android-poc.yml"
       - ".github/workflows/android-emulator-smoke.yml"
   pull_request:
@@ -44,6 +45,8 @@ jobs:
           java -version
           gradle --version
           sdkmanager --list_installed
+      - name: Prepare per-run Android PoC TLS trust resource
+        run: bash deploy/juggleim-poc/scripts/prepare-android-ca-resource.sh
       - name: Build Alice and Bob debug APKs
         working-directory: android/poc
         run: gradle --no-daemon --stacktrace :app:assembleAliceDebug :app:assembleBobDebug
