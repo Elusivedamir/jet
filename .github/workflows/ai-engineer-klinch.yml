@@ -127,7 +127,7 @@ jobs:
               if not name.startswith("docs/research/") or path.suffix.lower() != ".md" or not path.is_file():
                   continue
               text = path.read_text(encoding="utf-8")
-              normalized = "\\n".join(line.rstrip() for line in text.splitlines()).rstrip() + "\\n"
+              normalized = "\n".join(line.rstrip() for line in text.splitlines()).rstrip() + "\n"
               path.write_text(normalized, encoding="utf-8")
               print(f"Normalized Markdown whitespace: {name}")
           PY
