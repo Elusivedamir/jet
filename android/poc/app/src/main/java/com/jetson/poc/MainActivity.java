@@ -14,24 +14,43 @@ import android.widget.TextView;
 import com.juggle.im.JIM;
 import com.juggle.im.JIMConst;
 import com.juggle.im.interfaces.IConnectionManager;
+import com.juggle.im.interfaces.IMessageManager;
+import com.juggle.im.model.Conversation;
+import com.juggle.im.model.Message;
+import com.juggle.im.model.messages.TextMessage;
+
+import java.util.Collections;
 
 public final class MainActivity extends Activity {
     private static final String TAG = "JetsonPoC";
     private static final String LISTENER_KEY = "jetson-poc-main";
     private static final String DEBUG_TOKEN_EXTRA = "poc_test_token";
+    private static final String DEBUG_PEER_EXTRA = "poc_peer_user_id";
+    private static final String DEBUG_MESSAGE_EXTRA = "poc_test_message";
+    private static final String DEBUG_EXPECTED_EXTRA = "poc_expected_message";
 
     private TextView statusView;
     private EditText tokenInput;
     private Button connectButton;
     private Button disconnectButton;
     private IConnectionManager connectionManager;
+    private IMessageManager messageManager;
     private boolean sdkConfigured;
+    private boolean debugMessageSent;
+    private String debugPeerUserId;
+    private String debugMessage;
+    private String debugExpectedMessage;
 
     private final IConnectionManager.IConnectionStatusListener connectionListener =
             new IConnectionManager.IConnectionStatusListener() {
                 @Override
                 public void onStatusChange(JIMConst.ConnectionStatus status, int code, String extra) {
-                    runOnUiThread(() -> renderConnectionStatus(status, code));
+                    runOnUiThread(() -> {
+                        renderConnectionStatus(status, code);
+                        if (status == JIMConst.ConnectionStatus.CONNECTED) {
+                            sendDebugMessageIfRequested();
+                        }
+                    });
                 }
 
                 @Override
@@ -45,6 +64,30 @@ public final class MainActivity extends Activity {
                 }
             };
 
+    private final IMessageManager.IMessageListener messageListener =
+            new IMessageManager.IMessageListener() {
+                @Override
+                public void onMessageReceive(Message message) {
+                    if (message == null || !(message.getContent() instanceof TextMessage)) {
+                        return;
+                    }
+                    TextMessage text = (TextMessage) message.getContent();
+                    String content = text.getContent();
+                    if (debugExpectedMessage != null && debugExpectedMessage.equals(content)) {
+                        Log.i(TAG, "POC_MESSAGE_RECEIVED package=" + getPackageName());
+                        runOnUiThread(() -> statusView.setText("Тестовое сообщение получено."));
+                    }
+                }
+
+                @Override public void onMessageRecall(Message message) {}
+                @Override public void onMessageDelete(Conversation conversation, java.util.List<Long> clientMsgNos) {}
+                @Override public void onMessageClear(Conversation conversation, long timestamp, String senderId) {}
+                @Override public void onMessageUpdate(Message message) {}
+                @Override public void onMessageReactionAdd(Conversation conversation, com.juggle.im.model.MessageReaction reaction) {}
+                @Override public void onMessageReactionRemove(Conversation conversation, com.juggle.im.model.MessageReaction reaction) {}
+                @Override public void onMessageSetTop(Message message, com.juggle.im.model.UserInfo operator, boolean isTop) {}
+            };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,10 +98,13 @@ public final class MainActivity extends Activity {
         );
         if (sdkConfigured) {
             connectionManager = JIM.getInstance().getConnectionManager();
+            messageManager = JIM.getInstance().getMessageManager();
         }
 
         buildScreen();
         if (sdkConfigured) {
+            connectionManager.addConnectionStatusListener(LISTENER_KEY, connectionListener);
+            messageManager.addListener(LISTENER_KEY, messageListener);
             renderConnectionStatus(connectionManager.getConnectionStatus(), 0);
         } else {
             statusView.setText("SDK не настроен. Для PoC нужны тестовые AppKey и WSS endpoint.");
@@ -70,19 +116,16 @@ public final class MainActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
-        if (sdkConfigured) {
-            connectionManager.addConnectionStatusListener(LISTENER_KEY, connectionListener);
-            renderConnectionStatus(connectionManager.getConnectionStatus(), 0);
-            connectFromDebugIntent();
-        }
+        connectFromDebugIntent();
     }
 
     @Override
-    protected void onStop() {
+    protected void onDestroy() {
         if (sdkConfigured) {
             connectionManager.removeConnectionStatusListener(LISTENER_KEY);
+            messageManager.removeListener(LISTENER_KEY);
         }
-        super.onStop();
+        super.onDestroy();
     }
 
     private void buildScreen() {
@@ -151,7 +194,13 @@ public final class MainActivity extends Activity {
             return;
         }
         String token = launchIntent.getStringExtra(DEBUG_TOKEN_EXTRA);
+        debugPeerUserId = launchIntent.getStringExtra(DEBUG_PEER_EXTRA);
+        debugMessage = launchIntent.getStringExtra(DEBUG_MESSAGE_EXTRA);
+        debugExpectedMessage = launchIntent.getStringExtra(DEBUG_EXPECTED_EXTRA);
         launchIntent.removeExtra(DEBUG_TOKEN_EXTRA);
+        launchIntent.removeExtra(DEBUG_PEER_EXTRA);
+        launchIntent.removeExtra(DEBUG_MESSAGE_EXTRA);
+        launchIntent.removeExtra(DEBUG_EXPECTED_EXTRA);
         connectWithToken(token == null ? "" : token.trim());
     }
 
@@ -175,6 +224,34 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void sendDebugMessageIfRequested() {
+        if (!BuildConfig.DEBUG || debugMessageSent || debugPeerUserId == null
+                || debugPeerUserId.trim().isEmpty() || debugMessage == null
+                || debugMessage.isEmpty() || messageManager == null) {
+            return;
+        }
+        debugMessageSent = true;
+        Conversation conversation = new Conversation(
+                Conversation.ConversationType.PRIVATE,
+                debugPeerUserId
+        );
+        TextMessage content = new TextMessage(debugMessage);
+        messageManager.sendMessage(content, conversation, new IMessageManager.ISendMessageCallback() {
+            @Override
+            public void onSuccess(Message message) {
+                Log.i(TAG, "POC_MESSAGE_SENT package=" + getPackageName()
+                        + " messageId=" + (message == null ? "missing" : message.getMessageId()));
+                runOnUiThread(() -> statusView.setText("Тестовое сообщение отправлено и подтверждено SDK."));
+            }
+
+            @Override
+            public void onError(Message message, int errorCode) {
+                Log.e(TAG, "POC_MESSAGE_SEND_FAILED code=" + errorCode);
+                runOnUiThread(() -> statusView.setText("Не удалось отправить тестовое сообщение. Код: " + errorCode));
+            }
+        });
+    }
+
     private void disconnect() {
         if (connectionManager == null) {
             return;
@@ -193,7 +270,8 @@ public final class MainActivity extends Activity {
             statusView.setText("Состояние соединения пока неизвестно.");
             return;
         }
-        Log.i(TAG, "JuggleIM connection state=" + status + " code=" + code);
+        Log.i(TAG, "JuggleIM connection state=" + status + " code=" + code
+                + " package=" + getPackageName());
         switch (status) {
             case CONNECTED:
                 statusView.setText("JuggleIM: соединение установлено.");
