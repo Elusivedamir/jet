@@ -9,7 +9,11 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Master prompt](docs/governance/MASTER_PROMPT.md)
 - [Branch strategy](docs/governance/BRANCHING_STRATEGY.md)
 - [Repository and branch inventory](docs/governance/REPOSITORY_INVENTORY.md)
-- [Repository landscape research method](docs/research/REPOSITORY_LANDSCAPE_METHOD.md)
+- [Repository landscape research method and progress](docs/research/REPOSITORY_LANDSCAPE_METHOD.md)
+- [Consolidated discovery index — 1,185 candidates](docs/research/CONSOLIDATED_DISCOVERY_INDEX.md)
+- [Initial README screening](docs/research/INITIAL_README_SCREENING.md)
+- [Deep-dive backend comparison](docs/research/DEEP_DIVE_BACKEND_COMPARISON_01.md)
+- [Candidate scorecard template](docs/research/CANDIDATE_SCORECARD_TEMPLATE.md)
 - [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
 
 ## Current status
