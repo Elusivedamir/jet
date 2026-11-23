@@ -180,3 +180,13 @@ The following remain open and must not be silently decided:
 - Source repository uses a custom all-rights-reserved LICENSE. The same owner appears to control both repositories, but verify ownership of each source/asset and review third-party dependencies individually before reuse.
 - [НЕ ПРОВЕРЕНО] No LansetSpBot code was copied or executed as part of this research. Its latest scheduled dependency audit run inspected here was red with seven known vulnerability findings across three packages; see the audit document.
 - No Jetson product scope, production stack, or vendor selection was changed by this research.
+
+
+## LansetSpBot-derived engineering principles adopted into the foundation (2026-11-23)
+
+- [СОГЛАСОВАНО] The reusable engineering principles from the LansetSpBot static audit are now incorporated as section 10 of [MASTER_PROMPT_FOUNDATION_ADDENDUM.md](MASTER_PROMPT_FOUNDATION_ADDENDUM.md).
+- Mandatory controls include separate campaign/job/delivery lifecycles; explicit state machines and terminal-state guards; an UNCERTAIN outcome for remote operations whose result cannot be confirmed; safe reconciliation before retry; atomic database-side reservation/queue/finalization; compare-and-set and worker-lease concurrency controls; provider-neutral error classification; fail-closed startup/readiness; privacy-safe observability and consent-based diagnostics; recoverable migrations; production-path integration evidence; and verifiable release/supply-chain evidence.
+- Apply first to Jetson Business campaigns and durable messaging/background jobs, and where relevant to payment, AI and other side-effecting integrations.
+- [ВОПРОС] Exact state names/schemas, queue/database technology, provider idempotency capabilities, retry policy and deployment topology remain open for evidence-based ADRs. This adoption does not select a stack or vendor.
+- No LansetSpBot code, Telegram-specific behavior, Windows-specific security implementation, desktop UI or dependency lockfile is approved for copying. Any source reuse requires a separate rights/provenance and third-party license review.
+- The adoption supplements the missing canonical 16-point MASTER PROMPT; it does not replace or reconstruct it.
