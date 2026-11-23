@@ -23,11 +23,23 @@ concurrency:
 
 jobs:
   agent:
-    if: ${{ secrets.OPENAI_API_KEY != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Check API credential
+        id: preflight
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::AI execution skipped safely. Configure OPENAI_API_KEY only after setting provider-side usage limits."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Validate target branch
+        if: steps.preflight.outputs.enabled == 'true'
         env:
           REQUESTED_BASE: ${{ inputs.base_branch }}
         run: |
@@ -42,12 +54,14 @@ jobs:
           esac
 
       - name: Checkout approved base
+        if: steps.preflight.outputs.enabled == 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.base_branch }}
           fetch-depth: 0
 
       - name: Create isolated agent branch
+        if: steps.preflight.outputs.enabled == 'true'
         id: branch
         env:
           RUN_ID: ${{ github.run_id }}
@@ -58,49 +72,50 @@ jobs:
           echo "name=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Run Codex
+        if: steps.preflight.outputs.enabled == 'true'
         id: codex
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: .github/codex/prompts/engineering-agent.md
           prompt: |
+            First read and obey .github/codex/prompts/engineering-agent.md and docs/agent/AGENT_RULES.md.
             Owner task:
             ${{ inputs.task }}
           sandbox: workspace-write
           safety-strategy: drop-sudo
-          output-file: codex-report.md
+          output-file: ${{ runner.temp }}/codex-report.md
 
       - name: Validate patch
+        if: steps.preflight.outputs.enabled == 'true'
+        id: validate
         run: |
           set -euo pipefail
+          git add -N .
           git diff --check
-          if git diff --quiet; then
-            echo "Agent made no changes; no PR will be created."
-            exit 0
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Agent made no repository changes; no PR will be created."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --short
+            git diff --stat
           fi
-          git status --short
-          git diff --stat
 
       - name: Commit and push isolated branch
-        id: publish
+        if: steps.validate.outputs.changed == 'true'
         env:
           BRANCH_NAME: ${{ steps.branch.outputs.name }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if git diff --quiet; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          git add -A
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
           git commit -m "agent: focused engineering change"
           git push --set-upstream origin "$BRANCH_NAME"
-          echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Open draft pull request
-        if: steps.publish.outputs.changed == 'true'
+        if: steps.validate.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH_NAME: ${{ steps.branch.outputs.name }}
@@ -112,9 +127,12 @@ jobs:
             --base "$BASE_BRANCH" \
             --head "$BRANCH_NAME" \
             --title "AI Engineer: automated focused change (run $RUN_ID)" \
-            --body-file codex-report.md
+            --body-file "${{ runner.temp }}/codex-report.md"
 
-    - name: Explain missing API key
-      if: ${{ secrets.OPENAI_API_KEY == '' }}
-      run: |
-        echo "::notice::AI execution skipped safely: add OPENAI_API_KEY as a GitHub Actions secret after setting provider-side usage limits."
+      - name: Upload agent report
+        if: steps.preflight.outputs.enabled == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-report-${{ github.run_id }}
+          path: ${{ runner.temp }}/codex-report.md
+          if-no-files-found: ignore
