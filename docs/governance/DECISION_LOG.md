@@ -230,3 +230,6 @@ The following remain open and must not be silently decided:
 - [ДОКУМЕНТИРОВАНО] Procedure, artifact path, safety boundary and acceptance checks are in [ANDROID_EMULATOR_E2E_RUNBOOK.md](../testing/ANDROID_EMULATOR_E2E_RUNBOOK.md), section 11.
 - [НЕ ПРОВЕРЕНО] Fresh CI has not yet confirmed the snapshot is generated and uploaded on a live client-connect failure. No root cause for the Bob connection timeout is established by this code change.
 - Required success criterion is unchanged: Bob must emit `POC_MESSAGE_RECEIVED package=com.jetson.poc.bob` after Alice's connection and send callbacks. No merge to `main`.
+
+
+- **2026-11-23 — E2E diagnostic refinement:** Run 45208871446 built both APKs and booted the emulator, but Bob remained CONNECTING. The live snapshot captured repeated JWebSocket frames; the first filter omitted the exception header/cause. Follow-up commit a5f4975 adds a bounded, redacted System.err / AndroidRuntime stack capture. Next diagnostic run must inspect the exception header/cause. No TLS/token/server root cause is confirmed; no production or main changes.
