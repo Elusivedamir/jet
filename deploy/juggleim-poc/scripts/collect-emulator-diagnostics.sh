@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Collect bounded, secret-conscious diagnostics for the Android Emulator CI job.
 # This script must never print CI secrets, app tokens, message bodies, or full environments.
-set +euo pipefail
+set +e
+set +u
+set +o pipefail
 
 OUT_DIR="${1:-artifacts/emulator-diagnostics}"
 mkdir -p "$OUT_DIR"
