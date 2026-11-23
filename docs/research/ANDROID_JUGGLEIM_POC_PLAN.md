@@ -127,3 +127,18 @@ At completion, record:
 [НЕ СОГЛАСОВАНО] JuggleIM is not selected for production.  
 [НЕ ПРОВЕРЕНО] Runtime behavior and performance of the Android SDK in Jetson integration.  
 [ПРЕДЛОЖЕНИЕ] Execute this PoC before committing the first APK implementation to a production stack.
+
+
+## Upstream SDK build audit update (2026-11-23)
+
+Static inspection of the current upstream Android SDK repository is recorded in [JUGGLEIM_ANDROID_SDK_BUILD_AUDIT.md](./JUGGLEIM_ANDROID_SDK_BUILD_AUDIT.md).
+
+Additional findings:
+- Upstream README now documents JuggleIM artifact version 1.9.0; the earlier 1.8.39 reference is historical and must not be reused without verification.
+- Upstream build config contains a machine-specific macOS JDK path and demo signing values/keystore reference. Neither may be copied into Jetson.
+- Core SDK minSdk is 19, JetIMKit minSdk is 24, demo minSdk is 24, and another sample app minSdk is 26. Jetson's minimum Android version remains undecided.
+- JetIMKit declares Sendbird Chat 4.16.0 as a dependency alongside JuggleIM. Do not adopt the UI kit before reviewing why this second messaging vendor is included and completing license/data-flow review.
+- The demo includes multiple optional push and RTC vendor integrations; none is automatically required for the first PoC.
+- Root Gradle configuration mixes plugin versions; a clean build is required to establish a reproducible toolchain.
+
+These are static findings only. No Gradle build, APK build, APK inspection, or runtime test has been executed. Production selection remains open.
