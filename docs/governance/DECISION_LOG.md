@@ -91,13 +91,12 @@ The owner approved the consolidated engineering additions (36 controls). They ap
 - Flutter may remain a candidate for Android+iOS only, subject to runtime feature-parity and license/provenance checks.
 - No technology stack or JuggleIM dependency is approved by this audit. Android APK build/runtime PoC remains pending because this execution environment lacks Flutter/Dart and Android SDK tooling.
 
-## Android PoC preparation (2026-11-23)
+## Android PoC preparation — historical snapshot (2026-11-23)
 
 - Android JuggleIM validation steps and Given/When/Then acceptance criteria are recorded in [ANDROID_JUGGLEIM_POC_PLAN.md](../research/ANDROID_JUGGLEIM_POC_PLAN.md).
-- No APK has been built and no runtime test has passed.
-- Current execution environment lacks Flutter/Dart, Android SDK/adb, Gradle, and Docker; Java and Git are available.
-- The next executable step requires an Android build environment and isolated JuggleIM test server/backend credentials. Never use demo credentials or expose server secrets in the client.
-- Production selection remains open pending PoC evidence.
+- [ИСТОРИЧЕСКАЯ ЗАПИСЬ, УСТАРЕЛО] At the time this entry was written, no APK had been built and no runtime test had passed. Later entries below supersede this point-in-time status.
+- The earlier execution environment lacked Flutter/Dart, Android SDK/adb, Gradle, and Docker; Java and Git were available. Subsequent CI-based Android build and isolated E2E infrastructure are recorded below.
+- Production selection remains open pending complete PoC evidence and security/license review.
 
 ## Open product decisions
 
@@ -133,6 +132,7 @@ The following remain open and must not be silently decided:
 
 ## Android PoC scaffold and CI (2026-11-23)
 
+- [ИСТОРИЧЕСКАЯ ЗАПИСЬ, ЧАСТИЧНО УСТАРЕЛО] This section records the initial scaffold state. Later session/E2E entries below supersede its statement that runtime session behavior was not implemented.
 - Added an isolated, minimal Android project under `android/poc/` and a GitHub Actions build workflow at `.github/workflows/android-poc.yml`.
 - Toolchain pinned for the PoC: JDK 17, Gradle 8.7, AGP 8.6.1, compile/target SDK 35; PoC-only minSdk 24. The final product minSdk remains open.
 - JuggleIM artifact pin is 1.9.0 based on current upstream README. The app's JuggleIM initialization is guarded by explicit public AppKey and WSS configuration; defaults are empty and do not connect.
@@ -150,6 +150,14 @@ The following remain open and must not be silently decided:
 - Implementation and limits are documented in [JUGGLEIM_ANDROID_SESSION_POC.md](../research/JUGGLEIM_ANDROID_SESSION_POC.md) and [android/poc/README.md](../../android/poc/README.md).
 - CI is running for the implementation on the working branch. Do not describe the feature as live-connected until a test session reaches CONNECTED and messaging tests pass.
 - No production technology stack or production use of JuggleIM is approved by this PoC. No merge to `main`.
+
+## Approved foundation addendum (2026-11-23)
+
+- The owner approved [MASTER_PROMPT_FOUNDATION_ADDENDUM.md](MASTER_PROMPT_FOUNDATION_ADDENDUM.md) as a foundational engineering/security/reliability/product-safeguards supplement.
+- Approved controls include threat modelling; authentication/session and server-side authorization; privacy/data lifecycle; messaging cryptography decision gate; attachment and abuse controls; explicit architecture/API contracts and requirement-to-evidence traceability; synchronization correctness; compatibility and supply-chain review; measurable reliability, backup/restore and incident response; business/payment/campaign/legal/AI readiness gates; AI-assisted development safeguards; severity model and release gates.
+- Product/architecture parameters that require evidence or owner choice (including E2EE scope, data retention, business team model, legal jurisdictions, payment rails, AI provider and SLO/RPO/RTO values) remain explicitly open. The addendum does not silently select them.
+- The addendum supplements, and does not replace or reconstruct, the missing canonical 16-point MASTER PROMPT. Restoring that source verbatim remains mandatory before production implementation.
+- Apply the new controls immediately to research, architecture and isolated PoC work. The PoC is not production approval for JuggleIM.
 
 ## JuggleIM isolated Android E2E PoC (2026-11-23)
 
