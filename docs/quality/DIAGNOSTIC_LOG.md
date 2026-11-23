@@ -166,3 +166,29 @@ The public sync listener is therefore **not** a direct signal that follows CONNE
 
 **Commits:** `0b400ebb425fbbf58aeb67b156b06e22f8d2cea8`, `fbce7f3f90209345488ec9cae098792994d23b0b`.  
 **Final result for run 45235367532:** completed with `failure` (job `137905535856`). The workflow again verified Bob `CONNECTED code=0`, TLS and WebSocket `101 Switching Protocols`, then timed out after 120 seconds waiting for `POC_MESSAGE_SYNC_COMPLETE`. Alice was not started. APK builds and unit tests completed successfully before the emulator step. The diagnostics artifact was uploaded as `jetson-android-emulator-diagnostics-45235367532-1` (artifact ID `14848518615`). This confirms the blocker remains in the SDK post-connect initialization/synchronization chain; it does not prove which internal request is stuck.
+
+
+## 2026-11-23 — SDK post-connect blocker identified: unsupported public-key upload topic
+
+**CI run:** 45235367532; job 137905535856; diagnostics artifact 14848518615.  
+**New evidence from the full emulator artifact:**
+- Bob reaches `CONNECTED code=0` and the independent TLS 1.3 / WebSocket HTTP 101 probe passes.
+- Immediately after CONNECTED, SDK logs repeatedly report `[JLogger:MSG-UploadPubKey] error, code is 11013`.
+- No conversation-sync or message-sync completion follows; the test times out waiting for Bob's `POC_MESSAGE_SYNC_COMPLETE`.
+- The emulator is also reported `offline` by ADB at the end of the run. ADB instability is real, but it does not explain away the repeated protocol-level 11013 response observed while the app was running.
+
+**Root cause evidence (source inspection):**
+- In the official Android SDK, `ConnectionManager.onConnectComplete` calls `MessageManager.checkAndUploadPubKey(...)` before conversation sync and message-history sync.
+- When E2EE is enabled and no keypair is cached, `checkAndUploadPubKey` sends `uploadPubKey(...)`; its completion callback is the gate that starts conversation sync. On error, the SDK retries and does not advance the callback.
+- The exact pinned JuggleIM server source commit used by this PoC is `471425fe0acfa0f9658e62eff69a3ba5bb622515`. In that source, error code `11013` is `IMErrorCode_CONNECT_UNSUPPORTEDTOPIC`. The server's publish-topic fallback returns that code for an unsupported topic.
+- The SDK's public-key upload therefore receives the server's unsupported-topic response, leaving the SDK permanently before conversation/message sync. This is a concrete SDK/server protocol compatibility mismatch, not a TLS, WebSocket, user-token, or Alice/Bob message-routing failure.
+
+**Status:** Root cause for the current sync gate is identified with high confidence from the paired SDK and pinned-server source paths. Do not weaken the E2E by skipping the key-upload gate, and do not disable E2EE merely to make the test green.
+
+**Next narrow action:**
+1. Check the current upstream JuggleIM server revision for support for the SDK's public-key upload topic and identify the earliest compatible server commit/release.
+2. Compare that revision against the pinned commit, review its migration/configuration implications, and update the PoC pin only if compatibility is confirmed.
+3. Add a small compatibility regression check that confirms the server accepts the SDK's public-key upload before running the full Android E2E.
+4. Keep emulator/ADB reliability as a separate follow-up; do not conflate it with the 11013 protocol failure.
+
+**Security:** No tokens, AppSecret values, public-key bytes, or message bodies were added to this entry.
