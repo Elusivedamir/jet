@@ -95,6 +95,34 @@ wait_for_log() {
   return 1
 }
 
+CURRENT_STAGE="independent_wss_transport_probe"
+adb shell am start -n com.jetson.poc.bob/com.jetson.poc.MainActivity --ez poc_transport_probe_only true
+probe_status=""
+for attempt in $(seq 1 25); do
+  probe_log="$(adb logcat -d -s JetsonPoC:I 2>/dev/null || true)"
+  probe_status="$(grep -F "POC_TRANSPORT_WS_STATUS" <<<"$probe_log" | tail -n 1 || true)"
+  if [[ -n "$probe_status" ]]; then
+    break
+  fi
+  if grep -Fq "POC_TRANSPORT_PROBE_FAILED" <<<"$probe_log"; then
+    capture_failure_diagnostics "independent_transport_probe_failed"
+    exit 1
+  fi
+  sleep 1
+done
+if [[ -z "$probe_status" ]]; then
+  capture_failure_diagnostics "independent_transport_probe_no_http_response"
+  echo "Independent WSS probe produced no HTTP response." >&2
+  exit 1
+fi
+echo "Independent transport result: $probe_status"
+if [[ "$probe_status" != *"HTTP/1.1 101"* ]]; then
+  capture_failure_diagnostics "independent_transport_probe_non_101"
+  echo "Independent WSS probe did not receive HTTP 101 Switching Protocols." >&2
+  exit 1
+fi
+adb shell am force-stop com.jetson.poc.bob
+
 CURRENT_STAGE="start_bob"
 adb shell am start -n com.jetson.poc.bob/com.jetson.poc.MainActivity --es poc_test_token "$BOB_TOKEN" --es poc_test_sign_key "$JUGGLE_SIGN_KEY" --es poc_expected_message "$E2E_MESSAGE"
 wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.bob"
