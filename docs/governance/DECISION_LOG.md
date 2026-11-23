@@ -118,3 +118,14 @@ The following remain open and must not be silently decided:
 - Chatwoot is a reference for CRM/campaign/reporting concepts, not an automatic code/stack choice.
 - Zulip is a reference for engineering discipline, tests, permissions, and documentation.
 - No architecture proposal in this repository is approved merely by being documented.
+
+
+## JuggleIM Android SDK build audit (2026-11-23)
+
+- Static upstream build/integration review is recorded in [JUGGLEIM_ANDROID_SDK_BUILD_AUDIT.md](../research/JUGGLEIM_ANDROID_SDK_BUILD_AUDIT.md).
+- Current upstream README documents Android artifact 1.9.0; older 1.8.39 notes are historical pending exact artifact verification.
+- Upstream sample contains a machine-specific JDK path and hardcoded demo signing configuration; neither may be copied into Jetson.
+- The optional JetIMKit UI module declares Sendbird Chat 4.16.0 alongside JuggleIM. It is not accepted for Jetson pending dependency, licensing, data-flow, and necessity review.
+- Core SDK, JetIMKit, demo, and sample app declare different minSdk levels (19, 24, 24, 26 respectively); Jetson's supported Android API range remains open.
+- No JuggleIM version, UI kit, minimum Android API, or production stack is approved by this audit.
+- Static inspection only; no Gradle build, APK, or runtime tests have passed.
