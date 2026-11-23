@@ -109,14 +109,14 @@ jobs:
 
           : > upstream-sources/MANIFEST.txt
           for repo in $repos; do
-            name="${repo//\\//__}"
+            name="${repo//\//__}"
             dest="upstream-sources/$name"
             echo "Fetching $repo"
             if timeout 180 git -c protocol.version=2 clone --depth 1 --filter=blob:limit=5m --no-tags "https://github.com/$repo.git" "$dest"; then
               sha="$(git -C "$dest" rev-parse HEAD)"
-              printf '%s %s\\n' "$repo" "$sha" | tee -a upstream-sources/MANIFEST.txt
+              printf '%s %s\n' "$repo" "$sha" | tee -a upstream-sources/MANIFEST.txt
             else
-              printf '%s FETCH_FAILED\\n' "$repo" | tee -a upstream-sources/MANIFEST.txt
+              printf '%s FETCH_FAILED\n' "$repo" | tee -a upstream-sources/MANIFEST.txt
               rm -rf "$dest"
             fi
           done
