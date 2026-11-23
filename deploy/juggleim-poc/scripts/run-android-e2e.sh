@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+: "${JUGGLE_SIGN_KEY:?JUGGLE_SIGN_KEY is required}"
 : "${BOB_TOKEN:?BOB_TOKEN is required}"
 : "${ALICE_TOKEN:?ALICE_TOKEN is required}"
 : "${BOB_USER_ID:?BOB_USER_ID is required}"
@@ -95,11 +96,11 @@ wait_for_log() {
 }
 
 CURRENT_STAGE="start_bob"
-adb shell am start -n com.jetson.poc.bob/com.jetson.poc.MainActivity --es poc_test_token "$BOB_TOKEN" --es poc_expected_message "$E2E_MESSAGE"
+adb shell am start -n com.jetson.poc.bob/com.jetson.poc.MainActivity --es poc_test_token "$BOB_TOKEN" --es poc_test_sign_key "$JUGGLE_SIGN_KEY" --es poc_expected_message "$E2E_MESSAGE"
 wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.bob"
 
 CURRENT_STAGE="start_alice"
-adb shell am start -n com.jetson.poc.alice/com.jetson.poc.MainActivity --es poc_test_token "$ALICE_TOKEN" --es poc_peer_user_id "$BOB_USER_ID" --es poc_test_message "$E2E_MESSAGE"
+adb shell am start -n com.jetson.poc.alice/com.jetson.poc.MainActivity --es poc_test_token "$ALICE_TOKEN" --es poc_test_sign_key "$JUGGLE_SIGN_KEY" --es poc_peer_user_id "$BOB_USER_ID" --es poc_test_message "$E2E_MESSAGE"
 wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.alice"
 wait_for_log "POC_MESSAGE_SENT package=com.jetson.poc.alice"
 wait_for_log "POC_MESSAGE_RECEIVED package=com.jetson.poc.bob"
