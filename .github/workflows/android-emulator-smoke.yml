@@ -1,9 +1,6 @@
 name: Android PoC - emulator smoke test
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - project/foundation-and-juggleim-poc
 permissions:
   contents: read
 concurrency:
