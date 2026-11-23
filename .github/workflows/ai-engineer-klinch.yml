@@ -57,11 +57,10 @@ jobs:
           model="$(printf '%s' "$response" | jq -r '
             [.data[]?.id] |
             if index("gpt-6.1-sol") then "gpt-6.1-sol"
-            elif length > 0 then .[0]
             else empty end
           ')"
           if [ -z "$model" ] || [ "$model" = "null" ]; then
-            echo "::error::KLINCH returned no models available to OPENAI_API_KEY."
+            echo "::error::KLINCH does not list gpt-6.1-sol for OPENAI_API_KEY; refusing to use another model."
             exit 1
           fi
           echo "model=$model" >> "$GITHUB_OUTPUT"
