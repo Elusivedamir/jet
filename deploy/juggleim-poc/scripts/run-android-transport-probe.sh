@@ -51,3 +51,5 @@ if [[ "$probe_status" != *"HTTP/1.1 101"* ]]; then
 fi
 
 echo "TRANSPORT_PROBE_PASS: TLS and WebSocket Upgrade returned HTTP 101."
+
+# CI trigger-only comment: no runtime behavior change.
