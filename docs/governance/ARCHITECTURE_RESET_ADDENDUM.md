@@ -32,3 +32,25 @@ Build Jetson-owned identity, authorization, conversation and messaging domains, 
 ## What this does not authorize
 
 This direction does not authorize changing approved product requirements, adding paid providers, purchasing infrastructure, exposing secrets, merging branches, deploying, or releasing. It does authorize updating project documentation and preparing a greenfield implementation plan on a separate branch.
+
+
+## LansetSpBot carry-forward — mandatory reliability baseline
+
+The owner explicitly instructed that Jetson must retain and apply the valuable engineering work accumulated in LansetSpBot. The reviewed source is `Elusivedamir/LansetSpBot_Windows`; the detailed static review is `docs/research/LANSETSPBOT_REUSE_AUDIT.md`.
+
+Carry forward the **engineering patterns**, not Telegram or Windows implementation details:
+
+- Distinct business-operation, execution-job and individual-delivery records/state machines; terminal-state protection and explicit legal transitions.
+- Durable intent/outbox and receipt/inbox patterns; idempotency keys; duplicate suppression; explicit `UNCERTAIN` outcomes when dispatch may have happened but acknowledgement is missing.
+- Reconciliation before retry; provider-neutral error classification; bounded backoff/jitter; retry-after handling; dead-letter/manual review and replay safety.
+- Atomic database reservation/enqueue/finalization; compare-and-set or row-version checks; worker leases; deterministic tests for concurrency, cancellation races, stale events and restart recovery.
+- Ordered fail-closed startup phases and truthful readiness; privacy-safe structured observability, centralized redaction and consent-based diagnostic export.
+- Recoverable migrations, integrity checks, backup/restore tests, dependency/license/security audits, SBOM, pinned CI actions and release provenance.
+
+These controls apply to **the messenger core as well as Jetson Business**: message acceptance, fan-out, per-device delivery, read receipts, push dispatch, media processing, synchronization, AI and payment side effects where applicable. They are not limited to bulk campaigns.
+
+Do not transplant Telethon/Telegram RPCs, Telegram rate-limit rules, PySide6 UI, Windows DPAPI/ACL code, SQLCipher desktop-profile layout, local account identifiers, dependency pins or experimental scaffolds. Reimplement each invariant using Jetson-owned contracts and the approved platform's secure primitives. A pattern in LansetSpBot is a design reference, not proof that a Jetson implementation is production-ready.
+
+The source audit found a red dependency-audit result at the reviewed source revision. No LansetSpBot dependency lockfile or third-party package set is approved for Jetson. Verify current source ownership/provenance and every third-party license before any source-code or asset reuse.
+
+**Status:** [СОГЛАСОВАНО] reuse and application of the above engineering patterns; [НЕ СОГЛАСОВАНО] bulk copying or direct adoption of LansetSpBot modules; [ВОПРОС] Jetson-specific schemas, queue technology, state names and provider capabilities remain subject to ADRs and tests.
