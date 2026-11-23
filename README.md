@@ -5,7 +5,9 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 ## Canonical product source
 
 - [Original business plan (PDF)](2_5197266343509931487_261123_112332.pdf) — authoritative source for product, business model, features, commercial assumptions and roadmap.
-- [Business-plan index and traceability](docs/product/BUSINESS_PLAN_BASELINE.md) — working transcription only; subordinate to the PDF and must be checked against it.
+- [Verified business-plan baseline](docs/product/BUSINESS_PLAN_BASELINE.md) — structured from the complete 15-section, seven-page text supplied by the owner on 2026-11-23; the original PDF remains preserved as the source artifact.
+- [Product requirements and acceptance framework](docs/product/PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md) — staged MUST/OPEN requirements, acceptance conditions and release gates.
+- [User journeys](docs/product/USER_JOURNEYS.md) — core journeys for personal users, businesses and message recipients.
 - [Master prompt](docs/governance/MASTER_PROMPT.md)
 - [Branch strategy](docs/governance/BRANCHING_STRATEGY.md)
 - [Repository and branch inventory](docs/governance/REPOSITORY_INVENTORY.md)
@@ -14,7 +16,7 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 
 ## Current status
 
-**Stage 0 — discovery.** No backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. No visual design is binding.
+**Stage 1 planning — requirements and journeys.** The business-plan study is complete from the owner's supplied full text. Product requirements and initial user journeys are documented. No backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. Detailed UI remains iterative.
 
 Research up to 1,000 relevant public repositories in transparent tiers. No repository is adopted wholesale. Existing projects are learning sources only; choices require evidence and comparison against the business plan.
 
