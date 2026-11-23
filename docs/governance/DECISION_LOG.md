@@ -91,6 +91,14 @@ The owner approved the consolidated engineering additions (36 controls). They ap
 - Flutter may remain a candidate for Android+iOS only, subject to runtime feature-parity and license/provenance checks.
 - No technology stack or JuggleIM dependency is approved by this audit. Android APK build/runtime PoC remains pending because this execution environment lacks Flutter/Dart and Android SDK tooling.
 
+## Android PoC preparation (2026-11-23)
+
+- Android JuggleIM validation steps and Given/When/Then acceptance criteria are recorded in [ANDROID_JUGGLEIM_POC_PLAN.md](../research/ANDROID_JUGGLEIM_POC_PLAN.md).
+- No APK has been built and no runtime test has passed.
+- Current execution environment lacks Flutter/Dart, Android SDK/adb, Gradle, and Docker; Java and Git are available.
+- The next executable step requires an Android build environment and isolated JuggleIM test server/backend credentials. Never use demo credentials or expose server secrets in the client.
+- Production selection remains open pending PoC evidence.
+
 ## Open product decisions
 
 The following remain open and must not be silently decided:
