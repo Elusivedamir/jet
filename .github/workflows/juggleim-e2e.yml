@@ -81,7 +81,9 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 600
           script: |
-            set -euo pipefail
+            # android-emulator-runner executes this script with /bin/sh,
+            # so avoid Bash-only options such as pipefail.
+            set -eu
             adb root
             adb wait-for-device
             bash deploy/juggleim-poc/scripts/install-ca-on-emulator.sh
@@ -95,7 +97,7 @@ jobs:
               --es poc_expected_message "$E2E_MESSAGE"
 
             wait_for_log() {
-              local pattern="$1"
+              pattern="$1"
               for _ in $(seq 1 90); do
                 if adb logcat -d -s JetsonPoC:I | grep -Fq "$pattern"; then
                   echo "Verified emulator event: $pattern"
