@@ -1,8 +1,10 @@
 package com.jetson.poc;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.InputType;
+import android.util.Log;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
@@ -14,7 +16,9 @@ import com.juggle.im.JIMConst;
 import com.juggle.im.interfaces.IConnectionManager;
 
 public final class MainActivity extends Activity {
+    private static final String TAG = "JetsonPoC";
     private static final String LISTENER_KEY = "jetson-poc-main";
+    private static final String DEBUG_TOKEN_EXTRA = "poc_test_token";
 
     private TextView statusView;
     private EditText tokenInput;
@@ -69,6 +73,7 @@ public final class MainActivity extends Activity {
         if (sdkConfigured) {
             connectionManager.addConnectionStatusListener(LISTENER_KEY, connectionListener);
             renderConnectionStatus(connectionManager.getConnectionStatus(), 0);
+            connectFromDebugIntent();
         }
     }
 
@@ -134,14 +139,29 @@ public final class MainActivity extends Activity {
     }
 
     private void connectWithTestToken() {
+        connectWithToken(tokenInput.getText().toString().trim());
+    }
+
+    private void connectFromDebugIntent() {
+        if (!BuildConfig.DEBUG) {
+            return;
+        }
+        Intent launchIntent = getIntent();
+        if (launchIntent == null || !launchIntent.hasExtra(DEBUG_TOKEN_EXTRA)) {
+            return;
+        }
+        String token = launchIntent.getStringExtra(DEBUG_TOKEN_EXTRA);
+        launchIntent.removeExtra(DEBUG_TOKEN_EXTRA);
+        connectWithToken(token == null ? "" : token.trim());
+    }
+
+    private void connectWithToken(String token) {
+        tokenInput.setText("");
         if (!sdkConfigured || connectionManager == null) {
             statusView.setText("Сначала настройте тестовые AppKey и WSS endpoint.");
             return;
         }
-
-        String token = tokenInput.getText().toString().trim();
-        tokenInput.setText("");
-        if (token.isEmpty()) {
+        if (token == null || token.isEmpty()) {
             statusView.setText("Введите тестовый токен, выданный сервером.");
             return;
         }
@@ -150,6 +170,7 @@ public final class MainActivity extends Activity {
         try {
             connectionManager.connect(token);
         } catch (RuntimeException exception) {
+            Log.e(TAG, "JuggleIM connect invocation failed", exception);
             statusView.setText("Не удалось начать подключение. Проверьте endpoint, AppKey и тестовый токен.");
         }
     }
@@ -162,6 +183,7 @@ public final class MainActivity extends Activity {
             connectionManager.disconnect(false);
             statusView.setText("Запрошено отключение от JuggleIM.");
         } catch (RuntimeException exception) {
+            Log.e(TAG, "JuggleIM disconnect invocation failed", exception);
             statusView.setText("Не удалось выполнить отключение.");
         }
     }
@@ -171,6 +193,7 @@ public final class MainActivity extends Activity {
             statusView.setText("Состояние соединения пока неизвестно.");
             return;
         }
+        Log.i(TAG, "JuggleIM connection state=" + status + " code=" + code);
         switch (status) {
             case CONNECTED:
                 statusView.setText("JuggleIM: соединение установлено.");
