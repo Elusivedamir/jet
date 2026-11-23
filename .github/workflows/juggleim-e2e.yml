@@ -9,6 +9,7 @@ on:
     paths:
       - .github/workflows/juggleim-e2e.yml
       - android/poc/app/src/main/java/com/jetson/poc/MainActivity.java
+      - deploy/juggleim-poc/scripts/run-android-e2e.sh
   # Keep manual execution available for later acceptance runs.
   workflow_dispatch:
 
