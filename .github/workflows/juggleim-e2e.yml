@@ -100,8 +100,9 @@ jobs:
       # This runs even when the emulator action fails before invoking the E2E script.
       - name: Collect Android emulator diagnostics
         if: always()
+        timeout-minutes: 2
         shell: bash
-        run: bash deploy/juggleim-poc/scripts/collect-emulator-diagnostics.sh
+        run: timeout --signal=TERM --kill-after=5s 90s bash deploy/juggleim-poc/scripts/collect-emulator-diagnostics.sh
 
       - name: Upload Android emulator diagnostics
         if: always()
