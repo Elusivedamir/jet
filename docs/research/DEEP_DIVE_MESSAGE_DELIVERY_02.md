@@ -134,3 +134,56 @@ These are engineering invariants to evaluate against the business plan, not prod
 - No guarantee is claimed for exactly-once delivery, end-to-end delivery, cryptographic safety or production readiness.
 - No code was copied into Jetson; no architecture or technology was selected.
 - Product prioritization remains blocked on verified transcription and page-by-page reconciliation of the canonical business-plan PDF.
+
+
+## 8. Additional critical-path findings from extended source trace
+
+### OpenIM: queue acknowledgement and persistence failure need a dedicated fault-injection audit
+
+Additional exact source:
+- `internal/msgtransfer/online_history_msg_handler.go`, lines 100–140, 250–360, blob `8af585ce33b1ca9661bfda1abd00e5277d46e944`.
+- `pkg/common/storage/controller/msg_transfer.go`, blob `8a8d9e7d26cf51a117826e7728b9f92ff5d3861f`.
+
+Observed:
+- The batcher's `OnComplete` callback calls `Mark()` and `Commit()` on the last raw MQ message.
+- The worker's `do` callback has no returned error value.
+- `handleMsg` logs a failure from `BatchInsertChat2Cache` and returns from that helper; the outer `do` function does not receive an error.
+- `MsgToMongoMQ` and `MsgToPushMQ` failures are logged in the inspected handler paths rather than returned to the batcher callback.
+- `HandlerRedisMessage` logs an error from `Put`, then returns nil.
+- The storage controller allocates conversation sequence numbers, writes messages into Redis cache, and exposes a separate method for sending the Mongo persistence queue message. The handler invokes the Mongo queue step after cache insertion.
+- In `handleMsg`, the non-storage push path is invoked before the cache batch insert. A later cache insertion failure therefore occurs after that push attempt.
+
+Risk assessment:
+- These are **high-priority potential message-loss / inconsistent-side-effect paths**, not a confirmed exploitable defect. The exact behavior depends on the batcher implementation, underlying MQ's Mark/Commit semantics, producer durability and consumer-group offset behavior.
+- Because the handler's processing callback does not propagate errors to the acknowledgement callback, the code shape makes it essential to verify whether failed processing can still reach `OnComplete` and commit the batch.
+- If a message is pushed before its durable history record exists, a recipient could be notified before the durable record is safely stored. If cache insertion fails and the source offset is nevertheless committed, recovery may be impossible without another replay path.
+- If publishing to Mongo or push fails but the batch is still committed, verify whether a durable retry/outbox mechanism exists elsewhere. Logging alone is not a recovery strategy.
+
+Required tests before this design could be considered safe:
+1. Force Redis cache write to fail; inspect source MQ offset after handler completion and restart.
+2. Force Mongo-queue publish to fail after Redis cache write; verify durable retry/reconciliation.
+3. Force push-queue publish to fail; verify independent retry and no message loss.
+4. Force `batcher.Put` to fail; verify the caller does not silently acknowledge the source message.
+5. Kill process between `Mark` and `Commit`, and between cache write and downstream queue publish.
+6. Verify that committing the last message in a batch cannot acknowledge earlier messages whose effects failed.
+7. Confirm the exact MQ producer delivery guarantees and consumer offset semantics for the pinned release.
+
+### Tinode: sequence allocation and message insert are separate adapter calls in the mapper
+
+Additional exact source:
+- `server/store/store.go`, lines 681–710, blob `0a06b29288f92cd203b13d7573bf835a3e6cdda0`.
+- `server/db/mysql/adapter.go` and `server/db/postgres/adapter.go` implement `TopicUpdateOnMessage` and `MessageSave` separately.
+- PostgreSQL `MessageSave` inserts the message with the already-assigned sequence ID and returns the database row ID.
+
+Observed:
+- The mapper calls `TopicUpdateOnMessage` first, then `MessageSave`.
+- They are separate adapter interface calls. The inspected mapper does not wrap both in one explicit transaction.
+- The schema has a unique `(topic, seqid)` index, which protects uniqueness but does not by itself prove atomicity between sequence advancement and message insert.
+
+Risk / question:
+- A failure between sequence advancement and message insert may leave a sequence gap or require retry handling. Gaps may be acceptable, but that must be an explicit invariant and clients must not assume contiguous sequence numbers.
+- Verify per-adapter behavior, concurrency under simultaneous sends, duplicate retries and recovery from insert failure. Do not infer atomicity from the unique index.
+
+### License correction for ejabberd
+
+The root `COPYING` file was inspected after the earlier GitHub metadata returned `NOASSERTION`. It contains GNU GPL version 2 text and an OpenSSL linking exception. Source modules also state GPL version 2 or later. The repository's actual licensing terms therefore need to be read from the root file and applicable notices; metadata alone was insufficient.
