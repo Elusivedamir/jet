@@ -13,6 +13,7 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Consolidated discovery index — 1,185 candidates](docs/research/CONSOLIDATED_DISCOVERY_INDEX.md)
 - [Initial README screening](docs/research/INITIAL_README_SCREENING.md)
 - [Deep-dive backend comparison](docs/research/DEEP_DIVE_BACKEND_COMPARISON_01.md)
+- [Deep-dive message delivery and persistence](docs/research/DEEP_DIVE_MESSAGE_DELIVERY_02.md)
 - [Candidate scorecard template](docs/research/CANDIDATE_SCORECARD_TEMPLATE.md)
 - [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
 
