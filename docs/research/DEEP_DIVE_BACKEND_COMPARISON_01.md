@@ -80,10 +80,10 @@ Evidence:
 - Tree contains CI, installer, container and runtime workflows and a broad Common Test suite.
 - SECURITY.md recommends latest releases, offers private vulnerability reporting and states an acknowledgement target within 72 hours.
 - Latest observed release: 26.09, published 2026-09-30; latest commit observed 2026-11-23.
-- GitHub API license field was NOASSERTION; inspect root and bundled component licenses.
+- GitHub API license field was NOASSERTION. Follow-up inspection of root COPYING found GNU GPL version 2 text with an OpenSSL linking exception; source modules state GPL version 2 or later. Verify all applicable notices and dependencies before reuse.
 
 Implications:
-- Strong reference for long-running server operations, protocol extensibility, multi-platform packaging and mature tests.
+- Strong reference for long-running server operations, protocol extensibility, multi-platform packaging and mature tests. Source-level delivery review is documented separately in DEEP_DIVE_MESSAGE_DELIVERY_02.md.
 - Build a capability-by-capability XMPP extension matrix: archive, receipts, reactions, edits, push, multi-device, calls, file transfers, moderation, offline delivery and group semantics.
 - XMPP is a protocol choice with long-term client/server interoperability consequences.
 
