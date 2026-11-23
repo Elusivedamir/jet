@@ -190,3 +190,13 @@ The following remain open and must not be silently decided:
 - [ВОПРОС] Exact state names/schemas, queue/database technology, provider idempotency capabilities, retry policy and deployment topology remain open for evidence-based ADRs. This adoption does not select a stack or vendor.
 - No LansetSpBot code, Telegram-specific behavior, Windows-specific security implementation, desktop UI or dependency lockfile is approved for copying. Any source reuse requires a separate rights/provenance and third-party license review.
 - The adoption supplements the missing canonical 16-point MASTER PROMPT; it does not replace or reconstruct it.
+
+
+## Canonical MASTER PROMPT recovered and recorded (2026-11-23)
+
+- [ПОДТВЕРЖДЕНО] The owner supplied the complete text titled **MASTER PROMPT — JETSON MESSENGER** in the conversation on 2026-11-23.
+- The supplied text is now preserved in [MASTER_PROMPT_CANONICAL.md](MASTER_PROMPT_CANONICAL.md) as the canonical source capture. It includes Parts I–XII, product concept and unresolved questions, the 16-step workflow, execution controls, reporting rules, and engineering additions 26–52.
+- The source's own labels remain authoritative: Parts VII and VIII are explicitly headed **[ДОПОЛНЕНИЕ — ТРЕБУЕТ СОГЛАСОВАНИЯ]** in the captured text. Archiving the prompt does not automatically approve every clause; retain separately recorded explicit approvals and open statuses.
+- The separately supplied [ENGINEERING_REGULATION_28-46.md](ENGINEERING_REGULATION_28-46.md) remains a distinct supplementary source. It overlaps with but is not identical to the engineering clauses in the canonical prompt. Do not merge or renumber it silently.
+- [MASTER_PROMPT_RECOVERY_REQUIRED.md](MASTER_PROMPT_RECOVERY_REQUIRED.md) has been updated to reflect that the complete owner-provided prompt text is now captured. No version number or historical date beyond the date of supply has been inferred.
+- No product scope, architecture, technology stack, vendor, or production implementation was changed by this documentation task.
