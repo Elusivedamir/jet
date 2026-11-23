@@ -2,19 +2,19 @@
 
 ## Purpose
 
-Learn from a broad body of public engineering work without treating any repository as Jetson's template or foundation. The target is to screen up to 1,000 relevant repositories, then deeply inspect a smaller shortlist.
+Learn from a broad body of public engineering work without treating any repository as Jetson's template or foundation. The discovery target is at least 1,000 candidate names, followed by evidence-based screening and deep inspection of a smaller shortlist. A raw search result is not counted as screened.
 
 ## Research tiers
 
 | Tier | Target | Work | Output |
 |---|---:|---|---|
-| Discovery | Up to 1,000 | Search by capability/category; capture URL, purpose and basic metadata | Candidate index |
+| Discovery | At least 1,000 candidate names | Search by capability/category; capture URL, purpose and basic metadata | Candidate index |
 | Screening | About 100 | Activity, license, maintainers, architecture, tests, security, docs, deployment | Scored shortlist with evidence |
 | Deep review | 20–50 | Source and test inspection, failure paths, threat model, data model, reproducibility | Technical review dossiers |
 | Synthesis | All shortlisted themes | Compare patterns, anti-patterns, gaps and trade-offs | Neutral pattern catalogue |
 | Decision | Only after synthesis | Compare options against Jetson requirements and PoCs | ADRs, including rejected options |
 
-Targets are research goals, not claims of completed inspection. Report the actual number found, screened and deeply reviewed. If search coverage or rate limits prevent reaching a target, state the limitation rather than padding the count.
+Targets are research goals, not claims of completed inspection. Initial discovery has produced 1,185 unique repository names across two search batches. The first selected deep-dive comparison now covers six backends; see the linked progress files below. These counts do not mean all 1,185 have been screened. Report the actual number found, screened and deeply reviewed. If search coverage or rate limits prevent reaching a target, state the limitation rather than padding the count.
 
 ## Capability map
 
@@ -65,6 +65,15 @@ For every repository capture:
 - Include failed projects and documented incidents to learn what not to do.
 - Avoid choosing a stack before requirements and comparative research.
 - Any adopted pattern must be justified independently; no repository is adopted wholesale.
+
+## Current progress (2026-11-23)
+
+- [Consolidated discovery index](CONSOLIDATED_DISCOVERY_INDEX.md): 1,185 unique names from two batches.
+- [Batch 01](candidate-catalogue-batch-01.md) and [batch 02](candidate-catalogue-batch-02.md): raw search-result catalogues.
+- [Initial README screening](INITIAL_README_SCREENING.md): first selected-project reading pass.
+- [Repository metadata screening](REPOSITORY_METADATA_SCREENING.md): GitHub metadata for 20 repositories.
+- [Deep-dive backend comparison 01](DEEP_DIVE_BACKEND_COMPARISON_01.md): six backend projects, with deployment, license, security-policy and test-structure evidence.
+- [Candidate scorecard template](CANDIDATE_SCORECARD_TEMPLATE.md): neutral, unweighted evidence matrix.
 
 ## Initial research outputs
 
