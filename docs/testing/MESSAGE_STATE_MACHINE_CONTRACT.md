@@ -1,6 +1,7 @@
 # Message State Machine — Contract for Tests
 
-**Status:** Proposed observable contract; implementation-neutral.  
+**Status:** Proposed observable contract; implementation-neutral.
+**Trace:** `CORE-003`, `CORE-004`, Gate A and cross-cutting reliability requirements in `docs/product/PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md`.
 **Authority:** Business plan and product acceptance framework. This document does not choose storage, broker, protocol or client technology.
 
 ## 1. Separate the message from its delivery attempts
