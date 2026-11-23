@@ -18,6 +18,19 @@ android {
         buildConfigField "String", "JUGGLE_WSS_URL", asBuildConfigString(configuredWssUrl)
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
+    flavorDimensions += "pocUser"
+    productFlavors {
+        alice {
+            dimension "pocUser"
+            applicationIdSuffix ".alice"
+            versionNameSuffix "-alice"
+        }
+        bob {
+            dimension "pocUser"
+            applicationIdSuffix ".bob"
+            versionNameSuffix "-bob"
+        }
+    }
     buildFeatures { buildConfig true }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
