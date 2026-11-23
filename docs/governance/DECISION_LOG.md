@@ -210,3 +210,13 @@ The following remain open and must not be silently decided:
 - Updated `.github/workflows/juggleim-e2e.yml` to run the diagnostic collector and upload its output even when emulator startup or the E2E test fails. Diagnostic artifact retention is three days.
 - [НЕ ПРОВЕРЕНО] The new collector has not yet been exercised by a fresh GitHub Actions run. Its artifact presence and contents must be verified in the next run; this change does not prove emulator boot or Alice-to-Bob message delivery.
 - Required E2E success evidence remains Bob's `POC_MESSAGE_RECEIVED package=com.jetson.poc.bob` marker after Alice's successful connection and send markers. APK build success alone is insufficient.
+
+## Bounded Android emulator diagnostics (2026-11-23)
+
+- [ПОДТВЕРЖДЕНО] In workflow run `45201616287` / job `137786313978`, the Alice/Bob E2E step failed and the following diagnostic collector remained `in_progress` for at least 15 minutes. At that point the artifact was not yet listed and the job-log download endpoint returned `BlobNotFound` while the job was active.
+- [ПОДТВЕРЖДЕНО] Static inspection found potentially blocking ADB commands in the collector without command-level timeouts. This is a real robustness defect/risk; the exact command responsible for the observed stall is [НЕ УСТАНОВЛЕНО].
+- [ИЗМЕНЕНО] `collect-emulator-diagnostics.sh` now wraps potentially blocking ADB, tool-version, host-inspection, AVD-discovery and log-reading operations with GNU `timeout`, emits explicit timeout/exit markers, and continues collecting other sections.
+- [ИЗМЕНЕНО] The workflow diagnostics step now has a two-minute GitHub step timeout and a 90-second shell-level timeout with TERM/KILL escalation.
+- [ДОКУМЕНТИРОВАНО] The incident evidence, mitigation, acceptance checks and remaining unknowns are recorded in [ANDROID_EMULATOR_E2E_RUNBOOK.md](../testing/ANDROID_EMULATOR_E2E_RUNBOOK.md).
+- [НЕ ПРОВЕРЕНО] No fresh CI run has yet validated the new collector behavior or artifact upload. This change does not establish the cause of the Alice/Bob message-exchange failure and does not prove E2E success.
+- Required next verification: shell syntax and workflow YAML checks, then a fresh GitHub Actions run. Preserve the requirement for Alice connect/send and Bob `POC_MESSAGE_RECEIVED package=com.jetson.poc.bob` markers before declaring messaging verified.
