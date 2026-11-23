@@ -173,3 +173,8 @@ The existing post-job collector remains in place for runner/KVM/AVD information 
 ### Follow-up: preserve SDK exception causes
 
 Run 45208871446 confirmed Bob remained CONNECTING. The first live snapshot retained repeated JWebSocket stack-frame references but its filtered marker pipeline omitted the leading exception type/message. The E2E script now captures a separate bounded System.err / AndroidRuntime stack section (with credential redaction) before emulator teardown. The next run must inspect the exception header and cause before changing TLS, token, or server configuration. Root cause remains unconfirmed.
+
+
+### Root cause and correction: empty JuggleIM signing key
+
+Run 45211331834's live failure snapshot exposed the exact exception: `IllegalArgumentException: Empty key` from `SecretKeySpec`, called by `JUtility.createSignature` and `JWebSocket.addConnectHeader`. Inspection of the pinned Android SDK source confirmed `IConnectionManager.setConnectParams(String signKey, Map<String,String> headers)` is the setter for the key passed to the WebSocket signature routine. The PoC initialized JIM with AppKey but never called this setter. The isolated provisioning flow now exports the server-created App Secret as masked `JUGGLE_SIGN_KEY`; local credentials remain mode 0600; debug-only launch extras pass it to the Activity, which removes the extra and calls `setConnectParams` before `connect`. A password field supports manual PoC tests. This secret flow is test-only and must not be carried into a production APK. Verification pending: next E2E must establish both clients and receive the message. No TLS root cause was found.
