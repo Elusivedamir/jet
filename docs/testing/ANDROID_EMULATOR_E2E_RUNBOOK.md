@@ -168,3 +168,8 @@ The existing post-job collector remains in place for runner/KVM/AVD information 
 **Acceptance checks:** verify shell syntax; run the E2E workflow; on a deliberately failing or naturally failing client-connect stage, confirm the live snapshot exists and contains the stage plus available Android/server error markers. A successful run should not create a failure snapshot. Do not infer the root cause from the presence of a generic warning; correlate timestamps and client/server evidence.
 
 **Current status:** code committed; fresh CI verification pending. This diagnostic change does not itself fix TLS, WSS, authentication, or SDK connectivity and does not weaken the required Bob receive assertion.
+
+
+### Follow-up: preserve SDK exception causes
+
+Run 45208871446 confirmed Bob remained CONNECTING. The first live snapshot retained repeated JWebSocket stack-frame references but its filtered marker pipeline omitted the leading exception type/message. The E2E script now captures a separate bounded System.err / AndroidRuntime stack section (with credential redaction) before emulator teardown. The next run must inspect the exception header and cause before changing TLS, token, or server configuration. Root cause remains unconfirmed.
