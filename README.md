@@ -1,31 +1,28 @@
 # Jetson Messenger
 
-Repository for the Jetson Messenger product and its implementation.
+Jetson Messenger is restarting from a technology-neutral discovery baseline. The **original business-plan PDF is the canonical product source** and must be preserved without edits.
 
-## Project governance
+## Canonical product source
 
-The approved product specification and approved MASTER PROMPT are the authoritative sources of requirements. Engineering rules apply throughout the project. Do not change product behavior, commercial terms, scope, or approved decisions without explicit owner approval.
+- [Original business plan (PDF)](2_5197266343509931487_261123_112332.pdf) — authoritative source for product, business model, features, commercial assumptions and roadmap.
+- [Business-plan index and traceability](docs/product/BUSINESS_PLAN_BASELINE.md) — working transcription only; subordinate to the PDF and must be checked against it.
+- [Master prompt](docs/governance/MASTER_PROMPT.md)
+- [Branch strategy](docs/governance/BRANCHING_STRATEGY.md)
+- [Repository landscape research method](docs/research/REPOSITORY_LANDSCAPE_METHOD.md)
+- [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
 
-Before implementation:
-- preserve the approved specification and decision history;
-- record technical decisions and their rationale;
-- verify repository state and dependencies before modifying existing code;
-- distinguish verified facts, assumptions, proposals, and open questions;
-- never claim tests, security, performance, or production readiness without evidence.
+## Current status
 
-## Current bootstrap state
+**Stage 0 — discovery.** No backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. No visual design is binding.
 
-Repository initialized on 2026-11-23. This initial commit establishes the Git reference needed to create a separate working branch.
+Research up to 1,000 relevant public repositories in transparent tiers. No repository is adopted wholesale. Existing projects are learning sources only; choices require evidence and comparison against the business plan.
 
-The complete approved MASTER PROMPT and numbered product specification (points 1–16) must be imported verbatim from their canonical source before implementation begins. Do not reconstruct missing source text from summaries.
+## Non-negotiable governance
 
-## Planned documentation areas
+The original business-plan PDF takes precedence over summaries, technical proposals, old prompts, previous implementations and assistant assumptions. If any discrepancy appears, record it and correct subordinate documents; do not silently alter the PDF or reinterpret its requirements.
 
-- `docs/product/` — approved product specification and requirements;
-- `docs/governance/` — MASTER PROMPT, decision log, change control;
-- `docs/architecture/` — architecture, interfaces, ADRs;
-- `docs/research/` — third-party project evaluations and PoC reports;
-- `docs/security/` — threat model, security requirements, verification;
-- `docs/quality/` — test strategy, acceptance criteria, release gates.
+Product scope, commercial model, user promises, release boundaries and roadmap may not be changed without explicit owner approval. Technical discovery must not silently change them.
 
-No application stack or production architecture is approved by this bootstrap commit.
+Historical JuggleIM experiments, LansetSpBot reviews and earlier architecture proposals remain research evidence only, not mandatory foundations or production dependencies. Historical branches and commits are preserved.
+
+Work on focused branches, never directly on `main`. No merge, deployment or release without explicit owner approval.
