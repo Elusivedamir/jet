@@ -8,6 +8,7 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Business-plan index and traceability](docs/product/BUSINESS_PLAN_BASELINE.md) — working transcription only; subordinate to the PDF and must be checked against it.
 - [Master prompt](docs/governance/MASTER_PROMPT.md)
 - [Branch strategy](docs/governance/BRANCHING_STRATEGY.md)
+- [Repository and branch inventory](docs/governance/REPOSITORY_INVENTORY.md)
 - [Repository landscape research method](docs/research/REPOSITORY_LANDSCAPE_METHOD.md)
 - [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
 
