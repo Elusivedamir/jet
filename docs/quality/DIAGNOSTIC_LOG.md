@@ -102,5 +102,23 @@
 **Next diagnostic change:** Add bounded, body-free metadata logging at the very start of Bob's `onMessageReceive` callback: message ID, sender ID, conversation type/ID, content type/class, and whether the content matches the synthetic expected message. This distinguishes no callback from unexpected message content/type without exposing message text or tokens.
 
 **Instrumentation commit:** `085b5afbe0d59586b2e2b3edbf08aaca7bd603c8`.  
-**Follow-up full E2E run:** `45228512866` (queued at time of this entry); its result will determine the next narrow investigation. Build/unit run: `45228511324` (queued).  
+**Follow-up full E2E run:** `45228512866` completed and failed at the same receive marker. Its diagnostics contained no `POC_MESSAGE_RECEIVE_CALLBACK` line, so Bob's application listener was not invoked at all. This rules out only a text-comparison mismatch; it does not yet locate the loss between server routing and SDK sync.
+
 **Status:** [НЕ ПРОЙДЕНО] end-to-end private message delivery. Transport and SDK connection gates are [ПРОЙДЕНЫ] in run 45226487329.
+
+
+## 2026-11-23 — Initial JuggleIM message synchronization gate
+
+**Source inspection:** Official Android SDK repository `juggleim/imsdk-android`, `MessageManager.java` (current master; SDK dependency in this PoC is 1.9.0). The SDK's `onMessageReceive(ConcreteMessage)` returns without dispatching ordinary incoming messages while `mSyncProcessing` is true. During initial synchronization it expects the message-sync flow to complete; the public completion signal is `IMessageManager.IMessageSyncListener.onMessageSyncComplete()`.
+
+**Test gap identified:** The PoC E2E waited only for `ConnectionStatus.CONNECTED` before starting Alice and sending. It did not wait for Bob's initial message-history synchronization to complete. Alice's send was also triggered immediately on CONNECTED, before Alice's own sync completion.
+
+**Change made on `project/foundation-and-juggleim-poc`:**
+- Added a message-sync listener and body-free `POC_MESSAGE_SYNC_COMPLETE` marker.
+- Alice now sends the synthetic message only after its own initial sync callback.
+- E2E now waits for Bob's initial sync completion before starting Alice, and waits for Alice's sync completion before requiring send success.
+- Added metadata-only send-request logging for recipient ID, conversation type, conversation ID and message state. No message body or credentials are logged.
+
+**Commits:** `b622cc18ccbd67ff0690ce33c8dc3f8ab7886973`, `85267844e477e204a6a1e99eb4fa503d6e30b4c1`, `32ac66c2cda6b452a8bffd6b825d371efc1574a3`.
+
+**Interpretation:** This is a real sequencing defect in the previous test and a plausible explanation for the missing receive callback, but it is not yet a proven root cause. The next E2E must show both sync-complete markers, then Alice send success, then Bob receive callback. If Bob still receives nothing, inspect server-side routing and message sync response next. Do not rerun TLS/WebSocket transport: this change does not affect that layer.
