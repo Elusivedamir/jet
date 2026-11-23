@@ -129,3 +129,13 @@ The following remain open and must not be silently decided:
 - Core SDK, JetIMKit, demo, and sample app declare different minSdk levels (19, 24, 24, 26 respectively); Jetson's supported Android API range remains open.
 - No JuggleIM version, UI kit, minimum Android API, or production stack is approved by this audit.
 - Static inspection only; no Gradle build, APK, or runtime tests have passed.
+
+
+## Android PoC scaffold and CI (2026-11-23)
+
+- Added an isolated, minimal Android project under `android/poc/` and a GitHub Actions build workflow at `.github/workflows/android-poc.yml`.
+- Toolchain pinned for the PoC: JDK 17, Gradle 8.7, AGP 8.6.1, compile/target SDK 35; PoC-only minSdk 24. The final product minSdk remains open.
+- JuggleIM artifact pin is 1.9.0 based on current upstream README. The app's JuggleIM initialization is guarded by explicit public AppKey and WSS configuration; defaults are empty and do not connect.
+- No backend token issuance, messaging session, or production credentials are implemented in this scaffold.
+- Unit tests cover runtime configuration validation. GitHub Actions is configured to build a debug APK, run unit tests, and upload an artifact.
+- Scaffold source and workflow were committed to the existing working branch. CI execution result, APK artifact, and runtime behavior remain unverified. No merge to `main`.
