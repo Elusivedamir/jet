@@ -48,9 +48,7 @@ public final class MainActivity extends Activity {
                 public void onStatusChange(JIMConst.ConnectionStatus status, int code, String extra) {
                     runOnUiThread(() -> {
                         renderConnectionStatus(status, code);
-                        if (status == JIMConst.ConnectionStatus.CONNECTED) {
-                            sendDebugMessageIfRequested();
-                        }
+                        // Message sending waits for the SDK's initial history sync callback.
                     });
                 }
 
@@ -66,7 +64,10 @@ public final class MainActivity extends Activity {
             };
 
     private final IMessageManager.IMessageSyncListener messageSyncListener =
-            () -> Log.i(TAG, "POC_MESSAGE_SYNC_COMPLETE package=" + getPackageName());
+            () -> {
+                Log.i(TAG, "POC_MESSAGE_SYNC_COMPLETE package=" + getPackageName());
+                sendDebugMessageIfRequested();
+            };
 
     private final IMessageManager.IMessageListener messageListener =
             new IMessageManager.IMessageListener() {
