@@ -167,3 +167,5 @@ A dedicated, isolated Android PoC scaffold was added under `android/poc/`; it is
 - [ ] Two-user send/receive, ACK, offline sync, reconnect, multi-device, and security tests remain pending.
 
 This scaffold is a build-validation starting point only. A successful CI build will prove compilation/package assembly, not that the JuggleIM server integration or production security is correct.
+
+- Local build/configuration instructions are documented in [android/poc/README.md](../../android/poc/README.md). Android SDK setup action uses major version v4.
