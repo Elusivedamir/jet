@@ -1,6 +1,6 @@
 # Jetson Android PoC
 
-This is an isolated build-validation app, not the Jetson Messenger MVP.
+This is an isolated Android integration proof of concept, not the Jetson Messenger MVP.
 
 ## Toolchain
 
@@ -23,9 +23,9 @@ gradle --no-daemon :app:testDebugUnitTest
 
 The default AppKey and WSS endpoint are empty. The app does not initialize a network session in this state.
 
-## Optional SDK initialization
+## Configure a test IM application
 
-The AppKey is a public application identifier, not a server secret. Supply only a test AppKey and a TLS-protected WSS endpoint:
+Use a dedicated test application and TLS-protected WSS endpoint. AppKey is a public application identifier; it is not a substitute for server-side credentials.
 
 ```bash
 gradle --no-daemon \
@@ -34,22 +34,25 @@ gradle --no-daemon \
   :app:assembleDebug
 ```
 
-Do not place user tokens, `app_secret`, `app_secure_key`, admin credentials, or reusable demo tokens in Gradle properties committed to Git, source files, or APK resources. The eventual user token must be issued to the authenticated client by the Jetson Backend at runtime.
+Install the resulting APK, obtain a short-lived test user token from a trusted test backend/admin workflow, enter it into the password-style token field, and tap **Подключить JuggleIM**. The screen reports the SDK connection state and local message-database callbacks.
 
-## CI workflows
+The token is entered at runtime, cleared from the input immediately after being passed to the SDK, and is not written to preferences or logs by this PoC. Use test-only tokens. Do not place user tokens, `app_secret`, `app_secure_key`, admin credentials, or reusable demo tokens in Gradle properties committed to Git, source files, APK resources, screenshots, or CI logs.
 
-- `.github/workflows/android-poc.yml` runs on pushes and pull requests. It performs the Gradle debug build, unit tests, APK verification, and uploads the APK artifact. This is the required, repeatable CI gate.
-- `.github/workflows/android-emulator-smoke.yml` is a separate manual workflow (`workflow_dispatch`). Run it from GitHub Actions when an emulator install/launch smoke test is needed. Emulator boot instability cannot block the required build/unit-test gate.
+## Current integration boundary
 
-## Current scope
-
-- Minimal Android shell.
-- Guarded JuggleIM SDK initialization.
+Implemented:
+- JuggleIM SDK 1.9.0 dependency and guarded SDK initialization.
+- Runtime test-token entry and invocation of the real SDK `connect(token)` API.
+- Connection-state listener (connected, connecting, disconnected, failure).
+- Explicit disconnect action.
 - WSS-only endpoint validation.
 - Unit tests for runtime configuration.
 - CI build, unit tests, and debug APK artifact upload.
 - Separate manual Android emulator install/launch smoke test.
 
-Not implemented: Jetson account login, backend token issuance, actual IM session, conversation UI, messaging, offline sync, multi-device, push, or release signing.
+Not implemented:
+- Jetson account registration/login or backend-issued IM-token endpoint.
+- Production token lifecycle, refresh/revocation, logout coordination, or account binding.
+- Conversation list, send/receive UI, history, attachments, offline sync, multi-device, push, release signing, or production deployment.
 
-A green build proves only that the project compiles and packages. It does not prove server compatibility, runtime correctness, or production security. The manual emulator smoke test proves only that the APK can be installed and the activity launched in that emulator environment; it does not prove live JuggleIM connectivity.
+A successful emulator launch proves only that the APK installs and its activity starts. A successful SDK connection requires a reachable JuggleIM server, matching AppKey, and valid token. A successful SDK connection alone does not prove Jetson authentication or end-to-end messaging.
