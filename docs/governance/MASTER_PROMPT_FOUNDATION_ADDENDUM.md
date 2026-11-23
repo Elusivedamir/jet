@@ -272,3 +272,89 @@ Maintain, as appropriate:
 - Product-specific parameters listed in section 7 remain open; this is intentional, not an omission to fill with guesses.
 - Apply the controls immediately to research, architecture and the isolated JuggleIM PoC where relevant. The PoC is not production evidence and does not approve JuggleIM as the production messaging engine.
 - Before production implementation, restore the original MASTER PROMPT verbatim and reconcile it with this addendum. The addendum cannot replace the missing original 16-point source.
+
+## 10. Durable jobs, campaign execution and remote-delivery correctness — LansetSpBot-derived principles
+
+**Status:** [СОГЛАСОВАНО] as reusable engineering principles; [ВОПРОС] for Jetson-specific schemas, state names, storage/queue technology and provider capabilities.  
+**Source:** static research documented in [LANSETSPBOT_REUSE_AUDIT.md](../research/LANSETSPBOT_REUSE_AUDIT.md). These rules adopt design principles only; they do not approve or copy the source repository's implementation.
+
+When designing or implementing any campaign, bulk-send, background task, notification, payment, AI job or other mutating remote operation, you MUST:
+
+### 10.1 Separate business, execution and delivery state
+1. Model the business operation (for example, campaign), the technical execution task/job, and each individual recipient/provider delivery as distinct concepts with distinct identifiers and lifecycles.
+2. Do not use one status field to represent campaign state, worker state and recipient delivery outcome.
+3. Define state machines explicitly: allowed transitions, forbidden transitions, terminal states, cancellation behavior, ownership and transition preconditions.
+4. Reject invalid transitions at the authoritative server/database boundary. A completed, failed or cancelled terminal record must not silently return to an active state.
+5. Keep state names and schemas provider-neutral. Provider-specific statuses must be mapped through a documented adapter contract.
+
+### 10.2 Represent uncertain remote outcomes explicitly
+1. Treat a timeout, connection reset or process crash after a remote request may have been dispatched as an unknown outcome, not automatic proof of failure.
+2. Provide an explicit UNCERTAIN (or equivalently precise) state where the remote side may have accepted or completed an operation but confirmation was lost.
+3. Never blindly retry an uncertain non-idempotent operation if doing so can duplicate a message, campaign action, payment, charge, AI action or other side effect.
+4. Before retrying, reconcile using a provider receipt, idempotency key, operation lookup, inbox/event record or other evidence-backed method.
+5. If safe reconciliation is impossible, preserve the uncertainty, prevent unsafe automatic retries, expose the state for controlled review and document the residual risk.
+6. Distinguish “request accepted”, “queued”, “sent”, “delivered”, “read” and “business operation completed”; never claim a stronger outcome than the available evidence proves.
+
+### 10.3 Make database-side state changes atomic
+1. Define transaction boundaries for quota/credit reservation, recipient selection, durable job creation, cancellation, provider receipt persistence, delivery status, counters and finalization.
+2. Where these changes form one logical database operation, commit or roll them back together. Prevent quota loss, orphan jobs, duplicate reservations and counter drift.
+3. Do not pretend a database transaction can atomically include an external network/provider call. Use an outbox/inbox, durable intent record, idempotent adapter and reconciliation workflow, or an equivalent documented pattern.
+4. Persist the provider's stable operation/message/receipt identifier when available and link it to the internal operation and delivery record.
+5. Define how partial success is represented; do not mark an entire campaign successful merely because one task or recipient succeeded.
+
+### 10.4 Protect concurrent workers and cancellation races
+1. Use compare-and-set, optimistic concurrency, row-version checks, leases or an equivalent proven mechanism when multiple workers or user actions can update the same operation.
+2. Verify affected-row counts or equivalent concurrency evidence; a successful SQL/API call alone does not prove that the intended state transition won the race.
+3. Define behavior when cancellation races with reservation, dispatch, provider acknowledgement or retry.
+4. Ensure only one worker owns a valid lease/claim at a time; define lease expiry, renewal, crash recovery and duplicate-worker behavior.
+5. Add deterministic tests for concurrent claims, duplicate events, stale updates, cancellation races and worker restarts.
+
+### 10.5 Centralize provider-neutral failure and retry policy
+1. Normalize provider failures into a documented internal taxonomy such as transient, deferred/rate-limited, terminal, authorization/configuration, invalid-input and uncertain-outcome.
+2. Keep provider-specific exception names, retry-after semantics, quotas and idempotency capabilities inside provider adapters.
+3. Apply bounded retries with backoff/jitter only when the operation is safe to retry; respect provider retry-after instructions and global rate/concurrency limits.
+4. Define deadlines, cancellation, maximum attempts, dead-letter/manual-review paths and replay safety.
+5. Do not classify an unknown error as retryable by default. Fail safely and retain enough privacy-safe diagnostics to investigate.
+
+### 10.6 Fail closed during startup and readiness
+1. Model startup as ordered, observable phases: configuration validation, secret availability, database connectivity, migrations, durable queue/worker initialization, required provider checks and readiness.
+2. A mandatory phase failure must prevent the service/worker from advertising readiness or accepting dependent work.
+3. Distinguish liveness from readiness. A process being alive does not prove that it can safely serve requests or process jobs.
+4. Define startup timeout, partial-startup cleanup, retry/restart policy and recovery after dependency restoration.
+5. Never silently skip a failed security, migration, authorization or data-integrity initialization step to keep the service running.
+
+### 10.7 Privacy-safe observability and diagnostics
+1. Use correlation/trace identifiers to connect business operation, job, delivery attempt and provider receipt without exposing private content.
+2. Log structured operation metadata and normalized error categories; do not log message bodies, passwords, access tokens, signing secrets, private keys or unnecessary personal data.
+3. Apply centralized redaction before data reaches logs, traces, crash reports or diagnostic exports. Treat provider error text and user-controlled fields as potentially sensitive.
+4. Bound log/event size and retention; define access control, audit and deletion policies for diagnostics.
+5. Diagnostic bundles must have a documented allowlist, exclude databases/session stores/secrets by default, support preview/redaction and require explicit user consent before export or sharing.
+
+### 10.8 Migrations must be safe and recoverable
+1. Validate schema/profile version and compatibility before mutation.
+2. Use explicit migration steps, transactions where supported, backups or recoverable checkpoints, integrity checks and clear failure reporting.
+3. On an unknown, corrupt or partially migrated state, fail closed rather than silently merging, overwriting or discarding user data.
+4. Test fresh install, upgrade from each supported version, interrupted migration, retry, rollback/forward-fix and backup restore.
+5. Keep client-local migration strategy platform-specific; do not assume a Windows desktop storage design is suitable for Android, iOS, Web or the server.
+
+### 10.9 Require production-path integration evidence
+1. A helper, state machine, schema, test fixture, architecture module or passing unit test is not proof that production code actually uses it.
+2. Trace every critical control from its real production entry point through the caller path, persistence boundary, worker/provider adapter and observable outcome.
+3. Add integration tests that exercise the actual composition/wiring and end-to-end tests for externally visible outcomes where feasible.
+4. Mark disconnected scaffolds, experimental modules and unused controls as [НЕ ПРОВЕРЕНО] or experimental; do not include them in production-readiness claims.
+5. Completion reports must state exactly which runtime path was exercised and which paths remain unverified.
+
+### 10.10 Release and supply-chain evidence
+1. Pin CI actions and build tools to reviewed immutable versions/SHAs where supported; grant workflows least privilege and restrict write permissions.
+2. Verify dependency lockfiles and hashes using the tool's actual semantics; do not claim hash verification merely because a “require hashes” flag is present.
+3. Run dependency vulnerability, license, secret and static-analysis checks; triage findings with package/version, advisory, reachability, exploitability and remediation status.
+4. Generate an SBOM and retain artifact hashes, source commit, build metadata and provenance/attestation for release artifacts where feasible.
+5. Treat a red security/dependency workflow as a release gate, not as informational decoration. Do not import another project's dependency pins or workflow configuration without independent review.
+
+### 10.11 Adoption boundary
+- These principles are mandatory design and review controls for Jetson's applicable workflows.
+- Apply them first to Jetson Business campaigns and durable messaging/background jobs, then to payment, AI and other side-effecting integrations where relevant.
+- They do not select a database, queue, broker, provider, framework, deployment topology or exact state schema. Those remain subject to comparative research and owner-approved ADRs.
+- Do not copy Telegram-specific behavior, Windows DPAPI/filesystem code, PySide6 UI, SQLCipher desktop profile architecture, account identifiers, dependencies or experimental modules from LansetSpBot into Jetson.
+- Source code reuse is a separate rights/provenance decision. Confirm ownership of each relevant code/asset and review all third-party licenses and dependencies before any copying.
+- This section supplements the canonical MASTER PROMPT and does not reconstruct or replace its missing original 16 points.
