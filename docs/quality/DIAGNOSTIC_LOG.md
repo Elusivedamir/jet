@@ -192,3 +192,18 @@ The public sync listener is therefore **not** a direct signal that follows CONNE
 4. Keep emulator/ADB reliability as a separate follow-up; do not conflate it with the 11013 protocol failure.
 
 **Security:** No tokens, AppSecret values, public-key bytes, or message bodies were added to this entry.
+
+
+## 2026-11-23 — JuggleIM protocol incompatibility follow-up (isolated agent run)
+
+**Branch:** `agent/klinch-45250374246`.
+
+**Reported evidence rechecked in this checkout:** the prior entry documents the emulator result (`CONNECTED`, successful TLS/WebSocket 101, then repeated `MSG-UploadPubKey` code `11013`) and its earlier source analysis: SDK topics `upload_pubkey` / `batch_qry_pubkeys`, server error `CONNECT_UNSUPPORTEDTOPIC`, and no corresponding server handlers at pin `471425fe0acfa0f9658e62eff69a3ba5bb622515`. This checkout contains no JuggleIM server source or SDK source files/artifacts with which to independently re-open those handlers. Thus these protocol claims remain grounded in the documented prior inspection and runtime artifact, not a fresh source verification in this run.
+
+**Investigation blocker:** outbound GitHub access failed DNS resolution for `github.com` / `raw.githubusercontent.com`; no compatible server revision could be checked. No local server checkout/cache was present. The precise SDK payload/schema and server-side request tests could not be independently verified here.
+
+**Smallest proven cause:** the previous runtime evidence places failure after transport and at the public-key upload stage, with an explicit unsupported-topic response. The exact topic-to-error mapping is recorded by prior source inspection but could not be reproduced from source in this isolated checkout. No safe runtime fix or compatible server pin is therefore proven by this run. E2EE remains enabled and no protocol gate was bypassed.
+
+**Checks:** `gradle --no-daemon --stacktrace :app:assembleAliceDebug :app:assembleBobDebug :app:testAliceDebugUnitTest :app:testBobDebugUnitTest` failed before project configuration: Gradle could not load `libnative-platform.so` while initializing native services. Available environment is Gradle 9.9.1 / JDK 25, not the configured CI Gradle 8.7 / JDK 17 toolchain. Full Android E2E was not run.
+
+**Outcome / remaining risk:** no runtime code or focused test was added because the protocol contract and compatible server revision could not be verified. Next required evidence is accessible pinned SDK and server source (or immutable source archives) plus server request tests/compatible release history; then add a narrow compatibility test before changing the pin. No credentials, key material, or message bodies are recorded here.
