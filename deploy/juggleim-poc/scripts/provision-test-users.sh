@@ -70,6 +70,7 @@ BOB_TOKEN="$(jq -er '.data.token' <<<"$bob_response")"
 
 cat > "$SECRETS_DIR/test-users.env" <<EOF
 JUGGLE_APP_KEY=$APP_KEY
+JUGGLE_SIGN_KEY=$APP_SECRET
 JUGGLE_WSS_URL=$WSS_URL
 ALICE_USER_ID=$ALICE_ID
 ALICE_TOKEN=$ALICE_TOKEN
@@ -80,10 +81,12 @@ chmod 600 "$SECRETS_DIR/test-users.env"
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "::add-mask::$APP_SECRET"
+  echo "::add-mask::$APP_SECRET"
   echo "::add-mask::$ALICE_TOKEN"
   echo "::add-mask::$BOB_TOKEN"
   {
     echo "JUGGLE_APP_KEY=$APP_KEY"
+    echo "JUGGLE_SIGN_KEY=$APP_SECRET"
     echo "JUGGLE_WSS_URL=$WSS_URL"
     echo "ALICE_USER_ID=$ALICE_ID"
     echo "ALICE_TOKEN=$ALICE_TOKEN"
