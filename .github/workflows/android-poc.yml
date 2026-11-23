@@ -44,9 +44,9 @@ jobs:
           java -version
           gradle --version
           sdkmanager --list_installed
-      - name: Build debug APK
+      - name: Build Alice and Bob debug APKs
         working-directory: android/poc
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+        run: gradle --no-daemon --stacktrace :app:assembleAliceDebug :app:assembleBobDebug
       - name: Run unit tests
         working-directory: android/poc
         run: |
@@ -56,13 +56,18 @@ jobs:
             :app:testBobDebugUnitTest
       - name: Verify APK output
         run: |
-          test -s android/poc/app/build/outputs/apk/debug/app-debug.apk
-          sha256sum android/poc/app/build/outputs/apk/debug/app-debug.apk
-          ls -lh android/poc/app/build/outputs/apk/debug/app-debug.apk
-      - name: Upload debug APK
+          test -s android/poc/app/build/outputs/apk/alice/debug/app-alice-debug.apk
+          test -s android/poc/app/build/outputs/apk/bob/debug/app-bob-debug.apk
+          sha256sum android/poc/app/build/outputs/apk/alice/debug/app-alice-debug.apk
+          sha256sum android/poc/app/build/outputs/apk/bob/debug/app-bob-debug.apk
+          ls -lh android/poc/app/build/outputs/apk/alice/debug/app-alice-debug.apk
+          ls -lh android/poc/app/build/outputs/apk/bob/debug/app-bob-debug.apk
+      - name: Upload debug APKs
         uses: actions/upload-artifact@v4
         with:
           name: jetson-android-poc-debug
-          path: android/poc/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/poc/app/build/outputs/apk/alice/debug/app-alice-debug.apk
+            android/poc/app/build/outputs/apk/bob/debug/app-bob-debug.apk
           if-no-files-found: error
           retention-days: 7
