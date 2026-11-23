@@ -10,7 +10,7 @@ on:
       base_branch:
         description: "Approved project branch to base the agent work on"
         required: true
-        default: "project/foundation-and-juggleim-poc"
+        default: "project/greenfield-reset"
         type: string
 
 permissions:
@@ -49,7 +49,7 @@ jobs:
             exit 1
           fi
           case "$REQUESTED_BASE" in
-            project/*|feature/*|fix/*) ;;
+            project/greenfield-reset|research/*|work/*|fix/*) ;;
             *) echo "Base branch must be an approved project/feature/fix branch."; exit 1 ;;
           esac
 
@@ -78,7 +78,7 @@ jobs:
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           prompt: |
-            First read and obey .github/codex/prompts/engineering-agent.md and docs/agent/AGENT_RULES.md.
+            First read README.md, docs/governance/MASTER_PROMPT.md, docs/governance/BRANCHING_STRATEGY.md, docs/governance/REPOSITORY_INVENTORY.md and docs/product/BUSINESS_PLAN_BASELINE.md. The original business-plan PDF is canonical; the Markdown transcription is unverified until page-by-page reconciliation. Do not change product scope or business terms. If a task depends on a product requirement that cannot be verified against the PDF, stop and report the blocker.
             Owner task:
             ${{ inputs.task }}
           permission-profile: ":workspace"
