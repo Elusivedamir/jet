@@ -69,12 +69,36 @@ public final class MainActivity extends Activity {
             new IMessageManager.IMessageListener() {
                 @Override
                 public void onMessageReceive(Message message) {
-                    if (message == null || !(message.getContent() instanceof TextMessage)) {
+                    if (message == null) {
+                        Log.w(TAG, "POC_MESSAGE_RECEIVE_CALLBACK package=" + getPackageName()
+                                + " message=null");
                         return;
                     }
-                    TextMessage text = (TextMessage) message.getContent();
-                    String content = text.getContent();
-                    if (debugExpectedMessage != null && debugExpectedMessage.equals(content)) {
+                    Conversation receivedConversation = message.getConversation();
+                    String receivedConversationId = receivedConversation == null
+                            ? "missing" : receivedConversation.getConversationId();
+                    String receivedConversationType = receivedConversation == null
+                            ? "missing" : receivedConversation.getConversationType().name();
+                    boolean isTextMessage = message.getContent() instanceof TextMessage;
+                    Log.i(TAG, "POC_MESSAGE_RECEIVE_CALLBACK package=" + getPackageName()
+                            + " messageId=" + message.getMessageId()
+                            + " sender=" + message.getSenderUserId()
+                            + " conversationType=" + receivedConversationType
+                            + " conversationId=" + receivedConversationId
+                            + " contentType=" + message.getContentType()
+                            + " contentClass=" + (message.getContent() == null
+                                ? "null" : message.getContent().getClass().getSimpleName())
+                            + " isText=" + isTextMessage);
+                    if (!isTextMessage) {
+                        return;
+                    }
+                    String content = ((TextMessage) message.getContent()).getContent();
+                    boolean matchesExpected = debugExpectedMessage != null
+                            && debugExpectedMessage.equals(content);
+                    Log.i(TAG, "POC_MESSAGE_RECEIVE_TEXT package=" + getPackageName()
+                            + " contentLength=" + (content == null ? -1 : content.length())
+                            + " matchesExpected=" + matchesExpected);
+                    if (matchesExpected) {
                         Log.i(TAG, "POC_MESSAGE_RECEIVED package=" + getPackageName());
                         runOnUiThread(() -> statusView.setText("Тестовое сообщение получено."));
                     }
