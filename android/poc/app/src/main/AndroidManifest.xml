@@ -6,6 +6,7 @@
         android:name=".JetsonApplication"
         android:allowBackup="false"
         android:label="Jetson Messenger PoC"
+        android:networkSecurityConfig="@xml/network_security_config"
         tools:replace="android:label"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
