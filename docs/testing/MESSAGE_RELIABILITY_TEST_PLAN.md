@@ -1,8 +1,8 @@
 # Message Reliability — Implementation-Neutral Test Plan
 
-**Status:** Engineering proposal; not an implementation or a product-scope approval.  
-**Source of truth:** `docs/product/BUSINESS_PLAN_BASELINE.md`; acceptance trace: `docs/product/PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md` (`CORE-003`, `CORE-004`, Gate A and cross-cutting reliability).  
-**Research inputs:** `docs/research/AGENT_REPORT_MESSAGE_RELIABILITY.md` and `docs/research/JETSON_ARCHITECTURE_SYNTHESIS.md`.  
+**Status:** Engineering proposal; not an implementation or a product-scope approval.
+**Source of truth:** `docs/product/BUSINESS_PLAN_BASELINE.md`; acceptance trace: `docs/product/PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md` (`CORE-003`, `CORE-004`, Gate A and cross-cutting reliability).
+**Research inputs:** `docs/research/AGENT_REPORT_MESSAGE_RELIABILITY.md` and `docs/research/JETSON_ARCHITECTURE_SYNTHESIS.md`.
 **No stack assumption:** tests are expressed as observable contracts and fault points. They can be adapted to any eventual persistence, broker, transport or client implementation.
 
 ## 1. Objective and non-goals
