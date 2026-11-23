@@ -19,7 +19,7 @@ concurrency:
 jobs:
   build:
     name: Build and unit test Android PoC
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - name: Checkout
@@ -51,9 +51,12 @@ jobs:
       - name: Install and launch APK in Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
+          target: google_apis
           arch: x86_64
           profile: pixel_2
+          disable-animations: true
+          emulator-boot-timeout: 600
           script: |
             adb install -r android/poc/app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -W -n com.jetson.poc/.MainActivity
