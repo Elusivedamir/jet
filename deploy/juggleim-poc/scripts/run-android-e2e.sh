@@ -41,6 +41,11 @@ capture_failure_diagnostics() {
       tail -n 160 |
       sed -E 's/((token|authorization|appsecret|app_secret|password)[=: ]+)[^ ,"]+/\1[REDACTED]/Ig' || true
     echo
+    echo "=== SDK / ANDROID EXCEPTION STACKS (BOUNDED) ==="
+    timeout --signal=TERM --kill-after=2s 8s adb logcat -d -v time -s System.err:W AndroidRuntime:E 2>&1 |
+      tail -n 180 |
+      sed -E 's/((token|authorization|appsecret|app_secret|password)[=: ]+)[^ ,"]+/\\1[REDACTED]/Ig; s/(Bearer )[A-Za-z0-9._~+\\/-]+/\\1[REDACTED]/Ig' || true
+    echo
     echo "=== JUGGLEIM SERVER / WSS PROXY ERROR MARKERS (FILTERED) ==="
     timeout --signal=TERM --kill-after=2s 10s docker compose -f deploy/juggleim-poc/docker-compose.yml logs --since=10m --tail=400 --no-color im-server wss-proxy 2>&1 |
       grep -Ei 'error|warn|fail|denied|unauthor|invalid|timeout|handshake|tls|websocket|connect|exception|panic' |
