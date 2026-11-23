@@ -45,4 +45,4 @@
 - Private CA/server keys remain outside Android resources and APKs.
 
 **Commits:** 7e89ef3, 092eb0f, 885d42f.  
-**Verification:** [НЕ ПРОВЕРЕНО] at time of this entry; the changed Android build workflow should provide the focused verification. Do not mark build/unit as passed until its CI result is successful.
+**Verification:** In CI run 45220625174, the new “Prepare per-run Android PoC TLS trust resource” step completed successfully. APK build and unit tests are still pending/in progress; do not mark build/unit as passed until the full workflow succeeds.
