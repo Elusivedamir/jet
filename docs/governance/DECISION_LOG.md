@@ -200,3 +200,13 @@ The following remain open and must not be silently decided:
 - The separately supplied [ENGINEERING_REGULATION_28-46.md](ENGINEERING_REGULATION_28-46.md) remains a distinct supplementary source. It overlaps with but is not identical to the engineering clauses in the canonical prompt. Do not merge or renumber it silently.
 - [MASTER_PROMPT_RECOVERY_REQUIRED.md](MASTER_PROMPT_RECOVERY_REQUIRED.md) has been updated to reflect that the complete owner-provided prompt text is now captured. No version number or historical date beyond the date of supply has been inferred.
 - No product scope, architecture, technology stack, vendor, or production implementation was changed by this documentation task.
+
+
+## E2E diagnostics and documentation discipline (2026-11-23)
+
+- [СОГЛАСОВАНО] For every meaningful implementation or CI change, document the purpose, changed files, execution sequence, acceptance evidence, troubleshooting path, and remaining unknowns in the repository alongside the code.
+- [СОГЛАСОВАНО] The Android emulator E2E pipeline has a dedicated operational guide at [ANDROID_EMULATOR_E2E_RUNBOOK.md](../testing/ANDROID_EMULATOR_E2E_RUNBOOK.md). Keep it synchronized with workflow and script changes.
+- Added `deploy/juggleim-poc/scripts/collect-emulator-diagnostics.sh` to capture bounded runner, KVM, ADB, Android boot, AVD and emulator-log evidence without dumping the full environment, credentials, tokens, or private message logs.
+- Updated `.github/workflows/juggleim-e2e.yml` to run the diagnostic collector and upload its output even when emulator startup or the E2E test fails. Diagnostic artifact retention is three days.
+- [НЕ ПРОВЕРЕНО] The new collector has not yet been exercised by a fresh GitHub Actions run. Its artifact presence and contents must be verified in the next run; this change does not prove emulator boot or Alice-to-Bob message delivery.
+- Required E2E success evidence remains Bob's `POC_MESSAGE_RECEIVED package=com.jetson.poc.bob` marker after Alice's successful connection and send markers. APK build success alone is insufficient.
