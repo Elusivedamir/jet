@@ -61,10 +61,27 @@ final class TransportProbe {
                     String status = reader.readLine();
                     if (status == null) throw new java.io.IOException("Server closed without HTTP response");
                     Log.i(TAG, "POC_TRANSPORT_WS_STATUS " + status);
-                    // Consume bounded response headers; never log their values.
+                    // Log only non-sensitive response metadata to identify 4xx sources.
                     for (int i = 0; i < 40; i++) {
                         String header = reader.readLine();
                         if (header == null || header.isEmpty()) break;
+                        String lower = header.toLowerCase(java.util.Locale.ROOT);
+                        if (lower.startsWith("server:")
+                                || lower.startsWith("content-type:")
+                                || lower.startsWith("content-length:")
+                                || lower.startsWith("sec-websocket-version:")) {
+                            Log.i(TAG, "POC_TRANSPORT_WS_HEADER " + header);
+                        }
+                    }
+                    if (!status.contains(" 101 ")) {
+                        char[] body = new char[512];
+                        int count = reader.read(body);
+                        if (count > 0) {
+                            String excerpt = new String(body, 0, count)
+                                    .replaceAll("[\\r\\n\\t]+", " ")
+                                    .replaceAll("[^\\x20-\\x7E]", "?");
+                            Log.i(TAG, "POC_TRANSPORT_WS_ERROR_BODY " + excerpt);
+                        }
                     }
                 }
             } catch (Exception exception) {
