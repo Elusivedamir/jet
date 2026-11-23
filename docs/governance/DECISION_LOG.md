@@ -220,3 +220,13 @@ The following remain open and must not be silently decided:
 - [ДОКУМЕНТИРОВАНО] The incident evidence, mitigation, acceptance checks and remaining unknowns are recorded in [ANDROID_EMULATOR_E2E_RUNBOOK.md](../testing/ANDROID_EMULATOR_E2E_RUNBOOK.md).
 - [НЕ ПРОВЕРЕНО] No fresh CI run has yet validated the new collector behavior or artifact upload. This change does not establish the cause of the Alice/Bob message-exchange failure and does not prove E2E success.
 - Required next verification: shell syntax and workflow YAML checks, then a fresh GitHub Actions run. Preserve the requirement for Alice connect/send and Bob `POC_MESSAGE_RECEIVED package=com.jetson.poc.bob` markers before declaring messaging verified.
+
+
+## Live Android/JuggleIM failure diagnostics (2026-11-23)
+
+- [ИЗМЕНЕНО] `deploy/juggleim-poc/scripts/run-android-e2e.sh` now captures a bounded failure snapshot from inside the emulator action when a required connection/message marker times out or a command fails.
+- [ИЗМЕНЕНО] The snapshot records the active E2E stage, ADB device/boot state, filtered client connection/TLS exception markers, and filtered JuggleIM/WSS server warning/error lines before emulator teardown.
+- [БЕЗОПАСНОСТЬ] Snapshot collection excludes full environment output, raw tokens, AppSecret and message bodies; simple credential-assignment redaction is applied. The artifact remains operationally sensitive and short-lived.
+- [ДОКУМЕНТИРОВАНО] Procedure, artifact path, safety boundary and acceptance checks are in [ANDROID_EMULATOR_E2E_RUNBOOK.md](../testing/ANDROID_EMULATOR_E2E_RUNBOOK.md), section 11.
+- [НЕ ПРОВЕРЕНО] Fresh CI has not yet confirmed the snapshot is generated and uploaded on a live client-connect failure. No root cause for the Bob connection timeout is established by this code change.
+- Required success criterion is unchanged: Bob must emit `POC_MESSAGE_RECEIVED package=com.jetson.poc.bob` after Alice's connection and send callbacks. No merge to `main`.
