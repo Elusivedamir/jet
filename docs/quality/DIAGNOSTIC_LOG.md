@@ -144,3 +144,25 @@
 
 **Fix commit:** `cd0783822400112db08dcf386dc0d98d6662df95`.  
 **New full E2E run:** `45233202404` on the corrected branch head; started and pending at time of this entry. It includes the Bob and Alice sync gates from the latest script. Do not report E2E as passed until the run emits both sync markers, Alice send success, and Bob receive success.
+
+
+## 2026-11-23 — Root-cause narrowing: SDK sync callback is downstream of multiple gates
+
+**CI run:** 45233202404, commit `cd0783822400112db08dcf386dc0d98d6662df95`.  
+**Artifact:** `jetson-android-emulator-diagnostics-45233202404-1`, artifact ID `14847669744`.  
+**Observed:** Bob reaches `CONNECTED code=0`; TLS and WebSocket Upgrade pass; the E2E waits 120 seconds for `POC_MESSAGE_SYNC_COMPLETE` and times out. Alice is not started.
+
+**Important source-level correction:** Inspection of the official Android SDK's `ConnectionManager.onConnectComplete` shows the order is:
+1. Set user/session and call `MessageManager.connectSuccess()`.
+2. Emit the connection-complete event (the app can observe `CONNECTED`).
+3. Call `MessageManager.checkAndUploadPubKey(...)`.
+4. Only after that callback, call `ConversationManager.syncConversations(...)`.
+5. Only after conversation sync completes, call `MessageManager.syncMessage()`.
+6. Only after message-history sync completes does `IMessageSyncListener.onMessageSyncComplete()` fire.
+
+The public sync listener is therefore **not** a direct signal that follows CONNECTED immediately. Its absence can mean the E2EE public-key upload or conversation sync has not completed; it does not by itself prove the message-history request is failing. SDK implementation references: `ConnectionManager.java` method `onConnectComplete`; `MessageManager.java` methods `checkAndUploadPubKey`, `syncMessage`, and `onMessageReceive`; `ConversationManager.java` method `internalSyncConversations`.
+
+**Diagnostic change:** Enable verbose JuggleIM SDK console logging in the PoC using the same `JLogConfig` / `InitConfig` pattern used by the official demo. Extend the bounded failure log filter to include only relevant SDK stage tags (`MSG-Sync`, `CONV-Sync`, `MSG-UploadPubKey`, `CON-Conn`) plus existing app/TLS markers. No tokens, secrets, or message bodies are intentionally logged.
+
+**Commits:** `0b400ebb425fbbf58aeb67b156b06e22f8d2cea8`, `fbce7f3f90209345488ec9cae098792994d23b0b`.  
+**New E2E run:** `45235367532` on commit `fbce7f3f90209345488ec9cae098792994d23b0b`; running at the time of this entry. Inspect the new stage logs before changing sync sequencing or server settings.
