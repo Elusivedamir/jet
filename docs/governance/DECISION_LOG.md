@@ -170,3 +170,13 @@ The following remain open and must not be silently decided:
 - The upstream JuggleIM REST signing protocol uses SHA-1 of `app_secret + nonce + timestamp`. The secret remains server-side. This is an upstream protocol limitation to include in the threat model; the PoC does not expose this signing operation to clients.
 - [НЕ ПРОВЕРЕНО] Live SDK connection and private-message exchange remain unverified until the new GitHub Actions E2E run completes successfully.
 - This PoC does not implement Jetson account authentication, secure password storage, session lifecycle, production token issuance/revocation, account mapping, authorization, or business services. No production architecture is approved and no merge to `main` is authorized.
+
+
+## LansetSpBot reuse research (2026-11-23)
+
+- Static review of the owner's [LansetSpBot_Windows repository](https://github.com/Elusivedamir/LansetSpBot_Windows) is recorded in [LANSETSPBOT_REUSE_AUDIT.md](../research/LANSETSPBOT_REUSE_AUDIT.md).
+- [ВЫВОД] Reusable engineering patterns include separate campaign/task/delivery state, explicit state transitions, uncertain remote outcomes, atomic reservation/queueing/finalization, compare-and-set, provider-neutral retry classification, fail-closed startup, privacy-safe observability, redaction, safe migrations, diagnostics and release provenance.
+- [ПРЕДЛОЖЕНИЕ] Evaluate these patterns for Jetson Business campaigns and durable messaging jobs; reimplement them against Jetson's approved architecture rather than transplanting Telegram/Windows-specific modules.
+- Source repository uses a custom all-rights-reserved LICENSE. The same owner appears to control both repositories, but verify ownership of each source/asset and review third-party dependencies individually before reuse.
+- [НЕ ПРОВЕРЕНО] No LansetSpBot code was copied or executed as part of this research. Its latest scheduled dependency audit run inspected here was red with seven known vulnerability findings across three packages; see the audit document.
+- No Jetson product scope, production stack, or vendor selection was changed by this research.
