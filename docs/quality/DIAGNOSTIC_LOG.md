@@ -79,3 +79,28 @@
 **Fix:** Workflow build command now passes the ephemeral `JUGGLE_APP_KEY` and `JUGGLE_WSS_URL` provisioned by bootstrap as Gradle properties. The App Secret and user tokens are not passed to the probe APK. Commit: `718d09ab501d02b8f983d18396f8ee27f13fcc5c`.
 
 **Next gate:** rerun the isolated probe. Required evidence is a TLS handshake followed by HTTP 101. If the probe still fails, inspect its bounded response metadata/body and server logs. SDK handshake/auth and Alice/Bob round-trip remain separate unverified gates.
+
+
+## 2026-11-23 — Full Android E2E: clients connect, recipient callback not observed
+
+**CI run:** 45226487329  
+**Branch / commit:** `project/foundation-and-juggleim-poc` / `9dd3200a09bcb307fa8736c164e4a43ba2eec2a9`  
+**Failing stage:** `wait_for:POC_MESSAGE_RECEIVED package=com.jetson.poc.bob`
+
+**Verified from emulator diagnostics:**
+- Isolated JuggleIM server and test-user provisioning completed.
+- Alice and Bob APKs built successfully.
+- Independent Android TLS 1.3 and WebSocket Upgrade both passed; server returned HTTP 101.
+- Bob SDK connection reached `CONNECTED code=0`.
+- Alice SDK connection reached `CONNECTED code=0`.
+- Alice send callback returned success and emitted `POC_MESSAGE_SENT`.
+- The Bob listener did not emit the expected `POC_MESSAGE_RECEIVED` marker within the test timeout.
+- The captured diagnostics do not establish whether Bob's listener received a non-TextMessage, whether the server routed/stored the message, or whether the SDK callback was absent. No message body or credentials were captured.
+
+**Conclusion:** The failure is isolated to the message-delivery/recipient-observation layer after both SDK sessions connected and Alice's send callback succeeded. Do not re-run or modify TLS/WebSocket transport based on this evidence.
+
+**Next diagnostic change:** Add bounded, body-free metadata logging at the very start of Bob's `onMessageReceive` callback: message ID, sender ID, conversation type/ID, content type/class, and whether the content matches the synthetic expected message. This distinguishes no callback from unexpected message content/type without exposing message text or tokens.
+
+**Instrumentation commit:** `085b5afbe0d59586b2e2b3edbf08aaca7bd603c8`.  
+**Follow-up full E2E run:** `45228512866` (queued at time of this entry); its result will determine the next narrow investigation. Build/unit run: `45228511324` (queued).  
+**Status:** [НЕ ПРОЙДЕНО] end-to-end private message delivery. Transport and SDK connection gates are [ПРОЙДЕНЫ] in run 45226487329.
