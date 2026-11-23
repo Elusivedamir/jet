@@ -23,12 +23,14 @@ public final class MainActivity extends Activity {
     private static final String TAG = "JetsonPoC";
     private static final String LISTENER_KEY = "jetson-poc-main";
     private static final String DEBUG_TOKEN_EXTRA = "poc_test_token";
+    private static final String DEBUG_SIGN_KEY_EXTRA = "poc_test_sign_key";
     private static final String DEBUG_PEER_EXTRA = "poc_peer_user_id";
     private static final String DEBUG_MESSAGE_EXTRA = "poc_test_message";
     private static final String DEBUG_EXPECTED_EXTRA = "poc_expected_message";
 
     private TextView statusView;
     private EditText tokenInput;
+    private EditText signKeyInput;
     private Button connectButton;
     private Button disconnectButton;
     private IConnectionManager connectionManager;
@@ -160,6 +162,21 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
 
+        TextView signKeyLabel = new TextView(this);
+        signKeyLabel.setText("Тестовый ключ подписи App Secret");
+        signKeyLabel.setTextSize(14);
+        root.addView(signKeyLabel);
+
+        signKeyInput = new EditText(this);
+        signKeyInput.setSingleLine(true);
+        signKeyInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        signKeyInput.setHint("Ключ подписи, выданный тестовым backend");
+        signKeyInput.setSaveEnabled(false);
+        root.addView(signKeyInput, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+
         connectButton = new Button(this);
         connectButton.setText("Подключить JuggleIM");
         connectButton.setOnClickListener(view -> connectWithTestToken());
@@ -180,7 +197,8 @@ public final class MainActivity extends Activity {
     }
 
     private void connectWithTestToken() {
-        connectWithToken(tokenInput.getText().toString().trim());
+        connectWithToken(tokenInput.getText().toString().trim(),
+                signKeyInput.getText().toString().trim());
     }
 
     private void connectFromDebugIntent() {
@@ -192,18 +210,22 @@ public final class MainActivity extends Activity {
             return;
         }
         String token = launchIntent.getStringExtra(DEBUG_TOKEN_EXTRA);
+        String signKey = launchIntent.getStringExtra(DEBUG_SIGN_KEY_EXTRA);
         debugPeerUserId = launchIntent.getStringExtra(DEBUG_PEER_EXTRA);
         debugMessage = launchIntent.getStringExtra(DEBUG_MESSAGE_EXTRA);
         debugExpectedMessage = launchIntent.getStringExtra(DEBUG_EXPECTED_EXTRA);
         launchIntent.removeExtra(DEBUG_TOKEN_EXTRA);
+        launchIntent.removeExtra(DEBUG_SIGN_KEY_EXTRA);
         launchIntent.removeExtra(DEBUG_PEER_EXTRA);
         launchIntent.removeExtra(DEBUG_MESSAGE_EXTRA);
         launchIntent.removeExtra(DEBUG_EXPECTED_EXTRA);
-        connectWithToken(token == null ? "" : token.trim());
+        connectWithToken(token == null ? "" : token.trim(),
+                signKey == null ? "" : signKey.trim());
     }
 
-    private void connectWithToken(String token) {
+    private void connectWithToken(String token, String signKey) {
         tokenInput.setText("");
+        signKeyInput.setText("");
         if (!sdkConfigured || connectionManager == null) {
             statusView.setText("Сначала настройте тестовые AppKey и WSS endpoint.");
             return;
@@ -212,13 +234,18 @@ public final class MainActivity extends Activity {
             statusView.setText("Введите тестовый токен, выданный сервером.");
             return;
         }
+        if (signKey == null || signKey.isEmpty()) {
+            statusView.setText("Не задан ключ подписи App Secret. Подключение остановлено.");
+            return;
+        }
 
-        statusView.setText("Передаю токен SDK. Ожидаю состояние соединения…");
+        statusView.setText("Передаю тестовые параметры SDK. Ожидаю состояние соединения…");
         try {
+            connectionManager.setConnectParams(signKey, java.util.Collections.emptyMap());
             connectionManager.connect(token);
         } catch (RuntimeException exception) {
             Log.e(TAG, "JuggleIM connect invocation failed", exception);
-            statusView.setText("Не удалось начать подключение. Проверьте endpoint, AppKey и тестовый токен.");
+            statusView.setText("Не удалось начать подключение. Проверьте endpoint, AppKey, ключ подписи и тестовый токен.");
         }
     }
 
