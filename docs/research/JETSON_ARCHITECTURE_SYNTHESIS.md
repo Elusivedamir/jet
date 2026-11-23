@@ -90,3 +90,8 @@ Tests actually run: none upstream; no load, fault injection, security audit or A
 ## Independent review correction note
 
 This revision withdraws unsupported architecture totals, restores the business-plan stage sequence, expands requirement coverage to requirements not directly evidenced by the repository studies, and changes the message lifecycle so sender acceptance follows durable persistence. These are research-document corrections only. They do not approve a topology, implementation stack, E2EE scope, SLO, price, launch jurisdiction or product-scope change.
+
+
+### Stage-boundary discrepancy to track
+
+The derivative `PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md` currently lists AI-001/AI-002 under Stage 2, while the canonical business-plan baseline places the AI assistant rollout in Stage 3 and states that AI is included in the Business subscription. For this synthesis, the canonical business plan controls: entitlement remains part of Business; rollout is Stage 3. The derivative requirements document was not changed in this research-only correction and should be reconciled in a separate owner-visible documentation change before implementation planning.
