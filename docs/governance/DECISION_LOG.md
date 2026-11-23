@@ -22,6 +22,17 @@ This file records owner-approved product and engineering decisions. A summary is
 - Phases: IM core; Jetson Business; analytics/AI; scaling/API/docs.
 - Revenue arithmetic ($5 × subscribers) is not a forecast.
 
+## Approved platform strategy (2026-11-23)
+
+- The product is planned for four client platforms: Android, Web, Windows, and iOS.
+- Android APK is the first implementation and launch target.
+- The architecture must support a shared server-side product core and common API contracts for all four clients.
+- Users should have one Jetson account and synchronized access to shared conversations, contacts, channels, and Jetson Business capabilities across supported clients, subject to platform-specific UX and security controls.
+- Development is phased: Android first, then Web, then Windows and iOS. This is a planning sequence, not a commitment to ship dates.
+- Telegram Mini App is explicitly excluded from the project.
+- The technology stack and detailed client architecture remain unapproved until comparative research evaluates cost, maintainability, platform fit, SDK compatibility, security, and delivery effort.
+- This decision does not authorize external messenger integrations; the existing MVP exclusion remains in force.
+
 ## Approved engineering governance
 
 The owner approved the consolidated engineering additions (36 controls). They apply throughout the project and are not new product-specification stages:
