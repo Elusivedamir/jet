@@ -73,6 +73,7 @@ For every repository capture:
 - [Initial README screening](INITIAL_README_SCREENING.md): first selected-project reading pass.
 - [Repository metadata screening](REPOSITORY_METADATA_SCREENING.md): GitHub metadata for 20 repositories.
 - [Deep-dive backend comparison 01](DEEP_DIVE_BACKEND_COMPARISON_01.md): six backend projects, with deployment, license, security-policy and test-structure evidence.
+- [Deep-dive message delivery 02](DEEP_DIVE_MESSAGE_DELIVERY_02.md): source-level traces of persistence, ordering, queue acknowledgement, offline history and reconnect behavior in four projects.
 - [Candidate scorecard template](CANDIDATE_SCORECARD_TEMPLATE.md): neutral, unweighted evidence matrix.
 
 ## Initial research outputs
