@@ -97,6 +97,21 @@ jobs:
           emulator-boot-timeout: 600
           script: bash deploy/juggleim-poc/scripts/run-android-e2e.sh
 
+      # This runs even when the emulator action fails before invoking the E2E script.
+      - name: Collect Android emulator diagnostics
+        if: always()
+        shell: bash
+        run: bash deploy/juggleim-poc/scripts/collect-emulator-diagnostics.sh
+
+      - name: Upload Android emulator diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetson-android-emulator-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/emulator-diagnostics/
+          if-no-files-found: warn
+          retention-days: 3
+
       - name: Upload two E2E-tested APKs
         if: success()
         uses: actions/upload-artifact@v4
