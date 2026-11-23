@@ -1,7 +1,9 @@
-# Jetson Messenger — approved business-plan baseline
+# Jetson Messenger — business-plan transcription (UNVERIFIED)
 
-**Purpose:** preserve the owner's approved product direction while technical discovery restarts.  
-**Authority:** this document records approved product facts and open business questions. It does not choose software architecture, infrastructure, vendors, or implementation technology.
+> **Статус: НЕ СВЕРЕНО с оригинальным PDF.** Это рабочая транскрипция, а не подтверждённый перечень требований. До постраничной сверки с `2_5197266343509931487_261123_112332.pdf` не использовать её как основание для продуктовых решений. При любом расхождении приоритет у PDF.
+
+**Purpose:** provisional index to be reconciled against the owner's original business-plan PDF.  
+**Authority:** none independent. The PDF is the only canonical product source; this file must not override it. Every item below remains unverified until matched to the source page/section.
 
 ## 1. Product concept
 
