@@ -139,3 +139,5 @@ The following remain open and must not be silently decided:
 - No backend token issuance, messaging session, or production credentials are implemented in this scaffold.
 - Unit tests cover runtime configuration validation. GitHub Actions is configured to build a debug APK, run unit tests, and upload an artifact.
 - Scaffold source and workflow were committed to the existing working branch. CI execution result, APK artifact, and runtime behavior remain unverified. No merge to `main`.
+
+- Local setup and safe test configuration instructions: [android/poc/README.md](../../android/poc/README.md). Android SDK setup workflow action updated to v4.
