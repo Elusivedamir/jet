@@ -127,3 +127,22 @@ For every change to this pipeline:
 ## 9. Maintenance history
 
 - 2026-11-23: initial runbook created alongside the CI diagnostic collector. Update this section with commit SHA and verified workflow run whenever the pipeline changes.
+
+## 10. Bounded diagnostics (2026-11-23)
+
+**Incident under investigation:** run `45201616287`, job `137786313978`. The E2E step completed with failure, then the diagnostics collector remained `in_progress` for at least 15 minutes. Artifact listing was empty while upload was pending, and GitHub's job-log download endpoint returned `BlobNotFound` while the job was still active.
+
+**Finding:** static inspection of the collector found multiple ADB calls without per-command timeouts (`adb devices`, `adb shell getprop`, `adb logcat`). ADB can remain blocked when the emulator/device is unhealthy. This is a confirmed unbounded-wait risk in the collector, but it is **not yet confirmed** that one of these commands caused the observed 15-minute stall; the in-progress runner logs were unavailable.
+
+**Mitigation committed:**
+- Added a `run_bounded` wrapper using GNU `timeout` with TERM/KILL escalation.
+- ADB calls now have short per-command limits; logcat is limited to 8 seconds.
+- AVD discovery and local log reads are bounded.
+- The workflow diagnostics step now has `timeout-minutes: 2` and a 90-second shell-level timeout.
+- Timed-out diagnostic commands emit an explicit `[DIAGNOSTIC_TIMEOUT ...]` marker and do not prevent the remaining report sections from being attempted.
+
+**Files:** `deploy/juggleim-poc/scripts/collect-emulator-diagnostics.sh`, `.github/workflows/juggleim-e2e.yml`.
+
+**Acceptance checks still required:** run `bash -n deploy/juggleim-poc/scripts/collect-emulator-diagnostics.sh`; inspect workflow YAML; verify on a fresh CI run that the collector finishes or is forcibly bounded, the artifact uploads, and the report contains either command output or timeout markers. This mitigation does not fix the underlying Alice/Bob E2E failure and does not establish successful message delivery.
+
+**Remaining unknowns:** exact command that stalled in run `45201616287`; root cause of the E2E failure; whether KVM hardware acceleration was actually active.
