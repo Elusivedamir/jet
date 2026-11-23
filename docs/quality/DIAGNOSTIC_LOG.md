@@ -30,3 +30,19 @@
 - WebSocket Upgrade success не доказывает авторизацию JuggleIM.
 - Успешное подключение одного клиента не доказывает обмен сообщениями между двумя клиентами.
 - Ни один этап не объявляется пройденным без конкретного лога/CI результата.
+
+## 2026-11-23 — Standalone Android build: missing generated CA resource
+
+**CI run:** 45220003218  
+**Failing step:** Build Alice and Bob debug APKs  
+**Observed error:** AAPT resource linking failed: resource raw/juggle_poc_ca not found.  
+**Root cause:** Network Security Config references the per-run CA resource. The standalone build/unit workflow did not run the bootstrap step that generated that resource. This was a build-pipeline dependency gap, not a TLS handshake failure.
+
+**Fix:**
+- Added deploy/juggleim-poc/scripts/prepare-android-ca-resource.sh. It generates/validates local PoC certificates, copies only the public CA certificate into Android raw resources, and verifies the server certificate and IP SAN.
+- Updated bootstrap.sh to reuse the shared preparation script instead of duplicating the logic.
+- Updated android-poc.yml to run the preparation script before Gradle and to trigger when that script changes.
+- Private CA/server keys remain outside Android resources and APKs.
+
+**Commits:** 7e89ef3, 092eb0f, 885d42f.  
+**Verification:** [НЕ ПРОВЕРЕНО] at time of this entry; the changed Android build workflow should provide the focused verification. Do not mark build/unit as passed until its CI result is successful.
