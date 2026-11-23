@@ -245,3 +245,14 @@ The following remain open and must not be silently decided:
 - [ЦЕЛЬ] Separate emulator-to-proxy/upstream transport failures from JuggleIM SDK connection/signature/protocol failures using one controlled experiment.
 - [НЕ ПРОВЕРЕНО] Probe outcome awaits the next GitHub Actions E2E run. HTTP 101 is transport evidence only, not proof of authenticated JuggleIM connection or message delivery.
 - No production architecture decision and no merge to main.
+
+
+## Greenfield architecture reset — owner-approved (2026-11-23)
+
+- [СОГЛАСОВАНО] Jetson Messenger is to be built around a first-party Jetson backend. JuggleIM/JuggleChat is not the selected foundation, transport dependency or required runtime. The previous JuggleIM PoC, error 11013 investigation, SDK audits and deployment assets are frozen as historical research; preserve them but do not continue fixing or building production features on them unless the owner explicitly reopens that work.
+- [СОГЛАСОВАНО] This is a technical reset only. Preserve the approved Jetson product concept, feature scope, commercial terms, platform roadmap and security requirements. E2EE remains mandatory; do not weaken it and do not invent cryptography.
+- [СОГЛАСОВАНО] Build Jetson-owned identity, authorization, conversations, messaging lifecycle, synchronization, media authorization, push, moderation and administration. Start with a modular monolith; split only when measured need justifies it.
+- [ПРЕДЛОЖЕНИЕ] Go + PostgreSQL + Jetson-owned HTTP/WebSocket contracts + S3-compatible media storage; Redis/Valkey only for justified ephemeral/distributed coordination. These remain proposals until ADRs and cost/security validation.
+- [СОГЛАСОВАНО] Carry forward LansetSpBot engineering patterns across the entire messenger, not just Jetson Business: separate operation/job/delivery lifecycles, explicit state machines, idempotency, UNCERTAIN outcomes, safe reconciliation, atomic persistence, compare-and-set/leases, bounded retry policy, fail-closed startup/readiness, privacy-safe observability, recoverable migrations, production-path tests and release/SBOM evidence.
+- [СОГЛАСОВАНО] Preserve LansetSpBot source as a design reference. Do not bulk-copy Telegram/Telethon, Windows DPAPI/ACL, PySide6, SQLCipher desktop-profile code, dependencies or experimental modules. Any source reuse requires ownership/provenance and per-dependency license review.
+- [НЕ СОГЛАСОВАНО] No merge to main, production deployment, public release, paid infrastructure purchase or change to product/commercial requirements is authorized by this documentation reset.
