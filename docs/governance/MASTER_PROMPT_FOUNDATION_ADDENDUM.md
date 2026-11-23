@@ -270,7 +270,7 @@ Maintain, as appropriate:
 
 - These foundational engineering controls are [СОГЛАСОВАНО] by the owner on 2026-11-23.
 - Product-specific parameters listed in section 7 remain open; this is intentional, not an omission to fill with guesses.
-- Apply the controls immediately to research, architecture and the isolated JuggleIM PoC where relevant. The PoC is not production evidence and does not approve JuggleIM as the production messaging engine.
+- Apply the controls immediately to all Jetson greenfield research, architecture, backend/client implementation, message delivery, synchronization, background jobs and future Jetson Business workflows. The JuggleIM PoC is frozen historical material: do not spend implementation cycles on it or treat it as a production dependency unless the owner explicitly reopens that work.
 - Before production implementation, restore the original MASTER PROMPT verbatim and reconcile it with this addendum. The addendum cannot replace the missing original 16-point source.
 
 ## 10. Durable jobs, campaign execution and remote-delivery correctness — LansetSpBot-derived principles
