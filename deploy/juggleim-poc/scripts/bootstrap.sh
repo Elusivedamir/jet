@@ -16,21 +16,8 @@ if [[ ! -s .env ]]; then
   chmod 600 .env
 fi
 
-bash "$ROOT/scripts/generate-dev-certs.sh"
-
-# Android apps targeting API 24+ do not automatically trust user-added roots.
-# Do not rely on mutable emulator system-store installation: package the
-# per-run public PoC CA as a generated Android resource and trust it explicitly
-# through Network Security Config. The private CA key never enters the APK.
-ANDROID_RAW="$ROOT/../../android/poc/app/src/main/res/raw"
-mkdir -p "$ANDROID_RAW"
-cp "$ROOT/certs/ca.crt" "$ANDROID_RAW/juggle_poc_ca.crt"
-chmod 0644 "$ANDROID_RAW/juggle_poc_ca.crt"
-
-# Fail before starting the stack if the leaf certificate is not signed by
-# this exact CA or does not cover the emulator endpoint IP.
-openssl verify -CAfile "$ROOT/certs/ca.crt" "$ROOT/certs/server.crt"
-openssl x509 -in "$ROOT/certs/server.crt" -noout -checkip 10.0.2.2
+# Prepare the same ephemeral CA resource for both standalone builds and E2E.
+bash "$ROOT/scripts/prepare-android-ca-resource.sh"
 
 docker compose up -d --build
 
