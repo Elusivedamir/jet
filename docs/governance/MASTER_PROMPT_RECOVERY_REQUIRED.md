@@ -1,22 +1,30 @@
-# MASTER PROMPT — canonical source required
+# MASTER PROMPT — canonical source recovery status
 
-Status: [НЕ ПРОВЕРЕНО] full verbatim source is not present in the available project materials.
+Status: [ЧАСТИЧНО ВОССТАНОВЛЕНО] The owner has supplied the verbatim text of engineering-regulation sections 28–46.
 
-The owner approved:
-- the product requirements and development sequence comprising 16 numbered stages;
-- the engineering governance additions recorded in `DECISION_LOG.md`;
-- the rule that the approved product specification is authoritative and that changes to product behavior, scope, or commercial terms require explicit owner approval;
-- sequential execution of the numbered product stages without skipping, combining, or reordering them;
-- at the end of each stage, reporting: completed, not agreed, questions; then waiting for owner approval or edits;
-- maintaining a decision log and surfacing conflicts instead of resolving them autonomously;
-- explicit status labels: [СОГЛАСОВАНО], [ВЫВОД], [ВОПРОС], [НЕ СОГЛАСОВАНО], [НЕ ПРОВЕРЕНО], [ПРЕДЛОЖЕНИЕ].
+## Recovered source
 
-The full original wording of the MASTER PROMPT and all 16 numbered product-specification points has not been recovered verbatim. The current notes and decision log are useful working records but are NOT a canonical replacement.
+The exact owner-provided text of sections 28–46 is preserved in:
+- [ENGINEERING_REGULATION_28-46.md](ENGINEERING_REGULATION_28-46.md)
 
-## Mandatory next step
+The recovered material covers technology-stack selection, separation of technologies by responsibility, architecture-before-code, project structure, coding standards, implementation correctness, component contracts, database integrity, Git, CI, performance, resilience, environments, observability, safe code changes, unknown code, ADR/technical debt, handoff readiness and engineering priorities.
 
-Import the original MASTER PROMPT and numbered product specification verbatim from the owner's canonical document/chat export. Preserve version number and wording. Until then:
-- do not claim this reconstruction is the original MASTER PROMPT;
-- do not begin product implementation;
-- do not invent missing requirements or acceptance criteria;
+**Preservation rule:** the recovered sections are recorded as supplied. They have not been silently rewritten, renumbered or replaced by a summary.
+
+## What remains unresolved
+
+This recovery does not establish that the entire canonical MASTER PROMPT has been recovered. The complete original document/version and all of its sections have not yet been verified as one canonical source.
+
+Previously recorded owner-approved product requirements and the 16-stage product sequence remain in force, but working notes and summaries are not a substitute for the complete original wording.
+
+## Mandatory handling
+
+Until the complete canonical source is assembled and verified:
+- do not claim that this file set is the complete original MASTER PROMPT;
+- do not invent missing sections, version numbers or acceptance criteria;
+- preserve recovered owner-provided wording;
+- keep engineering addenda clearly separate from recovered original text;
+- do not begin production implementation that depends on unresolved requirements;
 - continue only non-destructive repository preparation and evidence-based research that does not depend on missing requirements.
+
+When additional original sections are supplied, append or preserve them as separately traceable verbatim source material and update this recovery status.
