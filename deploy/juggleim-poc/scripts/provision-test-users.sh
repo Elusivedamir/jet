@@ -79,10 +79,10 @@ EOF
 chmod 600 "$SECRETS_DIR/test-users.env"
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "::add-mask::$APP_SECRET"
+  echo "::add-mask::$ALICE_TOKEN"
+  echo "::add-mask::$BOB_TOKEN"
   {
-    echo "::add-mask::$APP_SECRET"
-    echo "::add-mask::$ALICE_TOKEN"
-    echo "::add-mask::$BOB_TOKEN"
     echo "JUGGLE_APP_KEY=$APP_KEY"
     echo "JUGGLE_WSS_URL=$WSS_URL"
     echo "ALICE_USER_ID=$ALICE_ID"
