@@ -122,3 +122,25 @@
 **Commits:** `b622cc18ccbd67ff0690ce33c8dc3f8ab7886973`, `85267844e477e204a6a1e99eb4fa503d6e30b4c1`, `32ac66c2cda6b452a8bffd6b825d371efc1574a3`.
 
 **Interpretation:** This is a real sequencing defect in the previous test and a plausible explanation for the missing receive callback, but it is not yet a proven root cause. The next E2E must show both sync-complete markers, then Alice send success, then Bob receive callback. If Bob still receives nothing, inspect server-side routing and message sync response next. Do not rerun TLS/WebSocket transport: this change does not affect that layer.
+
+
+## 2026-11-23 — E2E sync gate not observed; CI trigger path corrected
+
+**CI run:** 45231261826 (commit `85267844e477e204a6a1e99eb4fa503d6e30b4c1`).  
+**Artifact:** `jetson-android-emulator-diagnostics-45231261826-1` (artifact ID `14845918862`).  
+**Failing stage:** `wait_for:POC_MESSAGE_SENT package=com.jetson.poc.alice`.
+
+**Verified from artifact:**
+- JuggleIM server and two test users provisioned; Alice/Bob APKs built.
+- Independent TLS 1.3 and WebSocket Upgrade returned HTTP 101.
+- Bob and Alice both reached SDK `CONNECTED code=0`.
+- Neither `POC_MESSAGE_SYNC_COMPLETE` marker appears in the captured JetsonPoC log lines.
+- Alice never emitted `POC_MESSAGE_SENT`; the failure occurred before any evidence of message submission.
+- The diagnostic snapshot does not contain a JuggleIM SDK exception explaining the absent sync callback. Firebase/Google Play Services authentication warnings are present but are not evidence of a JuggleIM failure.
+
+**Interpretation:** This run does not test recipient delivery. The current blocking point is the absence of the SDK message-sync completion callback (or its observable marker) after connection. The earlier sync sequencing hypothesis remains unverified; investigate callback semantics/registration and SDK sync behavior before changing routing or transport.
+
+**CI configuration defect found:** The E2E workflow push path filter included `.github/workflows/juggleim-e2e.yml` and `MainActivity.java`, but omitted `deploy/juggleim-poc/scripts/run-android-e2e.sh`. Therefore changes to the test script alone did not trigger E2E. Added the script to the path filter.
+
+**Fix commit:** `cd0783822400112db08dcf386dc0d98d6662df95`.  
+**New full E2E run:** `45233202404` on the corrected branch head; started and pending at time of this entry. It includes the Bob and Alice sync gates from the latest script. Do not report E2E as passed until the run emits both sync markers, Alice send success, and Bob receive success.
