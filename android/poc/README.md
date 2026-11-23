@@ -1,6 +1,6 @@
 # Jetson Android PoC
 
-This is an isolated Android integration proof of concept, not the Jetson Messenger MVP.
+An isolated Android/JuggleIM integration proof of concept. This is not the Jetson Messenger MVP or a production deployment.
 
 ## Toolchain
 
@@ -10,9 +10,9 @@ This is an isolated Android integration proof of concept, not the Jetson Messeng
 - Android SDK Platform 35 / Build Tools 35.0.0
 - JuggleIM Android SDK 1.9.0
 
-The project deliberately has no machine-specific `org.gradle.java.home` path and no signing credentials. Debug builds use the standard Android debug key.
+The project has no machine-specific JDK path and no signing credentials. Debug builds use the standard Android debug key. Product flavors `alice` and `bob` produce two separately installed debug clients for the private-message integration test.
 
-## Build without connecting to an IM server
+## Offline/configuration-free build
 
 From this directory:
 
@@ -21,38 +21,33 @@ gradle --no-daemon :app:assembleDebug
 gradle --no-daemon :app:testDebugUnitTest
 ```
 
-The default AppKey and WSS endpoint are empty. The app does not initialize a network session in this state.
+The default AppKey and WSS endpoint are empty. No IM network session is initialized in that state. Maven Central's Google-hosted mirror is listed before Maven Central to reduce CI exposure to transient 429 responses.
 
-## Configure a test IM application
+## Live two-client JuggleIM test
 
-Use a dedicated test application and TLS-protected WSS endpoint. AppKey is a public application identifier; it is not a substitute for server-side credentials.
+The complete isolated Docker Compose environment, token provisioning, local WSS certificate, emulator trust setup, and two-client send/receive verification are documented in [deploy/juggleim-poc/README.md](../../deploy/juggleim-poc/README.md).
 
-```bash
-gradle --no-daemon \
-  -PjuggleAppKey=YOUR_TEST_APP_KEY \
-  -PjuggleWssUrl=wss://YOUR_TEST_IM_HOST \
-  :app:assembleDebug
-```
+CI workflow: [juggleim-e2e.yml](../../.github/workflows/juggleim-e2e.yml).
 
-Install the resulting APK, obtain a short-lived test user token from a trusted test backend/admin workflow, enter it into the password-style token field, and tap **Подключить JuggleIM**. The screen reports the SDK connection state and local message-database callbacks.
+The E2E workflow provisions two synthetic server-side user tokens. The AppSecret and admin authorization remain outside the APK. In debug builds only, test tokens and message-test parameters may be injected through one-time Activity Intent extras; those extras are removed immediately and are not available in release builds.
 
-The token is entered at runtime, cleared from the input immediately after being passed to the SDK, and is not written to preferences or logs by this PoC. Use test-only tokens. Do not place user tokens, `app_secret`, `app_secure_key`, admin credentials, or reusable demo tokens in Gradle properties committed to Git, source files, APK resources, screenshots, or CI logs.
+## Implemented in the PoC
 
-## Current integration boundary
-
-Implemented:
 - JuggleIM SDK 1.9.0 dependency and guarded SDK initialization.
-- Runtime test-token entry and invocation of the real SDK `connect(token)` API.
-- Connection-state listener (connected, connecting, disconnected, failure).
+- WSS-only endpoint validation and runtime test-token connection.
+- Connection-state and local message-database listeners.
 - Explicit disconnect action.
-- WSS-only endpoint validation.
-- Unit tests for runtime configuration.
-- CI build, unit tests, and debug APK artifact upload.
-- Separate manual Android emulator install/launch smoke test.
+- Debug-only Alice/Bob app variants.
+- SDK private text-message send callback and message receive listener.
+- CI build/unit tests and isolated server-backed Android end-to-end workflow.
 
-Not implemented:
-- Jetson account registration/login or backend-issued IM-token endpoint.
-- Production token lifecycle, refresh/revocation, logout coordination, or account binding.
-- Conversation list, send/receive UI, history, attachments, offline sync, multi-device, push, release signing, or production deployment.
+## Not implemented
 
-A successful emulator launch proves only that the APK installs and its activity starts. A successful SDK connection requires a reachable JuggleIM server, matching AppKey, and valid token. A successful SDK connection alone does not prove Jetson authentication or end-to-end messaging.
+- Jetson account registration/login, password hashing, and backend authentication.
+- Production token issuance, expiry/refresh/revocation, logout coordination, or account-to-IM identity mapping.
+- Production authorization/ACL, conversations UI, history UI, attachments, offline/multi-device acceptance, push, release signing, or deployment.
+- A production-ready Jetson Backend.
+
+The local provisioning script calls the JuggleIM server registration API directly to create synthetic users. It is test infrastructure, not a public token-issuing endpoint. The upstream JuggleIM Server API currently requires a SHA-1 signature derived from the AppSecret; the secret remains server-side. The current JuggleChat Server login implementation was found to use unsalted SHA-1 password hashes, so it is not adopted as Jetson's authentication system.
+
+A successful E2E workflow can prove this narrow SDK connection and private-message path. It does not establish production security, scalability, data retention, offline synchronization, push, or final architecture approval.
