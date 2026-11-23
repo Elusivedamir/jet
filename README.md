@@ -13,11 +13,11 @@ Before implementation:
 - distinguish verified facts, assumptions, proposals, and open questions;
 - never claim tests, security, performance, or production readiness without evidence.
 
-## Current bootstrap state
+## Current project state
 
-Repository initialized on 2026-11-23. This initial commit establishes the Git reference needed to create a separate working branch.
+The approved product specification and canonical MASTER PROMPT remain authoritative for product scope and owner-approved requirements. The technical foundation is now a greenfield, first-party Jetson backend; JuggleIM/JuggleChat work is historical PoC/research and is not a production dependency. The architecture reset does not change product scope or commercial decisions.
 
-The complete approved MASTER PROMPT and numbered product specification (points 1–16) must be imported verbatim from their canonical source before implementation begins. Do not reconstruct missing source text from summaries.
+LansetSpBot-derived reliability patterns are part of the engineering baseline across core messaging and asynchronous workflows. See the architecture reset, greenfield architecture, foundation addendum, decision log and [LansetSpBot reuse audit](docs/research/LANSETSPBOT_REUSE_AUDIT.md).
 
 ## Planned documentation areas
 
