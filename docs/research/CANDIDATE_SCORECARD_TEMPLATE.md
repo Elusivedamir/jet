@@ -1,6 +1,6 @@
 # Candidate scorecard template
 
-This scorecard is deliberately unweighted until the canonical business-plan PDF is reconciled. Do not invent weights or mark unknowns as neutral scores.
+This scorecard is an evidence-capture worksheet. The Jetson-specific weighted screening rubric is defined in [JETSON_REPOSITORY_EVALUATION_CRITERIA.md](JETSON_REPOSITORY_EVALUATION_CRITERIA.md). Do not mark unknowns as neutral scores; unknown is not a pass.
 
 ## Candidate identity
 
@@ -17,7 +17,7 @@ For each row record: status (verified / partial / absent / unknown), source path
 
 | Area | Evidence to collect | Status | Evidence link / commit | Notes / risk |
 |---|---|---|---|---|
-| Product fit | Business-plan requirement IDs and page references | Unknown | | Cannot score before PDF reconciliation |
+| Product fit | Jetson requirement IDs and page references | Unknown | | Map native vs custom work; see Jetson evaluation criteria |
 | License | Root license, per-directory licenses, third-party notices, commercial/hosted restrictions | Unknown | | Legal review where needed |
 | Identity | Registration, authentication, account recovery, device/session management | Unknown | | |
 | Messaging correctness | Ordering, idempotency, retries, deduplication, offline delivery | Unknown | | |
