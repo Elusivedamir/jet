@@ -9,7 +9,7 @@ if [[ ! -f "$SCRIPT" ]]; then
   echo "Clone Elusivedamir/jet into $REPO_DIR first."
   exit 2
 fi
-if pgrep -f '[m]onitor.sh' >/dev/null 2>&1; then
+if pgrep -f "^bash ${SCRIPT}$" >/dev/null 2>&1; then
   echo "Jetson monitor already appears to be running."
   exit 0
 fi
