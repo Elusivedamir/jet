@@ -28,12 +28,12 @@ jobs:
     steps:
       - name: Validate configuration and API key
         env:
-          KLINCH_API_KEY: ${{ secrets.AI_API_KEY }}
+          KLINCH_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           REQUESTED_BASE: ${{ inputs.base_branch }}
         run: |
           set -euo pipefail
           if [ -z "$KLINCH_API_KEY" ]; then
-            echo "::error::Missing AI_API_KEY GitHub secret."
+            echo "::error::Missing OPENAI_API_KEY GitHub secret."
             exit 1
           fi
           case "$REQUESTED_BASE" in
@@ -48,7 +48,7 @@ jobs:
       - name: Discover models allowed for this key
         id: models
         env:
-          KLINCH_API_KEY: ${{ secrets.AI_API_KEY }}
+          KLINCH_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           set -euo pipefail
           response="$(curl --fail --silent --show-error \
@@ -61,7 +61,7 @@ jobs:
             else empty end
           ')"
           if [ -z "$model" ] || [ "$model" = "null" ]; then
-            echo "::error::KLINCH returned no models available to AI_API_KEY."
+            echo "::error::KLINCH returned no models available to OPENAI_API_KEY."
             exit 1
           fi
           echo "model=$model" >> "$GITHUB_OUTPUT"
@@ -87,7 +87,7 @@ jobs:
         id: codex
         uses: openai/codex-action@v1
         with:
-          openai-api-key: ${{ secrets.AI_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           responses-api-endpoint: "https://api.klinch.cloud/v1/responses"
           codex-args: --model ${{ steps.models.outputs.model }}
           permission-profile: ":workspace"
