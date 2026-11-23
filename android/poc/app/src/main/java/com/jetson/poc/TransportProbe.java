@@ -31,7 +31,9 @@ final class TransportProbe {
                 String host = endpoint.getHost();
                 int port = endpoint.getPort() > 0 ? endpoint.getPort() : 443;
                 String path = endpoint.getRawPath();
-                // JuggleIM Connect Manager serves WebSocket upgrades at /im (not /).\n                // Keep an explicit path from the configured endpoint when supplied.\n                if (path == null || path.isEmpty()) path = "/im";
+                // JuggleIM Connect Manager serves WebSocket upgrades at /im (not /).
+                // Keep an explicit path from the configured endpoint when supplied.
+                if (path == null || path.isEmpty()) path = "/im";
                 if (endpoint.getRawQuery() != null) path += "?" + endpoint.getRawQuery();
 
                 SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
