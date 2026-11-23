@@ -1,4 +1,4 @@
-name: Android PoC
+name: Android PoC - build and unit tests
 on:
   push:
     branches:
@@ -6,21 +6,23 @@ on:
     paths:
       - "android/poc/**"
       - ".github/workflows/android-poc.yml"
+      - ".github/workflows/android-emulator-smoke.yml"
   pull_request:
     paths:
       - "android/poc/**"
       - ".github/workflows/android-poc.yml"
+      - ".github/workflows/android-emulator-smoke.yml"
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: android-poc-${{ github.ref }}
+  group: android-poc-build-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build:
-    name: Build and unit test Android PoC
+    name: Build, unit tests and APK artifact
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,21 +50,6 @@ jobs:
       - name: Run unit tests
         working-directory: android/poc
         run: gradle --no-daemon --stacktrace :app:testDebugUnitTest
-      - name: Install and launch APK in Android emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        env:
-          ANDROID_I_WANT_MY_TCG: "yes"
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          disable-animations: true
-          emulator-boot-timeout: 600
-          script: |
-            adb install -r android/poc/app/build/outputs/apk/debug/app-debug.apk
-            adb shell am start -W -n com.jetson.poc/.MainActivity
-            adb shell dumpsys activity activities | grep -F "com.jetson.poc/.MainActivity"
       - name: Verify APK output
         run: |
           test -s android/poc/app/build/outputs/apk/debug/app-debug.apk
