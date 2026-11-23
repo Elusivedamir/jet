@@ -1,0 +1,132 @@
+name: JuggleIM Android end-to-end PoC
+
+on:
+  push:
+    branches:
+      - project/foundation-and-juggleim-poc
+    paths:
+      - "android/poc/**"
+      - "deploy/juggleim-poc/**"
+      - ".github/workflows/juggleim-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: juggleim-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-im-e2e:
+    name: Two Android clients connect and exchange a private message
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: project/foundation-and-juggleim-poc
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platforms;android-34" "system-images;android-34;google_apis;x86_64"
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Start isolated JuggleIM server and provision two test users
+        run: bash deploy/juggleim-poc/scripts/bootstrap.sh
+
+      - name: Build Alice and Bob debug APKs
+        working-directory: android/poc
+        run: |
+          gradle --no-daemon --stacktrace \
+            -PjuggleAppKey="$JUGGLE_APP_KEY" \
+            -PjuggleWssUrl="$JUGGLE_WSS_URL" \
+            :app:assembleAliceDebug :app:assembleBobDebug \
+            :app:testAliceDebugUnitTest :app:testBobDebugUnitTest
+
+      - name: Set synthetic E2E message
+        run: |
+          MESSAGE="jetson-e2e-${{ github.run_id }}-${{ github.run_attempt }}"
+          echo "::add-mask::$MESSAGE"
+          echo "E2E_MESSAGE=$MESSAGE" >> "$GITHUB_ENV"
+
+      - name: Connect two clients and exchange a private message
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          BOB_TOKEN: ${{ env.BOB_TOKEN }}
+          ALICE_TOKEN: ${{ env.ALICE_TOKEN }}
+          ALICE_USER_ID: ${{ env.ALICE_USER_ID }}
+          E2E_MESSAGE: ${{ env.E2E_MESSAGE }}
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: |
+            set -euo pipefail
+            adb root
+            adb wait-for-device
+            bash deploy/juggleim-poc/scripts/install-ca-on-emulator.sh
+
+            adb install -r android/poc/app/build/outputs/apk/alice/debug/app-alice-debug.apk
+            adb install -r android/poc/app/build/outputs/apk/bob/debug/app-bob-debug.apk
+            adb logcat -c
+
+            adb shell am start -W -n com.jetson.poc.bob/com.jetson.poc.MainActivity \
+              --es poc_test_token "$BOB_TOKEN" \
+              --es poc_expected_message "$E2E_MESSAGE"
+
+            wait_for_log() {
+              local pattern="$1"
+              for _ in $(seq 1 90); do
+                if adb logcat -d -s JetsonPoC:I | grep -Fq "$pattern"; then
+                  echo "Verified emulator event: $pattern"
+                  return 0
+                fi
+                sleep 2
+              done
+              adb logcat -d -s JetsonPoC:I || true
+              adb logcat -d -s AndroidRuntime:E || true
+              return 1
+            }
+
+            wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.bob"
+
+            adb shell am start -W -n com.jetson.poc.alice/com.jetson.poc.MainActivity \
+              --es poc_test_token "$ALICE_TOKEN" \
+              --es poc_peer_user_id "$BOB_USER_ID" \
+              --es poc_test_message "$E2E_MESSAGE"
+
+            wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.alice"
+            wait_for_log "POC_MESSAGE_SENT package=com.jetson.poc.alice"
+            wait_for_log "POC_MESSAGE_RECEIVED package=com.jetson.poc.bob"
+
+      - name: Upload two E2E-tested APKs
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetson-juggleim-two-client-e2e-apks
+          path: |
+            android/poc/app/build/outputs/apk/alice/debug/app-alice-debug.apk
+            android/poc/app/build/outputs/apk/bob/debug/app-bob-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Tear down isolated JuggleIM environment
+        if: always()
+        run: docker compose -f deploy/juggleim-poc/docker-compose.yml down -v --remove-orphans || true
