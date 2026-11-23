@@ -65,6 +65,9 @@ public final class MainActivity extends Activity {
                 }
             };
 
+    private final IMessageManager.IMessageSyncListener messageSyncListener =
+            () -> Log.i(TAG, "POC_MESSAGE_SYNC_COMPLETE package=" + getPackageName());
+
     private final IMessageManager.IMessageListener messageListener =
             new IMessageManager.IMessageListener() {
                 @Override
@@ -130,6 +133,7 @@ public final class MainActivity extends Activity {
         if (sdkConfigured) {
             connectionManager.addConnectionStatusListener(LISTENER_KEY, connectionListener);
             messageManager.addListener(LISTENER_KEY, messageListener);
+            messageManager.addSyncListener(LISTENER_KEY + "-sync", messageSyncListener);
             renderConnectionStatus(connectionManager.getConnectionStatus(), 0);
         } else {
             statusView.setText("SDK не настроен. Для PoC нужны тестовые AppKey и WSS endpoint.");
@@ -149,6 +153,7 @@ public final class MainActivity extends Activity {
         if (sdkConfigured) {
             connectionManager.removeConnectionStatusListener(LISTENER_KEY);
             messageManager.removeListener(LISTENER_KEY);
+            messageManager.removeSyncListener(LISTENER_KEY + "-sync");
         }
         super.onDestroy();
     }
@@ -289,6 +294,9 @@ public final class MainActivity extends Activity {
             return;
         }
         debugMessageSent = true;
+        Log.i(TAG, "POC_MESSAGE_SEND_REQUEST package=" + getPackageName()
+                + " recipient=" + debugPeerUserId.trim()
+                + " conversationType=PRIVATE");
         Conversation conversation = new Conversation(
                 Conversation.ConversationType.PRIVATE,
                 debugPeerUserId
@@ -298,7 +306,10 @@ public final class MainActivity extends Activity {
             @Override
             public void onSuccess(Message message) {
                 Log.i(TAG, "POC_MESSAGE_SENT package=" + getPackageName()
-                        + " messageId=" + (message == null ? "missing" : message.getMessageId()));
+                        + " messageId=" + (message == null ? "missing" : message.getMessageId())
+                        + " conversationId=" + (message == null || message.getConversation() == null
+                            ? "missing" : message.getConversation().getConversationId())
+                        + " state=" + (message == null ? "missing" : message.getState()));
                 runOnUiThread(() -> statusView.setText("Тестовое сообщение отправлено и подтверждено SDK."));
             }
 
