@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Standard public/system roots remain trusted. -->
+            <certificates src="system" />
+            <!-- Generated per-run local CA is copied here by bootstrap.sh.
+                 This is PoC-only and must never be used as a production trust policy. -->
+            <certificates src="@raw/juggle_poc_ca" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

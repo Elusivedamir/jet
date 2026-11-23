@@ -1,0 +1,13 @@
+# Local build output
+.gradle/
+**/build/
+local.properties
+
+# Signing material
+*.jks
+*.keystore
+
+# Local JuggleIM PoC secrets and generated certificates
+deploy/juggleim-poc/.env
+deploy/juggleim-poc/.secrets/
+deploy/juggleim-poc/certs/

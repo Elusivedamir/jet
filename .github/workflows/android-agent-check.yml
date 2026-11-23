@@ -1,0 +1,32 @@
+name: Android agent script checks
+
+on:
+  push:
+    branches:
+      - project/foundation-and-juggleim-poc
+    paths:
+      - tools/android-agent/**
+      - .github/workflows/android-agent-check.yml
+  pull_request:
+    paths:
+      - tools/android-agent/**
+      - .github/workflows/android-agent-check.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-termux-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate shell syntax
+        run: |
+          bash -n tools/android-agent/monitor.sh
+          bash -n tools/android-agent/start-monitor.sh
+      - name: Enforce read-only safety boundary
+        run: |
+          ! grep -En 'gh run rerun|gh workflow run|git push|gh pr merge|gh secret set' tools/android-agent/*.sh
+          grep -q 'gh run list' tools/android-agent/monitor.sh
+          grep -q -- '--log-failed' tools/android-agent/monitor.sh

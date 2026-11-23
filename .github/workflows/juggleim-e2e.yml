@@ -1,0 +1,132 @@
+name: JuggleIM Android end-to-end PoC
+
+on:
+  # Run the full E2E when this workflow definition is deliberately changed on the project branch.
+  # This permits a controlled CI trigger without changing application runtime code.
+  push:
+    branches:
+      - project/foundation-and-juggleim-poc
+    paths:
+      - .github/workflows/juggleim-e2e.yml
+      - android/poc/app/src/main/java/com/jetson/poc/MainActivity.java
+      - deploy/juggleim-poc/scripts/run-android-e2e.sh
+  # Keep manual execution available for later acceptance runs.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: juggleim-e2e-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  android-im-e2e:
+    name: Two Android clients connect and exchange a private message
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platforms;android-34" "system-images;android-34;google_apis;x86_64"
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Start isolated JuggleIM server and provision two test users
+        run: bash deploy/juggleim-poc/scripts/bootstrap.sh
+
+      - name: Build Alice and Bob debug APKs
+        working-directory: android/poc
+        run: |
+          gradle --no-daemon --stacktrace \
+            -PjuggleAppKey="$JUGGLE_APP_KEY" \
+            -PjuggleWssUrl="$JUGGLE_WSS_URL" \
+            :app:assembleAliceDebug :app:assembleBobDebug \
+            :app:testAliceDebugUnitTest :app:testBobDebugUnitTest
+
+      - name: Set synthetic E2E message
+        run: |
+          MESSAGE="jetson-e2e-${{ github.run_id }}-${{ github.run_attempt }}"
+          echo "::add-mask::$MESSAGE"
+          echo "E2E_MESSAGE=$MESSAGE" >> "$GITHUB_ENV"
+
+      - name: Enable Android emulator KVM acceleration (fall back safely when unavailable)
+        shell: bash
+        run: |
+          if [[ -e /dev/kvm ]]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+          fi
+
+          if [[ -r /dev/kvm && -w /dev/kvm ]]; then
+            echo "KVM is available; Android Emulator will use hardware CPU acceleration."
+          else
+            echo "::warning::KVM is unavailable to this runner; Android Emulator must use slow software CPU emulation (TCG)."
+            echo "ANDROID_I_WANT_MY_TCG=yes" >> "$GITHUB_ENV"
+          fi
+
+      - name: Connect two clients and exchange a private message
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          BOB_TOKEN: ${{ env.BOB_TOKEN }}
+          ALICE_TOKEN: ${{ env.ALICE_TOKEN }}
+          ALICE_USER_ID: ${{ env.ALICE_USER_ID }}
+          BOB_USER_ID: ${{ env.BOB_USER_ID }}
+          E2E_MESSAGE: ${{ env.E2E_MESSAGE }}
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -writable-system
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: bash deploy/juggleim-poc/scripts/run-android-e2e.sh
+
+      # This runs even when the emulator action fails before invoking the E2E script.
+      - name: Collect Android emulator diagnostics
+        if: always()
+        timeout-minutes: 2
+        shell: bash
+        run: timeout --signal=TERM --kill-after=5s 90s bash deploy/juggleim-poc/scripts/collect-emulator-diagnostics.sh
+
+      - name: Upload Android emulator diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetson-android-emulator-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/emulator-diagnostics/
+          if-no-files-found: warn
+          retention-days: 3
+
+      - name: Upload two E2E-tested APKs
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetson-juggleim-two-client-e2e-apks
+          path: |
+            android/poc/app/build/outputs/apk/alice/debug/app-alice-debug.apk
+            android/poc/app/build/outputs/apk/bob/debug/app-bob-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Tear down isolated JuggleIM environment
+        if: always()
+        run: docker compose -f deploy/juggleim-poc/docker-compose.yml down -v --remove-orphans || true

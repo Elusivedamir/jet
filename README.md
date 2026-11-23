@@ -26,6 +26,6 @@ The complete approved MASTER PROMPT and numbered product specification (points 1
 - `docs/architecture/` — architecture, interfaces, ADRs;
 - `docs/research/` — third-party project evaluations and PoC reports;
 - `docs/security/` — threat model, security requirements, verification;
-- `docs/quality/` — test strategy, acceptance criteria, release gates.
+- `docs/quality/` — test strategy, acceptance criteria, release gates. See [TESTING_AND_DIAGNOSTICS_POLICY.md](docs/quality/TESTING_AND_DIAGNOSTICS_POLICY.md) for mandatory layered diagnostics and test gates; [DIAGNOSTIC_LOG.md](docs/quality/DIAGNOSTIC_LOG.md) records actual failures, fixes and evidence.
 
 No application stack or production architecture is approved by this bootstrap commit.
