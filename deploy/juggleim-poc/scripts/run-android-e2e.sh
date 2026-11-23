@@ -126,10 +126,14 @@ adb shell am force-stop com.jetson.poc.bob
 CURRENT_STAGE="start_bob"
 adb shell am start -n com.jetson.poc.bob/com.jetson.poc.MainActivity --es poc_test_token "$BOB_TOKEN" --es poc_test_sign_key "$JUGGLE_SIGN_KEY" --es poc_expected_message "$E2E_MESSAGE"
 wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.bob"
+# CONNECTED is not the same as ready to receive: JuggleIM defers normal
+# inbound messages while its initial message-history synchronization runs.
+wait_for_log "POC_MESSAGE_SYNC_COMPLETE package=com.jetson.poc.bob"
 
 CURRENT_STAGE="start_alice"
 adb shell am start -n com.jetson.poc.alice/com.jetson.poc.MainActivity --es poc_test_token "$ALICE_TOKEN" --es poc_test_sign_key "$JUGGLE_SIGN_KEY" --es poc_peer_user_id "$BOB_USER_ID" --es poc_test_message "$E2E_MESSAGE"
 wait_for_log "JuggleIM connection state=CONNECTED code=0 package=com.jetson.poc.alice"
+wait_for_log "POC_MESSAGE_SYNC_COMPLETE package=com.jetson.poc.alice"
 wait_for_log "POC_MESSAGE_SENT package=com.jetson.poc.alice"
 wait_for_log "POC_MESSAGE_RECEIVED package=com.jetson.poc.bob"
 
