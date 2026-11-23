@@ -141,3 +141,12 @@ The following remain open and must not be silently decided:
 - Scaffold source and workflow were committed to the existing working branch. CI execution result, APK artifact, and runtime behavior remain unverified. No merge to `main`.
 
 - Local setup and safe test configuration instructions: [android/poc/README.md](../../android/poc/README.md). Android SDK setup workflow action updated to v4.
+
+## JuggleIM Android session PoC update (2026-11-23)
+
+- Implemented the Android runtime test-session path using the pinned JuggleIM Android SDK 1.9.0: runtime test-token entry, SDK `connect(token)`, connection-state listener, local DB callbacks, and explicit disconnect.
+- Test token is entered into a password-style field, cleared from the field immediately after passing to the SDK, and is not intentionally persisted or logged by the PoC.
+- This is a transport-integration PoC only. Jetson account authentication and backend token issuance remain unimplemented; live connection has not been verified because no test AppKey, WSS endpoint, reachable JuggleIM environment, or server-issued test token was available.
+- Implementation and limits are documented in [JUGGLEIM_ANDROID_SESSION_POC.md](../research/JUGGLEIM_ANDROID_SESSION_POC.md) and [android/poc/README.md](../../android/poc/README.md).
+- CI is running for the implementation on the working branch. Do not describe the feature as live-connected until a test session reaches CONNECTED and messaging tests pass.
+- No production technology stack or production use of JuggleIM is approved by this PoC. No merge to `main`.
