@@ -105,3 +105,10 @@ These are recommendations for Jetson's architecture and implementation planning,
 - The repository was not cloned or executed in this review environment.
 - No complete manual audit of every Python module, dependency, migration, test or release artifact was performed.
 - No code was copied into Jetson and no LansetSpBot files were modified.
+
+
+## 9. Owner-approved adoption status
+
+On 2026-11-23 the owner directed that Jetson carry forward the useful LansetSpBot engineering work while building its own messenger backend. The patterns listed in sections 3–5 and the adoption order in section 7 are now approved as Jetson engineering requirements, extended to core message acceptance, per-recipient/per-device delivery, synchronization, push, media jobs and other asynchronous side effects—not only campaigns.
+
+This approval is for architecture and engineering invariants. It does not approve direct source-code copying, Telegram-specific behavior, Windows-specific security/UI/storage code, dependency pins, or LansetSpBot experimental modules as production-ready. Jetson implementations must be independently designed, wired into real production paths and verified with integration/concurrency/failure-recovery tests. The source repository's reviewed dependency audit was red; its dependencies are not approved for Jetson.
