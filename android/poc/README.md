@@ -51,3 +51,8 @@ The E2E workflow provisions two synthetic server-side user tokens. The AppSecret
 The local provisioning script calls the JuggleIM server registration API directly to create synthetic users. It is test infrastructure, not a public token-issuing endpoint. The upstream JuggleIM Server API currently requires a SHA-1 signature derived from the AppSecret; the secret remains server-side. The current JuggleChat Server login implementation was found to use unsalted SHA-1 password hashes, so it is not adopted as Jetson's authentication system.
 
 A successful E2E workflow can prove this narrow SDK connection and private-message path. It does not establish production security, scalability, data retention, offline synchronization, push, or final architecture approval.
+
+
+## JuggleIM connection signing key (test PoC)
+
+The Android SDK requires `IConnectionManager.setConnectParams(signKey, headers)` before `connect(token)`. The isolated test provisioning script obtains the app secret from the local JuggleIM admin API and exposes it only as the masked `JUGGLE_SIGN_KEY` CI environment value and in the mode-0600 local test credentials file. Debug E2E launches pass it through a one-shot intent extra; the Activity removes the extra immediately and supplies it to the SDK before connecting. The UI accepts the key in a password field for manual PoC testing. This is strictly a local synthetic PoC arrangement: never embed a production app secret in a distributable client APK. A production architecture must keep signing credentials behind a trusted backend or use a vendor-supported client-safe credential flow.
