@@ -26,3 +26,6 @@ The source reports contain direct GitHub permalinks and inspected paths. Evidenc
 - Fluxer revision discrepancy: the security report's Fluxer paths cite `1e9cd7c9b6ef5b39ac73ef5ce78c40531370b37d`, while the synthesis/decision log cite `7bdee9e9cfc7f8321d1578f9e4e76691c073e4b0`. Do not treat the security report's Fluxer observations as verified at the manifest SHA; re-run that source review against one explicitly pinned revision before relying on it.
 - Architecture option totals are withdrawn, not rescaled. The three options are hypotheses without implementation-level tests or operational evidence; the 100-point repository rubric cannot yield a defensible weighted score for them yet.
 - No decision in this log is an owner-approved technology or product decision. The modular-monolith direction remains a reversible proposal subject to the experiments listed in the synthesis.
+
+
+A related source-document discrepancy remains open: the canonical business-plan baseline places AI rollout in Stage 3 (while AI remains included in Business), but the derivative requirements table places AI-001/AI-002 under Stage 2. This synthesis follows the canonical baseline and does not silently edit the requirements document.
