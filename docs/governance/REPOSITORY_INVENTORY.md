@@ -82,6 +82,12 @@ Branch names alone do not establish whether their commits are useful, merged or 
 
 These workflow copies are corrected on the greenfield branch for future review. They are not activated on `main`, and no workflow was run as part of this inventory.
 
+## Pull request and automation status checked
+
+- PR #1 remains **open draft**, base `main`, head `project/foundation-and-juggleim-poc`. Its body explicitly describes a JuggleIM Android integration PoC and says it is not the Jetson MVP or a production stack decision. It contains an unfinished server-backed E2E verification checklist. It is therefore historical/experimental and must not be treated as the current project baseline. It was not closed because closing an owner-created PR is a separate repository action; no merge occurred.
+- PR #7 is **closed, not merged**. Its former LansetSpBot/first-party backend alignment is superseded by the greenfield direction.
+- Recent KLINCH workflow run #3 (run ID `45250374246`) is completed with failure after rerun; run #2 (ID `45249540771`) completed successfully. These are runs on `main` and do not validate the newly updated workflow copies on `project/greenfield-reset`. The failed run's precise cause still needs job-log inspection.
+
 ## Not yet verified
 
 - Original PDF text and page-by-page business-plan traceability.
