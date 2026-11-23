@@ -22,6 +22,7 @@ import com.juggle.im.model.messages.TextMessage;
 public final class MainActivity extends Activity {
     private static final String TAG = "JetsonPoC";
     private static final String LISTENER_KEY = "jetson-poc-main";
+    private static final String DEBUG_TRANSPORT_PROBE_EXTRA = "poc_transport_probe_only";
     private static final String DEBUG_TOKEN_EXTRA = "poc_test_token";
     private static final String DEBUG_SIGN_KEY_EXTRA = "poc_test_sign_key";
     private static final String DEBUG_PEER_EXTRA = "poc_peer_user_id";
@@ -206,7 +207,15 @@ public final class MainActivity extends Activity {
             return;
         }
         Intent launchIntent = getIntent();
-        if (launchIntent == null || !launchIntent.hasExtra(DEBUG_TOKEN_EXTRA)) {
+        if (launchIntent == null) {
+            return;
+        }
+        if (launchIntent.getBooleanExtra(DEBUG_TRANSPORT_PROBE_EXTRA, false)) {
+            launchIntent.removeExtra(DEBUG_TRANSPORT_PROBE_EXTRA);
+            TransportProbe.run(BuildConfig.JUGGLE_WSS_URL);
+            return;
+        }
+        if (!launchIntent.hasExtra(DEBUG_TOKEN_EXTRA)) {
             return;
         }
         String token = launchIntent.getStringExtra(DEBUG_TOKEN_EXTRA);
