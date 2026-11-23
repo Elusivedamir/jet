@@ -82,6 +82,47 @@ jobs:
           git switch -c "$branch"
           echo "name=$branch" >> "$GITHUB_OUTPUT"
 
+      - name: Prefetch upstream source snapshots
+        env:
+          TASK_FILE: ${{ inputs.task }}
+        run: |
+          set -euo pipefail
+          mkdir -p upstream-sources
+          touch .git/info/exclude
+          grep -qxF '/upstream-sources/' .git/info/exclude || echo '/upstream-sources/' >> .git/info/exclude
+
+          case "$TASK_FILE" in
+            *AGENT_TASK_01_MESSAGE_RELIABILITY*)
+              repos="OpenIMSDK/Open-IM-Server element-hq/synapse tinode/chat processone/ejabberd"
+              ;;
+            *AGENT_TASK_02_CRM_CAMPAIGNS*)
+              repos="chatwoot/chatwoot twentyhq/twenty knadh/listmonk mautic/mautic"
+              ;;
+            *AGENT_TASK_03_SECURITY_LICENSES_OPERATIONS*)
+              repos="simplex-chat/simplex-chat zulip/zulip mattermost/mattermost RocketChat/Rocket.Chat signalapp/Signal-Server fluxerapp/fluxer OpenIMSDK/Open-IM-Server tinode/chat"
+              ;;
+            *)
+              echo "::error::Task file is not one of the approved bounded research tasks."
+              exit 1
+              ;;
+          esac
+
+          : > upstream-sources/MANIFEST.txt
+          for repo in $repos; do
+            name="${repo//\\//__}"
+            dest="upstream-sources/$name"
+            echo "Fetching $repo"
+            if timeout 180 git -c protocol.version=2 clone --depth 1 --filter=blob:limit=5m --no-tags "https://github.com/$repo.git" "$dest"; then
+              sha="$(git -C "$dest" rev-parse HEAD)"
+              printf '%s %s\\n' "$repo" "$sha" | tee -a upstream-sources/MANIFEST.txt
+            else
+              printf '%s FETCH_FAILED\\n' "$repo" | tee -a upstream-sources/MANIFEST.txt
+              rm -rf "$dest"
+            fi
+          done
+          echo "Upstream snapshot manifest:"
+          cat upstream-sources/MANIFEST.txt
+
       - name: Run Codex through KLINCH Responses API
         id: codex
         uses: openai/codex-action@v1
@@ -100,7 +141,7 @@ jobs:
             Owner task:
             ${{ inputs.task }}
 
-            Execute the exact bounded task described by the referenced file under docs/agent/tasks/. Inspect source and tests, pin exact upstream commit SHAs, and cite precise file paths/permalinks. Clearly distinguish verified code/test evidence, documentation claims and inference. Do not claim tests were run unless they were actually run.
+            Execute the exact bounded task described by the referenced file under docs/agent/tasks/. The workflow prefetches shallow upstream source snapshots into the read-only-by-convention, git-excluded directory upstream-sources/ before this sandboxed Codex run. Read upstream-sources/MANIFEST.txt first; use the exact pinned SHAs there and inspect those local source trees and their tests. Do not attempt live network access from Codex. Cite GitHub permalinks using the pinned SHA and exact source paths. Clearly distinguish verified code/test evidence, documentation claims and inference. Do not claim tests were run unless they were actually run.
 
             This is a research-only run. Do not edit application code, choose a final stack, modify product requirements, alter the business plan, or make changes outside docs/research/ and the specific requested report. Work only on the isolated agent branch created by this workflow. Create the requested report and update the research index only if appropriate.
 
