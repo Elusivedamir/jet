@@ -13,7 +13,7 @@ Status: [ВЫВОД] comparative research; no production stack or vendor depende
 
 ## Executive conclusion
 
-Do not force all four clients into one UI framework solely to claim a single codebase. The decisive integration constraint is the messaging SDK: JuggleIM currently documents distinct Android, iOS, and Web SDKs; its Web SDK explicitly supports browser and Electron-based desktop use. Flutter is listed in the JuggleIM ecosystem, but the Flutter SDK's exact platform matrix, API coverage, release maturity, and production behavior still need a direct package/source/runtime audit.
+Do not force all four clients into one UI framework solely to claim a single codebase. The decisive integration constraint is the messaging SDK: JuggleIM currently documents distinct Android, iOS, and Web SDKs; its Web SDK explicitly supports browser and Electron-based desktop use. Static inspection of JuggleIM Flutter plugin commit 7e9d6f28b613063d742f5280025a54f78cf20940 now confirms that its pubspec declares Android and iOS implementations only; it does not declare Web or Windows implementations. It also pins different native JuggleIM versions on Android and iOS. See JUGGLEIM_FLUTTER_SDK_AUDIT.md. Flutter remains a possible Android+iOS UI option, not a single four-platform JuggleIM client.
 
 Recommended architecture to validate first:
 
@@ -30,7 +30,7 @@ This is a proposed integration route, not an approved technology decision. It de
 | Option | Android | Web | Windows | iOS | Main trade-off |
 |---|---|---|---|---|---|
 | Native clients + shared backend | Kotlin + native SDK | TypeScript + Web SDK | Electron reusing Web | Swift + native SDK | More client projects; lowest SDK mismatch risk based on documented SDKs |
-| Flutter-first | Flutter | Flutter Web | Flutter Desktop | Flutter | High UI reuse; JuggleIM Flutter SDK platform coverage and feature parity must be verified; Flutter web UX/performance must be PoC-tested |
+| Flutter-first | Flutter + JuggleIM plugin | Flutter Web (no JuggleIM plugin implementation found) | Flutter Desktop (no JuggleIM plugin implementation found) | Flutter + JuggleIM plugin | Mobile UI reuse possible; separate Web/Windows IM integration still required; plugin version drift and license provenance need review |
 | Kotlin Multiplatform / Compose | Kotlin | Compose Web/Wasm | Compose Desktop | Kotlin shared + iOS | Strong Kotlin reuse; official docs still label Compose Web as Beta, adding risk to a core web messenger |
 | React Native + web + Windows | React Native | React/React Native Web | React Native Windows or Electron | React Native | Shared JS/TS expertise, but platform-specific integration and JuggleIM SDK support need verification |
 
@@ -45,7 +45,7 @@ This is a proposed integration route, not an approved technology decision. It de
 
 ### Flutter
 
-Flutter's official platform matrix supports Android, iOS, Windows, and modern browsers. That makes it a credible one-toolkit candidate. However, platform support by Flutter does not prove that the JuggleIM Flutter plugin supports every target or that its messaging features match the native/Web SDKs. A Flutter spike must prove reconnect, offline sync, media, read receipts, multi-device, push, and Windows/Web behavior before this option can be selected.
+Flutter's official platform matrix supports Android, iOS, Windows, and modern browsers. However, the inspected JuggleIM Flutter plugin package (version 0.0.73, commit 7e9d6f28b613063d742f5280025a54f78cf20940) declares only Android and iOS plugin implementations. Its Android bridge pins JuggleIM 1.8.39, while its iOS podspec pins JuggleIM 1.9.0. Therefore the existing plugin cannot provide JuggleIM connectivity on Web or Windows without new native/web bridge work. Its README is still a generic template and its package license/provenance needs clarification. A Flutter Android+iOS spike can still be compared, but it does not yield one shared four-platform messaging client. See JUGGLEIM_FLUTTER_SDK_AUDIT.md.
 
 ### Kotlin Multiplatform / Compose
 
@@ -117,7 +117,7 @@ Scores are qualitative judgments, not benchmark results.
 - Reuse the same Jetson Backend API contracts.
 
 ### Parallel gate — compare Flutter
-Before permanently excluding Flutter, inspect the exact JuggleIM Flutter package and run a small feature-parity spike. Compare effort against native SDK integration. Do not select Flutter based on cross-platform marketing claims alone.
+Flutter source inspection is complete enough to rule out the current plugin as a four-platform JuggleIM bridge. Optionally run a focused Android+iOS parity spike only if the mobile UI reuse benefit justifies maintaining a Flutter path alongside separate Web and Windows clients.
 
 ## Required acceptance tests
 
@@ -134,7 +134,7 @@ Before permanently excluding Flutter, inspect the exact JuggleIM Flutter package
 
 ## Risks / unresolved questions
 
-- JuggleIM Flutter SDK: exact repository branch, supported targets, feature parity, package release cadence, and production quality.
+- JuggleIM Flutter SDK: Web/Windows plugin implementations are absent in the inspected package metadata; Android/iOS feature parity, dependency version alignment, package provenance/license, and runtime quality remain to be tested.
 - JuggleIM Windows/Electron: validate current Web SDK compatibility and native OS integrations.
 - JuggleIM channels: verify Jetson channel semantics; chatrooms are not automatically equivalent to broadcast channels.
 - Server edition/scaling and all static-audit security findings remain open.
