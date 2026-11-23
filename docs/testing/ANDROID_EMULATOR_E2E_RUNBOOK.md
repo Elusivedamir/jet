@@ -178,3 +178,13 @@ Run 45208871446 confirmed Bob remained CONNECTING. The first live snapshot retai
 ### Root cause and correction: empty JuggleIM signing key
 
 Run 45211331834's live failure snapshot exposed the exact exception: `IllegalArgumentException: Empty key` from `SecretKeySpec`, called by `JUtility.createSignature` and `JWebSocket.addConnectHeader`. Inspection of the pinned Android SDK source confirmed `IConnectionManager.setConnectParams(String signKey, Map<String,String> headers)` is the setter for the key passed to the WebSocket signature routine. The PoC initialized JIM with AppKey but never called this setter. The isolated provisioning flow now exports the server-created App Secret as masked `JUGGLE_SIGN_KEY`; local credentials remain mode 0600; debug-only launch extras pass it to the Activity, which removes the extra and calls `setConnectParams` before `connect`. A password field supports manual PoC tests. This secret flow is test-only and must not be carried into a production APK. Verification pending: next E2E must establish both clients and receive the message. No TLS root cause was found.
+
+
+## Independent WSS transport probe (2026-11-23)
+
+- The E2E script starts the Bob debug Activity in probe-only mode before invoking JuggleIM SDK connection.
+- The probe uses Android's default system trust store and a raw SSLSocket to the configured WSS host, performs TLS handshake, then sends a standards-based HTTP WebSocket Upgrade request. It sends no token, AppSecret, authorization header or message body.
+- Acceptance for the transport layer is POC_TRANSPORT_TLS_OK followed by POC_TRANSPORT_WS_STATUS HTTP/1.1 101. Only after this result does the script force-stop the probe Activity and start the normal Bob SDK connection.
+- TLS exception is captured as POC_TRANSPORT_PROBE_FAILED with exception type/stack. Non-101 HTTP responses are retained as explicit evidence and stop the SDK E2E stage.
+- Interpretation: TLS failure narrows the issue to network path/certificate/trust/endpoint; TLS success plus non-101 response proves TLS but points to HTTP routing or WebSocket endpoint behavior; HTTP 101 proves the emulator-to-proxy-to-upstream WebSocket upgrade path independently of JuggleIM SDK. If 101 succeeds while SDK remains CONNECTING, focus shifts to SDK-generated URL/headers/signature/protocol behavior.
+- The probe does not authenticate a JuggleIM session or prove message delivery. Its result must not be treated as SDK or product acceptance. The local test CA and synthetic WSS endpoint remain isolated PoC infrastructure.
