@@ -19,8 +19,6 @@ import com.juggle.im.model.Conversation;
 import com.juggle.im.model.Message;
 import com.juggle.im.model.messages.TextMessage;
 
-import java.util.Collections;
-
 public final class MainActivity extends Activity {
     private static final String TAG = "JetsonPoC";
     private static final String LISTENER_KEY = "jetson-poc-main";
