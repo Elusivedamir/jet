@@ -63,6 +63,22 @@ The server must not acknowledge durable acceptance before the message transactio
 
 Ordering guarantees, retention, edit/delete semantics and multi-device conflict rules must be written as protocol contracts before implementation.
 
+
+### 5.1 LansetSpBot-derived delivery and workflow invariants
+
+The reliability patterns reviewed in LansetSpBot are part of the Jetson messaging foundation, not a Business-only feature. Apply them to ordinary chat delivery and all asynchronous side effects:
+
+- A client message, the server's durable message record, a delivery job, each recipient/device delivery attempt, and a delivery/read receipt are distinct concepts. Do not collapse them into one status.
+- The server may acknowledge durable acceptance only after the message and its outbox intent commit. A socket write or queue enqueue alone is not proof of recipient delivery.
+- Every mutating client request carries a stable idempotency identity. Duplicate requests/events must not create duplicate visible messages or repeat side effects.
+- A timeout after dispatch is an unknown remote outcome. Preserve an explicit `UNCERTAIN` state and reconcile against durable receipts/events before retrying; never convert uncertainty into assumed failure.
+- State transitions are validated at the authoritative persistence boundary. Use transactions, compare-and-set/version checks and worker leases to protect concurrent delivery, cancellation, membership changes and retries.
+- Normalize transient, deferred/rate-limited, terminal, authorization/configuration, invalid-input and uncertain failures behind adapters. Retries are bounded and only permitted when safe.
+- Startup phases, migrations and readiness fail closed. Diagnostics and telemetry use correlation IDs and centralized redaction; message plaintext, credentials and private keys are excluded.
+- Integration tests must exercise the actual production composition path, including worker-to-storage-to-gateway delivery and crash/restart reconciliation. Unit tests of isolated helpers are not production evidence.
+
+These are architectural invariants. Exact tables, state names, queue/broker and retry values are not selected here; decide them in ADRs. The LansetSpBot audit documents the source patterns and limitations. In particular, its architecture scaffolds were marked experimental where not wired into real production paths, and its reviewed dependency audit was red. Reuse the lessons, not an unverified claim of production readiness.
+
 ## 6. End-to-end encryption and key management
 
 E2EE remains a mandatory security objective; it must not be disabled to make transport or CI tests pass.
