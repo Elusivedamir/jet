@@ -15,6 +15,23 @@ openssl x509 -in "$CA_CERT" -outform DER -out "$TMP_DER"
 
 adb root
 adb wait-for-device
+
+# The emulator must be launched with -writable-system. Disable verified
+# boot before remounting /system so the local PoC CA can be installed.
+adb disable-verity
+adb reboot
+adb wait-for-device
+for _ in $(seq 1 90); do
+  [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]] && break
+  sleep 2
+done
+[[ "$(adb shell getprop sys.boot_completed | tr -d '\r')" == "1" ]] || {
+  echo "Emulator did not finish rebooting after disabling verity." >&2
+  exit 1
+}
+
+adb root
+adb wait-for-device
 adb remount
 adb push "$TMP_DER" "/system/etc/security/cacerts/$HASH.0"
 adb shell chown 0:0 "/system/etc/security/cacerts/$HASH.0"
