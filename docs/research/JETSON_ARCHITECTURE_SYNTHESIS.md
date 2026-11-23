@@ -22,7 +22,6 @@ All mandatory inputs were present, including the three reports and upstream-sour
 | KPI-001..006; AI-001..003 | Reference event/counter patterns are not Jetson metric definitions or an AI privacy/cost boundary. | Keep analytics/AI rollout in Stage 3; define event semantics, attribution, data permissions and spend controls before claims. AI remains included in base Business. |
 | SCALE-001..004; FUT-001/002; NG-001 | No inspected source establishes Jetson capacity or numerical SLOs; API and external channels are deferred. | Preserve independent scaling capability, measure before claims, and do not introduce email/SMS/other-messenger campaigns in v1. |
 | Security/operations | SimpleX, Zulip, Mattermost, Rocket.Chat, Signal Server, Fluxer, OpenIM and Tinode license/security/deploy/test paths were inspected in the security report. | Root licenses do not clear nested editions, assets or dependencies. Restore, advisory and reproducibility gates remain unknown. |
-| KPI/AI | Reports found event/counter patterns, but no Jetson-native definitions or AI boundary. | Define formulas, limitations, data permissions and cost controls before launch claims. |
 
 Important evidence conflict: the security report cites Fluxer 1e9cd7c9b6ef5b39ac73ef5ce78c40531370b37d, while the manifest pins 7bdee9e9cfc7f8321d1578f9e4e76691c073e4b0. Fluxer SHA-specific evidence is excluded until corrected.
 
