@@ -46,3 +46,20 @@
 
 **Commits:** 7e89ef3, 092eb0f, 885d42f.  
 **Verification:** In CI run 45220625174, the new “Prepare per-run Android PoC TLS trust resource” step completed successfully. APK build and unit tests are still pending/in progress; do not mark build/unit as passed until the full workflow succeeds.
+
+
+## 2026-11-23 — WebSocket Upgrade rejected with HTTP 400
+
+**CI run:** 45220003331  
+**Failing stage:** independent_wss_transport_probe  
+**Observed:** Android emulator completed TLS 1.3 handshake with the local Caddy endpoint, then received `HTTP/1.1 400 Bad Request` for the WebSocket request to `/im`. The server and Caddy containers started. The app had not yet begun SDK authentication. The diagnostic snapshot contains no TLS trust error and no Android application exception.
+
+**Interpretation:** TLS trust is no longer the failing layer. The request reaches an HTTP endpoint, but the Upgrade is rejected. The prior probe discarded response headers/body, so the precise rejecting component and reason are not yet proven. Do not attribute this to JuggleIM auth or to the SDK.
+
+**Diagnostic improvement:** `TransportProbe` now records only allowlisted response metadata (`Server`, `Content-Type`, `Content-Length`, `Sec-WebSocket-Version`) and a bounded, sanitized error-body excerpt. It sends no credentials or message content. The probe's /im path comment was also cleaned up.
+
+**Build gate:** CI run 45220625174 completed successfully: CA resource preparation, Alice/Bob debug APK builds, unit tests, APK verification, and artifact upload all passed. Artifact: `jetson-android-poc-debug` (SHA-256 `21d8346af509341ca6aed84979ff805f04e78a25e0f245ce5f058842c544fab3`).
+
+**Diagnostic instrumentation commits:** `a948c61062ce95221c702d425a8ad67136c50539` and `f9a3317cccba3bd712dc24120169421bcd14a792`.
+
+**Next gate:** run the focused transport probe with the new response diagnostics, inspect the HTTP response metadata/body, and only then change the handshake request or proxy configuration. SDK handshake/auth and Alice/Bob round-trip remain unverified.
