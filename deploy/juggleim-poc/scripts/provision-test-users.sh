@@ -81,7 +81,6 @@ chmod 600 "$SECRETS_DIR/test-users.env"
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "::add-mask::$APP_SECRET"
-  echo "::add-mask::$APP_SECRET"
   echo "::add-mask::$ALICE_TOKEN"
   echo "::add-mask::$BOB_TOKEN"
   {
