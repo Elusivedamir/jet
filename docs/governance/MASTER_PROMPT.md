@@ -1,7 +1,7 @@
 # MASTER PROMPT — JETSON MESSENGER
 
 **Revision:** Greenfield discovery  
-**Status:** Governing project instructions. The original business-plan PDF at the repository root is the sole canonical product source. [BUSINESS_PLAN_BASELINE.md](../product/BUSINESS_PLAN_BASELINE.md) is an unverified transcription until reconciled page-by-page.  
+**Status:** Governing project instructions. The owner supplied the complete seven-page text of the 15-section business plan on 2026-11-23. [BUSINESS_PLAN_BASELINE.md](../product/BUSINESS_PLAN_BASELINE.md) is now the verified working product baseline derived from that full text. The canonical PDF remains preserved at the repository root; byte-for-byte PDF extraction comparison is still a technical verification task, not a reason to treat the supplied complete plan as unknown.  
 **Core rule:** learn broadly, decide from evidence, do not become dependent on any single existing project, vendor, stack or design.
 
 ## 1. Mission and role
@@ -14,16 +14,30 @@ Do not confuse plans, source-code changes, successful builds, test results and p
 
 ## 2. Product source of truth
 
-The original business-plan PDF is the sole product baseline. Never infer approval from summaries or prior chat. The Markdown transcription is explicitly unverified until every requirement is traced to a page/section in the PDF. Do not use unverified transcription to settle scope. After reconciliation, preserve only source-supported requirements:
-- free messenger core: registration, profile, direct messages, chats and channels;
-- Jetson Business attached to a personal account, with CRM, campaigns/templates/scheduling/reports, KPI/analytics, premium business profile and included AI assistant;
-- trial up to 7 days with explicit auto-renewal/payment consent, required disclosures and reminder;
-- consent, unsubscribe and anti-abuse requirements;
-- first-release boundaries inside Jetson, excluding email/SMS/external messenger campaigns and public developer API/portal;
-- target audiences and the four approved stages: messenger core → Business → analytics/AI → scale/API/docs.
+The owner's complete business-plan text (15 sections, pages 1–7, supplied 2026-11-23) is the current authoritative product baseline, summarized and traceable in [BUSINESS_PLAN_BASELINE.md](../product/BUSINESS_PLAN_BASELINE.md). The original PDF remains preserved at the repository root. Do not change the product requirements below without explicit owner approval.
 
-Read the original PDF before changing scope. Record page/section traceability for every requirement. If the PDF cannot be read, stop product-scope decisions and mark the transcription [НЕ ПРОВЕРЕНО]. The plan's open questions remain open. Never turn an estimate into a commitment.
+Mandatory product invariants:
+- Free messenger core: registration, personal profile, direct messages, basic chats; chat and channel creation.
+- Jetson Business is a personal monthly subscription attached to the user's existing personal account, not a separate corporate account.
+- Business includes CRM (customer cards, conversation history, notes, statuses, basic segmentation), internal campaigns (audience selection, templates, scheduling, reports), KPI/analytics (delivery, reads, replies, link clicks where applicable, conversions, campaign trends), premium business profile styling and an AI assistant.
+- AI is included in the base Business subscription, not a separate mandatory tier. AI usage limits and unit economics remain open.
+- Reference Business price is approximately USD 5/month; it is a hypothesis, not a final approved price.
+- Trial is up to 7 days. Recurring charge only after explicit advance consent to auto-renewal and provision of a payment method. Clearly disclose price, first charge date, billing period and cancellation method. Trial reminder is part of the intended transparent flow.
+- Trial includes a safe virtual customer-base demo and a limited real send only to recipients who explicitly consented; show audience, content and expected volume before sending.
+- Campaigns must respect recipient consent, unsubscribe/preferences, suppression of unsubscribed users, service-vs-marketing separation, duplicate suppression, complaint/anomaly monitoring and anti-abuse controls.
+- High throughput and the long-term ability to serve hundreds of thousands or millions are product goals to validate with load tests; do not claim measured capacity before tests. No promise of arbitrary sending, unconditional unlimited throughput or immunity from blocking.
+- First release campaigns operate only inside Jetson Messenger. Email, SMS and other external messenger channels are out of scope for the first release.
+- Developer portal, public API and developer documentation are deferred until after launch.
+- Approved stage order: (1) messenger core; (2) Jetson Business, trial, CRM, business profile and basic campaigns; (3) analytics and AI; (4) scaling, extended segmentation, API and developer documentation.
+- Initial target focus: small businesses, online stores, service companies, professionals and community creators; broader audiences include regular users, growing companies and large enterprises.
+- Visual direction: premium predominantly black style with readable typography and sufficient contrast. Detailed UI, layouts and visual implementation remain iterative.
+- Positioning: «Свобода наконец-то и в бизнесе». Do not overstate marketing promises.
 
+The plan explicitly leaves open: launch countries and legal requirements; final price and payment rails; subscription lifecycle/refunds; AI provider and usage economics; measured capacity and reliability targets; exact CRM fields and KPI formulas; team, budget, timeline, support and 12–24 month forecast.
+
+The business plan does NOT choose language, framework, backend, database, transport, protocol, cloud, hosting, SDK, cryptographic library, AI vendor, architecture topology or E2EE scope. Do not infer those decisions. Treat the plan's business requirements as constraints for research and architecture, not as a predetermined technology design.
+
+Maintain traceability from each product requirement to the relevant baseline section/page. If the PDF binary cannot be text-extracted, do not disregard the complete owner-supplied text; record that byte-for-byte extraction verification remains outstanding.
 ## 3. Evidence labels
 
 Use these labels consistently:
@@ -194,6 +208,6 @@ The assistant is free to propose and iterate the design and research approach. T
 
 ## 15. Current start point
 
-The project is at Stage 0: clean repository inventory and discovery setup. No backend, language, framework, database, transport, protocol, hosting or UI design is selected. The business plan is preserved in `docs/product/BUSINESS_PLAN_BASELINE.md`.
+The project has completed the first business-plan study gate using the owner's complete supplied text. The verified working baseline is `docs/product/BUSINESS_PLAN_BASELINE.md`. The original PDF is preserved in the repository; exact byte-level text extraction comparison remains outstanding. Repository/branch inventory and broad research are in progress. No backend, language, framework, database, transport, protocol, hosting or UI implementation is selected.
 
-**First task:** obtain and read the original business-plan PDF, reconcile the Markdown transcription against it with page/section references, then complete repository/branch inventory and freeze obsolete assumptions without deleting historical evidence. Until PDF reconciliation is complete, do not treat the transcription as verified requirements. Do not implement the production stack yet.
+**Next task:** translate the verified business plan into testable product requirements and user journeys; then continue repository landscape research against those requirements. Keep all technology choices open until comparative evidence and risk-focused proofs of concept justify them. Do not implement a production stack merely to start coding.
