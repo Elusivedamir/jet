@@ -146,3 +146,25 @@ For every change to this pipeline:
 **Acceptance checks still required:** run `bash -n deploy/juggleim-poc/scripts/collect-emulator-diagnostics.sh`; inspect workflow YAML; verify on a fresh CI run that the collector finishes or is forcibly bounded, the artifact uploads, and the report contains either command output or timeout markers. This mitigation does not fix the underlying Alice/Bob E2E failure and does not establish successful message delivery.
 
 **Remaining unknowns:** exact command that stalled in run `45201616287`; root cause of the E2E failure; whether KVM hardware acceleration was actually active.
+
+
+## 11. Live failure snapshot before emulator teardown (2026-11-23)
+
+**Reason:** earlier CI failures showed that the post-action collector may run after the emulator action has already stopped the emulator. ADB then reports no device/offline and cannot preserve the connection-time evidence needed to distinguish client TLS/WSS failure from server-side authentication or readiness failure.
+
+**Change:** `run-android-e2e.sh` now tracks the current stage and captures a bounded snapshot immediately when a required marker times out or a command exits non-zero. This runs inside the emulator action, before the action tears down the emulator.
+
+**Snapshot:** `artifacts/emulator-diagnostics/e2e-live-failure.txt` contains:
+- run ID/attempt, UTC timestamp, current E2E stage and failure marker/exit line;
+- bounded ADB device state and selected Android boot properties;
+- filtered JetsonPoC and network/TLS exception markers, excluding message bodies;
+- filtered JuggleIM server and WSS proxy warning/error lines from the last ten minutes;
+- basic redaction for token/authorization/secret/password assignments.
+
+The existing post-job collector remains in place for runner/KVM/AVD information and uploads the same diagnostics directory. Both files should be present when the live script ran and failed; a boot failure before script invocation will only produce post-job diagnostics.
+
+**Safety boundary:** this is a test-only diagnostic artifact with three-day retention. Do not add full environment dumps, raw tokens, AppSecret, message bodies, or unrestricted application/server logs. Filtered logs can still contain operational identifiers; treat the artifact as sensitive.
+
+**Acceptance checks:** verify shell syntax; run the E2E workflow; on a deliberately failing or naturally failing client-connect stage, confirm the live snapshot exists and contains the stage plus available Android/server error markers. A successful run should not create a failure snapshot. Do not infer the root cause from the presence of a generic warning; correlate timestamps and client/server evidence.
+
+**Current status:** code committed; fresh CI verification pending. This diagnostic change does not itself fix TLS, WSS, authentication, or SDK connectivity and does not weaken the required Bob receive assertion.
