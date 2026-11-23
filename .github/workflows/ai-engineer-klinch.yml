@@ -1,0 +1,157 @@
+name: AI Engineer (KLINCH)
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Focused engineering task for the agent"
+        required: true
+        type: string
+      base_branch:
+        description: "Approved non-main project branch"
+        required: true
+        default: "feature/ai-engineer-foundation"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ai-engineer-klinch-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Validate configuration and API key
+        env:
+          KLINCH_API_KEY: ${{ secrets.AI_API_KEY }}
+          REQUESTED_BASE: ${{ inputs.base_branch }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KLINCH_API_KEY" ]; then
+            echo "::error::Missing AI_API_KEY GitHub secret."
+            exit 1
+          fi
+          case "$REQUESTED_BASE" in
+            feature/*|project/*|fix/*) ;;
+            *) echo "::error::Base must be feature/*, project/* or fix/*; main is forbidden."; exit 1 ;;
+          esac
+          if [ "$REQUESTED_BASE" = "main" ]; then
+            echo "::error::Refusing to target main."
+            exit 1
+          fi
+
+      - name: Discover models allowed for this key
+        id: models
+        env:
+          KLINCH_API_KEY: ${{ secrets.AI_API_KEY }}
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${KLINCH_API_KEY}" \
+            https://api.klinch.cloud/v1/models)"
+          model="$(printf '%s' "$response" | jq -r '
+            [.data[]?.id] |
+            if index("gpt-6.1-sol") then "gpt-6.1-sol"
+            elif length > 0 then .[0]
+            else empty end
+          ')"
+          if [ -z "$model" ] || [ "$model" = "null" ]; then
+            echo "::error::KLINCH returned no models available to AI_API_KEY."
+            exit 1
+          fi
+          echo "model=$model" >> "$GITHUB_OUTPUT"
+          echo "Selected model ID: $model"
+
+      - name: Checkout approved base
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+
+      - name: Create isolated agent branch
+        id: branch
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          branch="agent/klinch-${RUN_ID}"
+          git switch -c "$branch"
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Run Codex through KLINCH Responses API
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.AI_API_KEY }}
+          responses-api-endpoint: "https://api.klinch.cloud/v1/responses"
+          codex-args: --model ${{ steps.models.outputs.model }}
+          permission-profile: ":workspace"
+          safety-strategy: drop-sudo
+          output-file: ${{ runner.temp }}/codex-report.md
+          prompt: |
+            First read and obey .github/codex/prompts/engineering-agent.md and docs/agent/AGENT_RULES.md.
+            Read the diagnostic log and relevant project instructions before editing.
+
+            Owner task:
+            ${{ inputs.task }}
+
+            Work only on the isolated branch created by this workflow. Investigate first, identify the smallest proven root cause, make a minimal safe fix only when evidence supports it, add focused regression tests, update docs/quality/DIAGNOSTIC_LOG.md, and run narrow checks.
+
+            Never modify main, merge, deploy, modify secrets, expose credentials, disable E2EE, weaken tests, or bypass security. Do not run full Android E2E. If evidence is insufficient, make no code changes and report findings.
+
+            Final report must list evidence, changed files, exact checks and outcomes, remaining risks, and whether a patch was produced.
+
+      - name: Validate patch
+        id: validate
+        run: |
+          set -euo pipefail
+          git add -N .
+          git diff --check
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Agent made no repository changes; no PR will be created."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --short
+            git diff --stat
+          fi
+
+      - name: Commit and push isolated branch
+        if: steps.validate.outputs.changed == 'true'
+        env:
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+        run: |
+          set -euo pipefail
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "agent: focused KLINCH-backed engineering change"
+          git push --set-upstream origin "$BRANCH_NAME"
+
+      - name: Open draft pull request
+        if: steps.validate.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh pr create --draft \
+            --base "$BASE_BRANCH" \
+            --head "$BRANCH_NAME" \
+            --title "AI Engineer (KLINCH): focused change (run $RUN_ID)" \
+            --body-file "${{ runner.temp }}/codex-report.md"
+
+      - name: Upload agent report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klinch-agent-report-${{ github.run_id }}
+          path: ${{ runner.temp }}/codex-report.md
+          if-no-files-found: ignore
