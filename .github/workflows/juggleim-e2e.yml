@@ -8,6 +8,7 @@ on:
       - project/foundation-and-juggleim-poc
     paths:
       - .github/workflows/juggleim-e2e.yml
+      - android/poc/app/src/main/java/com/jetson/poc/MainActivity.java
   # Keep manual execution available for later acceptance runs.
   workflow_dispatch:
 
