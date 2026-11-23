@@ -101,6 +101,9 @@ jobs:
             *AGENT_TASK_03_SECURITY_LICENSES_OPERATIONS*)
               repos="simplex-chat/simplex-chat zulip/zulip mattermost/mattermost RocketChat/Rocket.Chat signalapp/Signal-Server fluxerapp/fluxer OpenIMSDK/Open-IM-Server tinode/chat"
               ;;
+            *AGENT_TASK_04_ARCHITECTURE_SYNTHESIS*)
+              repos="OpenIMSDK/Open-IM-Server element-hq/synapse tinode/chat processone/ejabberd chatwoot/chatwoot twentyhq/twenty knadh/listmonk mautic/mautic simplex-chat/simplex-chat zulip/zulip mattermost/mattermost RocketChat/Rocket.Chat signalapp/Signal-Server fluxerapp/fluxer"
+              ;;
             *)
               echo "::error::Task file is not one of the approved bounded research tasks."
               exit 1
