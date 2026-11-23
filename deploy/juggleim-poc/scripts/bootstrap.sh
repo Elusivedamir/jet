@@ -16,7 +16,7 @@ if [[ ! -s .env ]]; then
   chmod 600 .env
 fi
 
-"$ROOT/scripts/generate-dev-certs.sh"
+bash "$ROOT/scripts/generate-dev-certs.sh"
 docker compose up -d --build
 
 ready=0
@@ -33,5 +33,5 @@ if [[ "$ready" != "1" ]]; then
   exit 1
 fi
 
-"$ROOT/scripts/provision-test-users.sh"
+bash "$ROOT/scripts/provision-test-users.sh"
 echo "Local JuggleIM PoC stack is ready. Admin and IM APIs are bound to loopback only."
