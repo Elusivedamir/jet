@@ -14,6 +14,17 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Repository landscape research method](docs/research/REPOSITORY_LANDSCAPE_METHOD.md)
 - [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
 
+## Engineering validation (experimental)
+
+- [Message reliability test plan](docs/testing/MESSAGE_RELIABILITY_TEST_PLAN.md)
+- [Message state-machine contract](docs/testing/MESSAGE_STATE_MACHINE_CONTRACT.md)
+- [Outbox dispatch contract](docs/testing/OUTBOX_DISPATCH_CONTRACT.md)
+- [Engineering validation log](docs/testing/ENGINEERING_VALIDATION_LOG.md)
+- [In-memory reference model](tests/reference_model/README.md)
+- [SQLite durability/outbox experiment](tests/sqlite_adapter/README.md)
+
+These are executable research contracts and adapter experiments only. They do not select a production database, broker, transport or E2EE design.
+
 ## Current status
 
 **Stage 1 planning — requirements and journeys.** The business-plan study is complete from the owner's supplied full text. Product requirements and initial user journeys are documented. No backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. Detailed UI remains iterative.
