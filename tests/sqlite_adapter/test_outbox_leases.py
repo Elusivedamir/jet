@@ -32,10 +32,10 @@ class OutboxLeaseTests(unittest.TestCase):
         self.assertEqual(2, reclaimed["attempt"])
         with self.assertRaises(OutboxClaimError):
             self.store.acknowledge_dispatch(
-                self.message_id, "B", "old-token", delivered_at=111
+                self.message_id, "B", "old-token", dispatched_at=111
             )
-        self.store.acknowledge_delivery(
-            self.message_id, "B", "new-token", delivered_at=112
+        self.store.acknowledge_dispatch(
+            self.message_id, "B", "new-token", dispatched_at=112
         )
         states = self.store.snapshot("room-1")[1]
         self.assertEqual(
@@ -54,12 +54,12 @@ class OutboxLeaseTests(unittest.TestCase):
 
     def test_claim_cannot_be_acknowledged_twice(self):
         claim = self.store.claim_next("worker-1", "token-1", 100, 30)
-        self.store.acknowledge_delivery(
-            claim["message_id"], claim["recipient_id"], "token-1", delivered_at=105
+        self.store.acknowledge_dispatch(
+            claim["message_id"], claim["recipient_id"], "token-1", dispatched_at=105
         )
         with self.assertRaises(OutboxClaimError):
-            self.store.acknowledge_delivery(
-                claim["message_id"], claim["recipient_id"], "token-1", delivered_at=106
+            self.store.acknowledge_dispatch(
+                claim["message_id"], claim["recipient_id"], "token-1", dispatched_at=106
             )
 
     def test_expired_worker_cannot_ack_before_reclaim(self):
