@@ -23,14 +23,14 @@ export POSTGRES_DSN="postgresql://USER:PASSWORD@127.0.0.1:5432/DATABASE"
 JET_BENCH_MESSAGES=100 python tests/benchmarks/persistence_workload_baseline.py
 ```
 
-The JSON report is written to `persistence-benchmark.json` and uploaded as a GitHub Actions artifact.
+The JSON report is written to `persistence-benchmark.json` and uploaded as a GitHub Actions artifact. The first completed baseline is [run #45339664701](https://github.com/Elusivedamir/jet/actions/runs/45339664701); its [JSON artifact](https://github.com/Elusivedamir/jet/actions/runs/45339664701/artifacts/14895886319) recorded SQLite acceptance p50/p95 of 1.315/1.587 ms and PostgreSQL 10.799/12.356 ms; SQLite claim+ack p50/p95 of 3.751/5.087 ms and PostgreSQL 30.967/34.972 ms. These values include each adapter's current connection lifecycle and are one-run observations only.
 
 ## Interpretation limits
 
 - One serial run on one ephemeral CI runner; no concurrency or multi-host traffic.
 - No transport/network/device delivery, cold/warm cache separation, long-duration soak or repeated statistical trials.
 - Both adapters are test POCs; configuration and durability settings are not production tuned.
-- Latency includes each adapter's current connection lifecycle.
+- Latency includes each adapter's current connection lifecycle; the PostgreSQL POC opens a fresh connection per operation and has no pool, while SQLite uses a local file.
 - Numbers must not be extrapolated to production capacity, user count, SLO, cost or database choice.
 
 Use the report to spot obvious regressions and guide what to measure next, not to declare a winner.
