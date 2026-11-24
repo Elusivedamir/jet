@@ -1,13 +1,16 @@
-name: SQLite durability adapter tests
+name: Message reliability and SQLite adapter tests
 
 on:
   push:
     branches:
       - engineering/sqlite-durability-experiment
+      - engineering/message-reference-model
   pull_request:
     branches:
       - engineering/message-reference-model
+      - research/architecture-synthesis-task
     paths:
+      - "tests/reference_model/**"
       - "tests/sqlite_adapter/**"
       - ".github/workflows/sqlite-adapter-tests.yml"
 
@@ -15,12 +18,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: sqlite-adapter-tests-${{ github.ref }}
+  group: message-reliability-tests-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  sqlite-adapter:
-    name: Python standard-library adapter tests
+  message-reliability:
+    name: Python standard-library reliability tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -31,6 +34,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile source and tests
-        run: python -m compileall -q tests/sqlite_adapter
-      - name: Run adapter tests
+        run: python -m compileall -q tests/reference_model tests/sqlite_adapter
+      - name: Run reference model tests
+        run: python -m unittest discover -s tests/reference_model -p 'test_*.py' -v
+      - name: Run SQLite adapter tests
         run: python -m unittest discover -s tests/sqlite_adapter -p 'test_*.py' -v
