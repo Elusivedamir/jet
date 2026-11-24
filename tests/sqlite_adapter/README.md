@@ -24,10 +24,11 @@ This is an isolated adapter experiment, **not** a decision to use SQLite in Jets
 |---|---|---|
 | #26 | `e5c30d24e6cada4b6bfe0a4372de364bf94e1168` | 16 tests passed |
 | #30 | `c5850610d9e76f416a3b73b80bb9b9661c1752e6` | 17 tests passed |
+| #64 | `67bdf12bdccce9a2fd16b0886454502acec5a12b` | 25 SQLite adapter tests passed; combined run also passed 13 reference-model tests |
 
-Run #30 includes the per-recipient ordering regression: a later message for the same recipient remains blocked until the earlier message is dispatched. The run compiled the adapter modules and executed the complete SQLite adapter test discovery suite on GitHub Actions (Python 3.12 / Ubuntu).
+Run #30 includes the per-recipient ordering regression. Run #64 adds bounded retry timing, max-attempt dead-lettering, legacy schema migration, expired-lease rejection and fake receiver deduplication after a simulated crash. The combined run compiled both packages and passed 38 tests total on GitHub Actions (Python 3.12 / Ubuntu).
 
-At project integration level, the same CI workflow also runs the 13-test in-memory reference-model suite, for 30 tests across both packages. The workflow is enabled for pull requests targeting `project/greenfield-reset`.
+At project integration level, the same CI workflow runs the in-memory reference-model suite and the SQLite adapter suite (currently 13 + 25 = 38 tests). The workflow is enabled for pull requests targeting `project/greenfield-reset`.
 
 The retry helper uses deterministic capped exponential delays for testability; production jitter, durable scheduling policy, operator replay/skip workflow and alerting remain open. The receiver dedup test uses an in-memory fake and proves only the required idempotency-key behavior, not a real network transport.
 
