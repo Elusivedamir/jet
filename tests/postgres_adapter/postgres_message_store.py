@@ -155,8 +155,8 @@ class PostgreSQLMessageStore:
                     " WHERE prior.recipient_id=o.recipient_id "
                     " AND pm.conversation_id=m.conversation_id "
                     " AND pm.position<m.position AND prior.state<>'dispatched'"
-                    ") ORDER BY m.position, o.recipient_id "
-                    "FOR UPDATE OF o SKIP LOCKED LIMIT 1",
+                    ") ORDER BY m.position, o.recipient_id LIMIT 1 "
+                    "FOR UPDATE OF o SKIP LOCKED",
                     (max_attempts, now, now),
                 ).fetchone()
                 if row is None:
