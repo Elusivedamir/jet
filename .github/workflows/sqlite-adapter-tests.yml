@@ -1,0 +1,36 @@
+name: SQLite durability adapter tests
+
+on:
+  push:
+    branches:
+      - engineering/sqlite-durability-experiment
+  pull_request:
+    branches:
+      - engineering/message-reference-model
+    paths:
+      - "tests/sqlite_adapter/**"
+      - ".github/workflows/sqlite-adapter-tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sqlite-adapter-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sqlite-adapter:
+    name: Python standard-library adapter tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile source and tests
+        run: python -m py_compile tests/sqlite_adapter/sqlite_message_store.py tests/sqlite_adapter/test_sqlite_message_store.py
+      - name: Run adapter tests
+        run: python -m unittest discover -s tests/sqlite_adapter -p 'test_*.py' -v
