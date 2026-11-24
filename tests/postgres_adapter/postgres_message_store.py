@@ -115,10 +115,11 @@ class PostgreSQLMessageStore:
                         "SELECT account_id FROM members WHERE conversation_id=%s AND account_id<>%s",
                         (conversation_id, sender_id),
                     ).fetchall()
-                    db.executemany(
-                        "INSERT INTO outbox(message_id, recipient_id) VALUES (%s, %s)",
-                        [(message_id, recipient[0]) for recipient in recipients],
-                    )
+                    with db.cursor() as cursor:
+                        cursor.executemany(
+                            "INSERT INTO outbox(message_id, recipient_id) VALUES (%s, %s)",
+                            [(message_id, recipient[0]) for recipient in recipients],
+                        )
                     db.execute(
                         "UPDATE conversations SET next_position=next_position+1 WHERE conversation_id=%s",
                         (conversation_id,),
