@@ -88,12 +88,22 @@ class PostgresAdapterTests(unittest.TestCase):
 
     def test_retry_delay_and_bounded_dead_letter(self):
         self.store.send("A", "room-1", "op-1", "hello")
-        claim = self.store.claim_next("worker-1", "last", 100, 30, max_attempts=1)
-        state = self.store.release_claim(claim["message_id"], claim["recipient_id"], "last",
-                                         failed_at=101, retry_at=105, max_attempts=1,
+        first = self.store.claim_next("worker-1", "first", 100, 30, max_attempts=2)
+        other = self.store.claim_next("worker-2", "clear-c", 100, 30, max_attempts=2)
+        self.store.acknowledge_dispatch(other["message_id"], other["recipient_id"],
+                                        other["claim_token"], 101)
+        state = self.store.release_claim(first["message_id"], first["recipient_id"], "first",
+                                         failed_at=101, retry_at=105, max_attempts=2,
                                          error="temporary failure")
+        self.assertEqual("pending", state)
+        self.assertIsNone(self.store.claim_next("worker-3", "too-early", 104, 30, max_attempts=2))
+        second = self.store.claim_next("worker-3", "second", 105, 30, max_attempts=2)
+        self.assertEqual(2, second["attempt"])
+        state = self.store.release_claim(second["message_id"], second["recipient_id"], "second",
+                                         failed_at=106, retry_at=106, max_attempts=2,
+                                         error="still failing")
         self.assertEqual("dead_letter", state)
-        self.assertIsNone(self.store.claim_next("worker-2", "later", 106, 30, max_attempts=1))
+        self.assertIsNone(self.store.claim_next("worker-4", "later", 107, 30, max_attempts=2))
         self.assertEqual("dead_letter", self.store.snapshot("room-1")[1][0][2])
 
     def test_later_message_waits_behind_earlier_recipient_item(self):
