@@ -13,6 +13,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "postgres_adapter"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "sqlite_adapter"))
 
 import psycopg
 from psycopg.conninfo import make_conninfo
