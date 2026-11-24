@@ -128,6 +128,14 @@ The existing default workflow must remain green and usable without PostgreSQL cr
 - known gaps and untested assumptions;
 - operational steps and cost assumptions.
 
+## Current prototype mapping (2026-11-24)
+
+The existing SQLite experiment exposes `create_conversation`, `send`, `claim_next`, `acknowledge_dispatch`, `release_claim` and `snapshot`. The PostgreSQL POC mirrors these method shapes. The logical operations above are a semantic target, not yet a shared Python Protocol or common fixture API.
+
+The first PostgreSQL integration suite currently has nine candidate-specific tests. The passing CI run is recorded in `docs/testing/ENGINEERING_VALIDATION_LOG.md`. It is not yet accurate to describe this as one shared conformance suite: behavioral cases are currently implemented in separate SQLite and PostgreSQL test modules.
+
+A physical schema difference is intentional for this comparison: SQLite retains its earlier CHECK constraint and represents dead-letter via `dead_letter_at`, projecting it as `dead_letter` in snapshots; PostgreSQL stores `dead_letter` as an explicit state. Future shared tests must assert contract-visible behavior, not identical physical representation.
+
 ## Implementation gate
 
-Before adding a PostgreSQL adapter, inspect and map the existing SQLite adapter's actual public methods, data model and test fixtures to this boundary. Preserve current tests and semantics. If an existing operation cannot be mapped without changing the contract, document the discrepancy and resolve it explicitly before coding.
+Before changing either adapter, extract a reusable test fixture/protocol or equivalent shared behavioral suite. Run identical acceptance, idempotency, claim, lease, retry, dead-letter and ordering scenarios against both implementations. Keep adapter-specific process-recovery and migration tests separate. Do not weaken the contract to make a candidate pass.
