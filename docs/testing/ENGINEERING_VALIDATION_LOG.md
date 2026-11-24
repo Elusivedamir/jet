@@ -41,6 +41,7 @@ It does **not** prove production message delivery, exactly-once network delivery
 - The canonical business-plan PDF remains authoritative and was not edited.
 - No product stage, pricing, feature promise, E2EE scope or SLO is approved by these experiments.
 - The original `main` branch has not been changed by this engineering sequence.
+- As of 2026-11-24, `project/greenfield-reset` is 30 commits ahead and 2 behind `main`; no wholesale merge to `main` is attempted until that divergence is reconciled and reviewed.
 - The work is consolidated on `research/architecture-synthesis-task` and integrated into `project/greenfield-reset` through the narrow PR #19. The original `main` branch remains unchanged.
 
 ## Next engineering increment
