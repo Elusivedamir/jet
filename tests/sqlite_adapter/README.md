@@ -27,4 +27,6 @@ This is an isolated adapter experiment, **not** a decision to use SQLite in Jets
 
 Run #30 includes the per-recipient ordering regression: a later message for the same recipient remains blocked until the earlier message is dispatched. The run compiled the adapter modules and executed the complete SQLite adapter test discovery suite on GitHub Actions (Python 3.12 / Ubuntu).
 
+At project integration level, the same CI workflow also runs the 13-test in-memory reference-model suite, for 30 tests across both packages. The workflow is enabled for pull requests targeting `project/greenfield-reset`.
+
 Current evidence: automated adapter tests only. No production integration or load claim is made.
