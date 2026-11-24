@@ -36,6 +36,29 @@ It demonstrates that the written message and outbox contracts have executable in
 
 It does **not** prove production message delivery, exactly-once network delivery, device receipt/read, host or power-loss durability, multi-process service behavior, replication, backup/restore, E2EE, security posture, throughput, availability or operating cost. SQLite is not selected as Jetson's production database. No messaging server has been implemented by these experiments.
 
+## Second persistence candidate: PostgreSQL POC
+
+A narrow PostgreSQL 16 adapter experiment now mirrors the existing SQLite experiment's public operation shapes. It is isolated under `tests/postgres_adapter/`, uses psycopg 3.2.6, and is not wired into product/runtime code.
+
+GitHub Actions [run #45337489838](https://github.com/Elusivedamir/jet/actions/runs/45337489838) passed on commit `bb6dd416c57965da94552731f296716350e2aada`:
+
+- In-memory reference model: 26 tests passed.
+- SQLite adapter: 25 tests passed.
+- PostgreSQL adapter: 9 integration tests passed against PostgreSQL 16.
+- Total: 60 tests passed, 0 failures, 0 errors.
+
+The PostgreSQL tests cover atomic message/idempotency/outbox acceptance, rollback, unknown commit outcome recovery, concurrent same-key submissions, concurrent worker claims using row-level locking, lease reclamation/fencing, retry timing, dead-lettering and recipient-order isolation.
+
+### Mapping notes and remaining gaps
+
+- Existing SQLite API: `create_conversation`, `send`, `claim_next`, `acknowledge_dispatch`, `release_claim`, `snapshot`. PostgreSQL mirrors these for the POC; the implementation-neutral logical API names in the harness document are not yet a shared Python interface.
+- SQLite stores dead-letter as `dead_letter_at` metadata while its state CHECK remains pending/leased/dispatched; its snapshot projects that metadata as `dead_letter`. PostgreSQL uses an explicit `dead_letter` state. Both satisfy the tested snapshot behavior, but physical schema parity is not claimed.
+- The nine PostgreSQL tests are a candidate-specific integration suite, not yet a reusable common conformance test mixin. Next step is to extract shared behavioral scenarios and run the same suite against both adapters.
+- PostgreSQL schema creation is idempotent for a clean schema; a versioned forward-migration path from a prior PostgreSQL adapter schema is not implemented.
+- Backup/restore, failover, process-kill recovery, host/power-loss durability, production scheduling, transport, receiver-side dedup, load and operating cost remain untested.
+
+A green test run is evidence for these specific scenarios only. It is not a production selection or an availability/durability/security claim.
+
 ## Product and repository guardrails
 
 - The canonical business-plan PDF remains authoritative and was not edited.
@@ -46,4 +69,4 @@ It does **not** prove production message delivery, exactly-once network delivery
 
 ## Next engineering increment
 
-Next, compare a second storage technology or a real broker/transport sandbox against the adapter-neutral contracts. Measure operational behavior and cost before selecting any production persistence or delivery components. Keep the exactly-once network delivery claim explicitly out of scope.
+Extract the shared behavioral conformance suite so SQLite and PostgreSQL execute the same scenarios through a minimal adapter facade. Then add migration/restore tests and a measured, repeatable workload comparison. Only after those gates should broker/transport experiments or architecture recommendations be considered. Keep exactly-once network delivery explicitly out of scope.
