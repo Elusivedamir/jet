@@ -38,53 +38,17 @@ class PostgreSQLMessageStore:
 
     def _initialize(self):
         with self._connect() as db:
-            db.execute("""
-                CREATE TABLE IF NOT EXISTS conversations (
-                    conversation_id TEXT PRIMARY KEY,
-                    next_position BIGINT NOT NULL CHECK (next_position > 0)
-                );
-                CREATE TABLE IF NOT EXISTS members (
-                    conversation_id TEXT NOT NULL REFERENCES conversations(conversation_id),
-                    account_id TEXT NOT NULL,
-                    PRIMARY KEY (conversation_id, account_id)
-                );
-                CREATE TABLE IF NOT EXISTS messages (
-                    message_id TEXT PRIMARY KEY,
-                    conversation_id TEXT NOT NULL REFERENCES conversations(conversation_id),
-                    position BIGINT NOT NULL,
-                    sender_id TEXT NOT NULL,
-                    operation_key TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    UNIQUE (conversation_id, position)
-                );
-                CREATE TABLE IF NOT EXISTS idempotency (
-                    conversation_id TEXT NOT NULL REFERENCES conversations(conversation_id),
-                    sender_id TEXT NOT NULL,
-                    operation_key TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    message_id TEXT NOT NULL REFERENCES messages(message_id),
-                    PRIMARY KEY (conversation_id, sender_id, operation_key)
-                );
-                CREATE TABLE IF NOT EXISTS outbox (
-                    message_id TEXT NOT NULL REFERENCES messages(message_id),
-                    recipient_id TEXT NOT NULL,
-                    state TEXT NOT NULL DEFAULT 'pending'
-                        CHECK (state IN ('pending', 'leased', 'dispatched', 'dead_letter')),
-                    attempts INTEGER NOT NULL DEFAULT 0,
-                    lease_token TEXT,
-                    lease_owner TEXT,
-                    lease_until BIGINT,
-                    dispatched_at BIGINT,
-                    next_attempt_at BIGINT NOT NULL DEFAULT 0,
-                    dead_letter_at BIGINT,
-                    last_error TEXT,
-                    PRIMARY KEY (message_id, recipient_id)
-                );
-                CREATE INDEX IF NOT EXISTS outbox_due_idx
-                    ON outbox(state, next_attempt_at, lease_until);
-                CREATE INDEX IF NOT EXISTS messages_conversation_position_idx
-                    ON messages(conversation_id, position);
-            """)
+            statements = [
+                "CREATE TABLE IF NOT EXISTS conversations (\n    conversation_id TEXT PRIMARY KEY,\n    next_position BIGINT NOT NULL CHECK (next_position > 0)\n)",
+                "CREATE TABLE IF NOT EXISTS members (\n    conversation_id TEXT NOT NULL REFERENCES conversations(conversation_id),\n    account_id TEXT NOT NULL,\n    PRIMARY KEY (conversation_id, account_id)\n)",
+                "CREATE TABLE IF NOT EXISTS messages (\n    message_id TEXT PRIMARY KEY,\n    conversation_id TEXT NOT NULL REFERENCES conversations(conversation_id),\n    position BIGINT NOT NULL,\n    sender_id TEXT NOT NULL,\n    operation_key TEXT NOT NULL,\n    payload TEXT NOT NULL,\n    UNIQUE (conversation_id, position)\n)",
+                "CREATE TABLE IF NOT EXISTS idempotency (\n    conversation_id TEXT NOT NULL REFERENCES conversations(conversation_id),\n    sender_id TEXT NOT NULL,\n    operation_key TEXT NOT NULL,\n    payload TEXT NOT NULL,\n    message_id TEXT NOT NULL REFERENCES messages(message_id),\n    PRIMARY KEY (conversation_id, sender_id, operation_key)\n)",
+                "CREATE TABLE IF NOT EXISTS outbox (\n    message_id TEXT NOT NULL REFERENCES messages(message_id),\n    recipient_id TEXT NOT NULL,\n    state TEXT NOT NULL DEFAULT 'pending'\n        CHECK (state IN ('pending', 'leased', 'dispatched', 'dead_letter')),\n    attempts INTEGER NOT NULL DEFAULT 0,\n    lease_token TEXT,\n    lease_owner TEXT,\n    lease_until BIGINT,\n    dispatched_at BIGINT,\n    next_attempt_at BIGINT NOT NULL DEFAULT 0,\n    dead_letter_at BIGINT,\n    last_error TEXT,\n    PRIMARY KEY (message_id, recipient_id)\n)",
+                "CREATE INDEX IF NOT EXISTS outbox_due_idx\n    ON outbox(state, next_attempt_at, lease_until)",
+                "CREATE INDEX IF NOT EXISTS messages_conversation_position_idx\n    ON messages(conversation_id, position)"
+            ]
+            for statement in statements:
+                db.execute(statement)
 
     def create_conversation(self, conversation_id, members):
         members = tuple(members)
