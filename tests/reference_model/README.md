@@ -24,4 +24,4 @@ The seeded randomized test is reproducible via seed `20261124`; it is not a stat
 
 `outbox_model.py` is a separate in-memory oracle for recipient-scoped dispatch intents, leases, fencing tokens, retry scheduling, bounded attempts, dead-letter ordering and receiver-side deduplication. It uses logical timestamps and is not a scheduler or transport implementation.
 
-Latest combined CI evidence: run #70 passed 26 reference-model tests (13 message-model + 13 outbox-model tests) alongside 25 SQLite adapter tests, for 51 total. [GitHub Actions run #70](https://github.com/Elusivedamir/jet/actions/runs/45334603955).
+Latest combined CI evidence: run #70 passed 26 reference-model tests (13 message-model + 13 outbox-model tests) alongside 25 SQLite adapter tests, for 51 total. [GitHub Actions run #70](https://github.com/Elusivedamir/jet/actions/runs/45334603955); the same 51-test suite passed on `project/greenfield-reset` in [run #74](https://github.com/Elusivedamir/jet/actions/runs/45334728258).
