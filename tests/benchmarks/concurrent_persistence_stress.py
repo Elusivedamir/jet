@@ -47,19 +47,29 @@ def metrics(samples_ns, operation_count, elapsed_ns):
     }
 
 
-def run_scenario(store, label, workers):
-    conversation_id = "stress-room"
-    store.create_conversation(
-        conversation_id, ("sender", "recipient-b", "recipient-c")
-    )
+def run_scenario(store, label, workers, conversation_count=1):
+    conversation_ids = [f"{label}-room-{i}" for i in range(conversation_count)]
+    message_counts = [MESSAGE_COUNT // conversation_count] * conversation_count
+    for i in range(MESSAGE_COUNT % conversation_count):
+        message_counts[i] += 1
+
+    for conversation_id in conversation_ids:
+        store.create_conversation(
+            conversation_id, ("sender", "recipient-b", "recipient-c")
+        )
 
     send_samples = []
     send_lock = threading.Lock()
 
     def send_one(index):
+        room_index = index % conversation_count
+        local_index = index // conversation_count
         started = time.perf_counter_ns()
         message_id = store.send(
-            "sender", conversation_id, f"{label}-op-{index}", f"payload-{index}"
+            "sender",
+            conversation_ids[room_index],
+            f"{label}-op-{index}",
+            f"payload-{index}",
         )
         elapsed = time.perf_counter_ns() - started
         with send_lock:
@@ -120,34 +130,56 @@ def run_scenario(store, label, workers):
             future.result(timeout=100)
     dispatch_elapsed = time.perf_counter_ns() - dispatch_started
 
-    messages, outbox, next_position = store.snapshot(conversation_id)
-    positions = [row[1] for row in messages]
-    if len(messages) != MESSAGE_COUNT or positions != list(range(1, MESSAGE_COUNT + 1)):
-        raise AssertionError(f"{label}: message count/sequence invariant failed")
-    if len(outbox) != expected_outbox or len(claimed) != expected_outbox:
+    all_messages = []
+    all_outbox = []
+    position_by_message = {}
+    for conversation_id, expected_messages in zip(conversation_ids, message_counts):
+        messages, outbox, next_position = store.snapshot(conversation_id)
+        positions = [row[1] for row in messages]
+        if len(messages) != expected_messages or positions != list(range(1, expected_messages + 1)):
+            raise AssertionError(
+                f"{label}: message count/sequence invariant failed for {conversation_id}"
+            )
+        if next_position != expected_messages + 1:
+            raise AssertionError(f"{label}: next sequence mismatch for {conversation_id}")
+        all_messages.extend(messages)
+        all_outbox.extend(outbox)
+        position_by_message.update({row[0]: row[1] for row in messages})
+
+    if len(all_messages) != MESSAGE_COUNT:
+        raise AssertionError(f"{label}: total message count mismatch")
+    if len(all_outbox) != expected_outbox or len(claimed) != expected_outbox:
         raise AssertionError(f"{label}: outbox count or unique claim count mismatch")
-    if len(completed) != expected_outbox or any(row[2] != "dispatched" for row in outbox):
+    if len(completed) != expected_outbox or any(row[2] != "dispatched" for row in all_outbox):
         raise AssertionError(f"{label}: outbox dispatch incomplete")
 
-    # Verify each recipient has exactly one outbox item per message and that
-    # the committed per-recipient sequence remains strictly increasing.
-    position_by_message = {row[0]: row[1] for row in messages}
-    recipient_positions = {"recipient-b": [], "recipient-c": []}
-    for message_id, recipient_id, state in outbox:
-        if recipient_id not in recipient_positions:
-            raise AssertionError(f"{label}: unexpected outbox recipient {recipient_id}")
-        recipient_positions[recipient_id].append(position_by_message[message_id])
-    for recipient_id, positions_for_recipient in recipient_positions.items():
-        if positions_for_recipient != list(range(1, MESSAGE_COUNT + 1)):
-            raise AssertionError(
-                f"{label}: missing, duplicate or out-of-order outbox items for {recipient_id}"
-            )
-
-    if next_position != MESSAGE_COUNT + 1:
-        raise AssertionError(f"{label}: next sequence mismatch")
+    # Verify one ordered outbox item per recipient and message in every room.
+    recipient_positions = {
+        (room, recipient): []
+        for room in conversation_ids
+        for recipient in ("recipient-b", "recipient-c")
+    }
+    for message_id, recipient_id, state in all_outbox:
+        matching_room = next(
+            (room for room in conversation_ids if message_id.startswith(f"msg:{room}:")),
+            None,
+        )
+        if matching_room is None or recipient_id not in ("recipient-b", "recipient-c"):
+            raise AssertionError(f"{label}: unexpected outbox identity")
+        recipient_positions[(matching_room, recipient_id)].append(
+            position_by_message[message_id]
+        )
+    for room_index, room in enumerate(conversation_ids):
+        expected_positions = list(range(1, message_counts[room_index] + 1))
+        for recipient in ("recipient-b", "recipient-c"):
+            if recipient_positions[(room, recipient)] != expected_positions:
+                raise AssertionError(
+                    f"{label}: missing, duplicate or out-of-order items for {room}/{recipient}"
+                )
 
     return {
         "workers": workers,
+        "conversations": conversation_count,
         "messages": MESSAGE_COUNT,
         "outbox_items": expected_outbox,
         "unique_claims": len(claimed),
@@ -155,7 +187,6 @@ def run_scenario(store, label, workers):
         "message_acceptance": metrics(send_samples, MESSAGE_COUNT, send_elapsed),
         "outbox_claim_and_ack": metrics(dispatch_samples, expected_outbox, dispatch_elapsed),
     }
-
 
 def run_sqlite(workers):
     with tempfile.TemporaryDirectory() as temp:
