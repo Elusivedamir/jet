@@ -120,6 +120,30 @@ The raw report is attached as [CI artifact #14894714918](https://github.com/Elus
 
 Interpretation remains bounded: SQLite is a local file, PostgreSQL is a service container over the runner network, and the PostgreSQL POC opens a fresh connection for each operation. This is a small serial repeatability check, not an apples-to-apples production benchmark or capacity certification. It does not select a production database.
 
+### PostgreSQL connection-pool comparison (five trials)
+
+The test-only `PooledPostgreSQLMessageStore` uses `psycopg_pool==3.2.6` with a 1–4 connection pool and runs the same nine shared contract scenarios as SQLite and unpooled PostgreSQL. A five-trial serial benchmark compares SQLite, PostgreSQL fresh-connection-per-operation and pooled PostgreSQL.
+
+GitHub Actions [run #45343115953](https://github.com/Elusivedamir/jet/actions/runs/45342642980) passed:
+- Reference model: 26 tests.
+- SQLite: 34 tests.
+- PostgreSQL: 30 tests (21 existing adapter/schema tests + 9 pooled shared-contract tests).
+- Total: 90 tests passed, 0 failures, 0 errors.
+- Five benchmark trials per candidate; all message/outbox integrity checks passed.
+
+Median benchmark results (100 messages and 200 outbox intents per trial):
+
+| Metric | SQLite | PostgreSQL fresh | PostgreSQL pool 1–4 |
+|---|---:|---:|---:|
+| Acceptance throughput | 895.00 ops/s | 94.48 ops/s | 443.39 ops/s |
+| Acceptance p50 / p95 | 1.061 / 1.319 ms | 10.565 / 10.994 ms | 2.112 / 2.775 ms |
+| Claim + ack throughput | 289.69 ops/s | 34.36 ops/s | 73.94 ops/s |
+| Claim + ack p50 / p95 | 3.586 / 4.515 ms | 30.589 / 34.475 ms | 14.780 / 18.790 ms |
+
+Raw JSON: [CI artifact #14896189281](https://github.com/Elusivedamir/jet/actions/runs/45342642980/artifacts/14896208412). Full methodology and caveats: [POSTGRES_POOL_COMPARISON.md](POSTGRES_POOL_COMPARISON.md).
+
+Pooling improves this PostgreSQL prototype substantially versus opening a new connection per operation (about 4.7× acceptance throughput and 2.2× outbox throughput in this run). It still does not make the comparison production-equivalent: SQLite is local-file, PostgreSQL is a service container, and the workload is serial. Pool size 1–4 is experimental, not a production recommendation. No database is selected.
+
 ## Product and repository guardrails
 
 - The canonical business-plan PDF remains authoritative and was not edited.
@@ -130,4 +154,4 @@ Interpretation remains bounded: SQLite is a local file, PostgreSQL is a service 
 
 ## Next engineering increment
 
-Add a PostgreSQL connection-pool adapter variant and controlled concurrent sender/dispatcher workloads (1, 4 and 16 workers), measuring CPU, memory, connections, lock waits and error rates. Compare pool and no-pool under identical semantics before interpreting performance. Add a versioned DDL migration chain with tests from supported prior schemas. Only then consider broker/transport experiments or architecture recommendations. Keep exactly-once network delivery explicitly out of scope.
+Run controlled concurrent sender/dispatcher workloads (1, 4 and 16 workers) against SQLite, pooled PostgreSQL and unpooled PostgreSQL, asserting ordering/no lost outbox items and measuring CPU, memory, pool waits, connections, lock waits and errors. Then produce a bounded operational-cost comparison; keep all candidates experimental until those gates pass. Add a versioned DDL migration chain with tests from supported prior schemas. Only then consider broker/transport experiments or architecture recommendations. Keep exactly-once network delivery explicitly out of scope.

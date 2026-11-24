@@ -7,7 +7,7 @@ Status: experimental comparison adapter. Not production code and not a productio
 Requires PostgreSQL 16+, Python 3.12+ and the pinned driver:
 
 ```sh
-python -m pip install "psycopg[binary]==3.2.6"
+python -m pip install "psycopg[binary]==3.2.6" "psycopg-pool==3.2.6"
 export POSTGRES_DSN="postgresql://USER:PASSWORD@127.0.0.1:5432/DATABASE"
 python -m unittest discover -s tests/postgres_adapter -p 'test_*.py' -v
 ```
@@ -34,6 +34,12 @@ GitHub Actions run [#45337489838](https://github.com/Elusivedamir/jet/actions/ru
 The adapter now records baseline schema version 1 in `schema_migrations`. Existing POC schemas without a registry are adopted as baseline version 1; this is a bootstrap marker, not a full chain of historical DDL migrations. Future incompatible schema changes must add ordered, forward-only migrations and tests from each supported prior version.
 
 CI prepares a disposable schema, runs `pg_dump -Fc`, creates a second database, restores with `pg_restore`, and verifies the message, sequence and outbox states. GitHub Actions run [#45339014346](https://github.com/Elusivedamir/jet/actions/runs/45339014346) passed 3 schema-registry tests and the backup/restore workflow; the full run passed 81 tests across the reference model and both adapters. This is a logical backup/restore smoke test on one PostgreSQL 16 service, not a backup policy, point-in-time recovery, disaster-recovery or failover proof.
+
+## Connection-pool comparison variant
+
+`PooledPostgreSQLMessageStore` is a test-only subclass that uses `psycopg_pool` while preserving the same SQL operations and transaction boundaries. The shared nine-scenario contract suite runs against it independently. CI pins `psycopg-pool==3.2.6`.
+
+The benchmark compares three candidates: SQLite local-file, PostgreSQL with a new connection per operation, and PostgreSQL with a bounded pool (`min_size=1`, `max_size=4`). The pool settings are experimental only. Five fresh serial trials are run per candidate with rotating candidate order; the benchmark is not a concurrent load test. GitHub Actions [run #45343115953](https://github.com/Elusivedamir/jet/actions/runs/45343115953) passed the pooled contract tests and the five-trial three-candidate benchmark; the raw report is [artifact #14896189281](https://github.com/Elusivedamir/jet/actions/runs/45343115953/artifacts/14896189281).
 
 ## Important limits
 
