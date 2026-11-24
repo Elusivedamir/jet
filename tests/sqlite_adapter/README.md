@@ -1,5 +1,7 @@
 # SQLite durability experiment
 
+Project-wide evidence and integration status: [Engineering validation log](../../docs/testing/ENGINEERING_VALIDATION_LOG.md).
+
 This directory tests one concrete storage adapter against the implementation-neutral message contract.
 
 Run:
