@@ -92,6 +92,7 @@ class OutboxReferenceModelTests(unittest.TestCase):
         self.assertEqual("dead_letter", self.model.snapshot()[0]["state"])
 
     def test_dead_letter_blocks_later_message_for_same_recipient(self):
+        self.model.max_attempts = 1
         first = self.model.claim_next("worker-1", "only", 100, 30)
         self.model.release_claim(
             "m1", "B", first["claim_token"], failed_at=101, retry_at=101, error="permanent"
@@ -100,6 +101,7 @@ class OutboxReferenceModelTests(unittest.TestCase):
         self.assertIsNone(self.model.claim_next("worker-2", "later", 102, 30))
 
     def test_other_recipient_can_progress_while_one_is_dead_lettered(self):
+        self.model.max_attempts = 1
         first = self.model.claim_next("worker-1", "only", 100, 30)
         self.model.release_claim(
             "m1", "B", first["claim_token"], failed_at=101, retry_at=101, error="permanent"
