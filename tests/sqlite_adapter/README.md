@@ -16,4 +16,13 @@ The outbox state `dispatched` means a worker acknowledged the dispatch operation
 
 This is an isolated adapter experiment, **not** a decision to use SQLite in Jetson and not a production messaging server. It does not test network delivery, real devices, multi-process service deployment, replication, backups, restore, E2EE, throughput, or production operations. Hard process-kill tests validate local SQLite transaction recovery at the tested boundaries; they do not prove host/power-loss durability or production deployment behavior. A production adapter must repeat these contracts against its selected database and delivery infrastructure.
 
+## Validation record
+
+| GitHub Actions run | Commit | Result |
+|---|---|---|
+| #26 | `e5c30d24e6cada4b6bfe0a4372de364bf94e1168` | 16 tests passed |
+| #30 | `c5850610d9e76f416a3b73b80bb9b9661c1752e6` | 17 tests passed |
+
+Run #30 includes the per-recipient ordering regression: a later message for the same recipient remains blocked until the earlier message is dispatched. The run compiled the adapter modules and executed the complete SQLite adapter test discovery suite on GitHub Actions (Python 3.12 / Ubuntu).
+
 Current evidence: automated adapter tests only. No production integration or load claim is made.
