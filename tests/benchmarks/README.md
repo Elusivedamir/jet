@@ -1,13 +1,13 @@
 # Persistence workload baseline
 
-This is a small serial comparison harness, not a load test, production SLO or architecture decision.
+This is a five-trial serial comparison harness for SQLite, PostgreSQL fresh connections and PostgreSQL connection pooling. It is not a load test, production SLO or architecture decision.
 
 ## Workload
 
 The CI job runs the same workload against SQLite and PostgreSQL on the same GitHub Actions runner:
 
 - create one conversation with one sender and two recipients;
-- accept 100 messages with unique idempotency keys;
+- accept 100 messages with unique idempotency keys in each of five fresh trials;
 - dispatch and acknowledge all 200 per-recipient outbox intents in sequence;
 - verify message count, outbox count, conversation sequence and final dispatch states.
 
@@ -38,3 +38,7 @@ Use the report to spot obvious regressions and guide what to measure next, not t
 ## Five-trial baseline (2026-11-24)
 
 The harness now runs five fresh trials per adapter and alternates execution order. Set `JET_BENCH_TRIALS=5` (minimum supported: 3) and `JET_BENCH_MESSAGES=100`. The latest repeatability run is [#45340963701](https://github.com/Elusivedamir/jet/actions/runs/45340963701); its [raw JSON artifact](https://github.com/Elusivedamir/jet/actions/runs/45340963701/artifacts/14894714918) reports median acceptance throughput of 844.85 ops/s for SQLite and 92.59 ops/s for PostgreSQL, and median outbox claim+ack throughput of 279.25 and 34.08 ops/s respectively. All five trials passed data-integrity checks. See [the full report](../../docs/testing/PERSISTENCE_WORKLOAD_BASELINE.md) for latency ranges and limitations. This is not a production capacity comparison: SQLite is local-file and PostgreSQL is a service container; the PostgreSQL adapter opens a new connection per operation.
+
+## PostgreSQL pool comparison
+
+The current benchmark compares the PostgreSQL adapter's new-connection-per-operation behavior with the test-only `PooledPostgreSQLMessageStore` (psycopg-pool 3.2.6, min=1/max=4), alongside SQLite. The same message and outbox workflow is used for all candidates. Each candidate runs five fresh trials with rotating execution order. The benchmark artifact contains per-trial results, median and min/max ranges. The pool is warmed during adapter initialization; pool warm-up is not reported as a separate measurement. No concurrency is used in this stage.
