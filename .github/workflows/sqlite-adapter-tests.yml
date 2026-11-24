@@ -10,6 +10,7 @@ on:
       - engineering/outbox-retry-dedup
       - integration/message-reliability
       - project/greenfield-reset
+      - engineering/adapter-contract-harness
   pull_request:
     branches:
       - engineering/message-reference-model
