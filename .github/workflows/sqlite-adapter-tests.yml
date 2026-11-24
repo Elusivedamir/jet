@@ -31,6 +31,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile source and tests
-        run: python -m py_compile tests/sqlite_adapter/sqlite_message_store.py tests/sqlite_adapter/test_sqlite_message_store.py
+        run: python -m compileall -q tests/sqlite_adapter
       - name: Run adapter tests
         run: python -m unittest discover -s tests/sqlite_adapter -p 'test_*.py' -v
