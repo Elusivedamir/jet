@@ -114,6 +114,14 @@ class PostgreSQLMessageStore:
                 if member is None:
                     raise SendRejected("sender is not a conversation member")
 
+                # Lock before checking idempotency: concurrent retries serialize.
+                row = db.execute(
+                    "SELECT next_position FROM conversations "
+                    "WHERE conversation_id=%s FOR UPDATE",
+                    (conversation_id,),
+                ).fetchone()
+                if row is None:
+                    raise SendRejected("unknown conversation")
                 previous = db.execute(
                     "SELECT payload, message_id FROM idempotency "
                     "WHERE conversation_id=%s AND sender_id=%s AND operation_key=%s",
@@ -124,13 +132,6 @@ class PostgreSQLMessageStore:
                         raise IdempotencyConflict("operation key reused with different payload")
                     message_id = previous[1]
                 else:
-                    row = db.execute(
-                        "SELECT next_position FROM conversations "
-                        "WHERE conversation_id=%s FOR UPDATE",
-                        (conversation_id,),
-                    ).fetchone()
-                    if row is None:
-                        raise SendRejected("unknown conversation")
                     position = row[0]
                     message_id = f"msg:{conversation_id}:{position}"
                     if fail_before_commit:
