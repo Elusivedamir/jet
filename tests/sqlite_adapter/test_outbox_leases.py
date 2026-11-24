@@ -69,7 +69,7 @@ class OutboxLeaseTests(unittest.TestCase):
                 claim["message_id"], claim["recipient_id"], "token-1", dispatched_at=110
             )
         states = self.store.snapshot("room-1")[1]
-        self.assertEqual("pending" if states[0][2] == "pending" else "leased", states[0][2])
+        self.assertEqual("leased", states[0][2])
 
 
 if __name__ == "__main__":
