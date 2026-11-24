@@ -6,10 +6,13 @@ import json
 import os
 import platform
 import sqlite3
+import sys
 import tempfile
 import time
 import uuid
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "postgres_adapter"))
 
 import psycopg
 from psycopg.conninfo import make_conninfo
