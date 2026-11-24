@@ -23,7 +23,7 @@ The adapter mirrors the existing SQLite experiment's public operation shapes:
 - acknowledge, release/retry and dead-letter;
 - snapshot for test assertions.
 
-The experiment tests atomic acceptance, rollback, unknown commit outcome recovery, same-key concurrent submissions, concurrent worker claims, lease fencing, retry timing and dead-letter ordering.
+The adapter-specific suite tests atomic acceptance, rollback, unknown commit outcome recovery, same-key concurrent submissions, concurrent worker claims, lease fencing, retry timing and dead-letter ordering. The shared behavioral suite in `adapter_contract/message_store_contract.py` also runs nine identical contract scenarios against PostgreSQL and SQLite.
 
 ## Validation evidence
 
@@ -35,7 +35,7 @@ GitHub Actions run [#45337489838](https://github.com/Elusivedamir/jet/actions/ru
 - It has not been tested for host/power-loss recovery, replication, backup/restore, failover, high availability or production load.
 - It does not implement a scheduler, transport, receiver dedup store, operator replay/skip workflow, alerting or E2EE.
 - PostgreSQL version and psycopg driver are pinned in CI for reproducibility, not approved as production choices.
-- The current PostgreSQL tests are candidate-specific; a shared reusable conformance suite against both SQLite and PostgreSQL is the next step.
+- Nine shared behavioral scenarios now run against both SQLite and PostgreSQL; the PostgreSQL-specific suite remains separate for database-specific integration coverage.
 - The schema initializer handles clean schemas; a versioned forward migration from a prior PostgreSQL schema is not implemented.
 - A green CI run demonstrates only the listed integration tests against the CI PostgreSQL service.
 
