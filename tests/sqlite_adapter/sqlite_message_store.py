@@ -65,11 +65,12 @@ class SQLiteMessageStore:
                     message_id TEXT NOT NULL REFERENCES messages(message_id),
                     recipient_id TEXT NOT NULL,
                     state TEXT NOT NULL DEFAULT 'pending'
-                        CHECK (state IN ('pending', 'leased', 'delivered')),
+                        CHECK (state IN ('pending', 'leased', 'dispatched')),
                     attempts INTEGER NOT NULL DEFAULT 0,
                     lease_token TEXT,
+                    lease_owner TEXT,
                     lease_until INTEGER,
-                    delivered_at INTEGER,
+                    dispatched_at INTEGER,
                     PRIMARY KEY (message_id, recipient_id)
                 );
             """)
@@ -178,9 +179,9 @@ class SQLiteMessageStore:
             message_id, recipient_id = row
             db.execute(
                 "UPDATE outbox SET state='leased', attempts=attempts+1, "
-                "lease_token=?, lease_until=?, delivered_at=NULL "
+                "lease_token=?, lease_owner=?, lease_until=?, dispatched_at=NULL "
                 "WHERE message_id=? AND recipient_id=?",
-                (claim_token, now + lease_seconds, message_id, recipient_id),
+                (claim_token, worker_id, now + lease_seconds, message_id, recipient_id),
             )
             db.commit()
             return {
@@ -195,14 +196,14 @@ class SQLiteMessageStore:
                 "lease_until": now + lease_seconds,
             }
 
-    def acknowledge_delivery(self, message_id, recipient_id, claim_token, delivered_at):
+    def acknowledge_dispatch(self, message_id, recipient_id, claim_token, dispatched_at):
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             result = db.execute(
-                "UPDATE outbox SET state='delivered', delivered_at=?, "
-                "lease_token=NULL, lease_until=NULL "
-                "WHERE message_id=? AND recipient_id=? AND state='leased' AND lease_token=?",
-                (delivered_at, message_id, recipient_id, claim_token),
+                "UPDATE outbox SET state='dispatched', dispatched_at=?, "
+                "lease_token=NULL, lease_owner=NULL, lease_until=NULL "
+                "WHERE message_id=? AND recipient_id=? AND state='leased' AND lease_token=? AND lease_until>?",
+                (dispatched_at, message_id, recipient_id, claim_token, dispatched_at),
             )
             if result.rowcount != 1:
                 db.rollback()
@@ -213,7 +214,7 @@ class SQLiteMessageStore:
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             result = db.execute(
-                "UPDATE outbox SET state='pending', lease_token=NULL, lease_until=NULL "
+                "UPDATE outbox SET state='pending', lease_token=NULL, lease_owner=NULL, lease_until=NULL "
                 "WHERE message_id=? AND recipient_id=? AND state='leased' AND lease_token=?",
                 (message_id, recipient_id, claim_token),
             )
