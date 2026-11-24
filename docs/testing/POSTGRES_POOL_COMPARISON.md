@@ -1,8 +1,8 @@
 # PostgreSQL connection-pool comparison — five serial trials
 
 Date: 2026-11-24  
-CI: [GitHub Actions run #45342642980](https://github.com/Elusivedamir/jet/actions/runs/45342642980)  
-Artifact: [raw JSON report](https://github.com/Elusivedamir/jet/actions/runs/45342642980/artifacts/14896208412)
+CI: [GitHub Actions run #45343115953](https://github.com/Elusivedamir/jet/actions/runs/45342642980)  
+Artifact: [raw JSON report](https://github.com/Elusivedamir/jet/actions/runs/45342642980/artifacts/14896189281)
 
 ## Scope
 
@@ -18,12 +18,12 @@ Five fresh trials are run per candidate, candidate order rotates, and every tria
 
 | Metric | SQLite | PostgreSQL fresh connection | PostgreSQL pool 1–4 |
 |---|---:|---:|---:|
-| Acceptance throughput | 868.29 ops/s | 120.17 ops/s | 701.44 ops/s |
-| Acceptance p50 | 1.084 ms | 8.342 ms | 1.311 ms |
-| Acceptance p95 | 1.290 ms | 8.876 ms | 2.053 ms |
-| Outbox claim + ack throughput | 306.96 ops/s | 42.58 ops/s | 93.96 ops/s |
-| Outbox claim + ack p50 | 3.285 ms | 24.388 ms | 11.679 ms |
-| Outbox claim + ack p95 | 3.960 ms | 27.939 ms | 14.925 ms |
+| Acceptance throughput | 895.00 ops/s | 94.48 ops/s | 443.39 ops/s |
+| Acceptance p50 | 1.061 ms | 10.565 ms | 2.112 ms |
+| Acceptance p95 | 1.319 ms | 10.994 ms | 2.775 ms |
+| Outbox claim + ack throughput | 289.69 ops/s | 34.36 ops/s | 73.94 ops/s |
+| Outbox claim + ack p50 | 3.586 ms | 30.589 ms | 14.780 ms |
+| Outbox claim + ack p95 | 4.515 ms | 34.475 ms | 18.790 ms |
 
 All five trials passed data-integrity and full-dispatch checks for each candidate.
 
@@ -31,9 +31,9 @@ All five trials passed data-integrity and full-dispatch checks for each candidat
 
 Pooling materially improves this PostgreSQL POC in this CI setup:
 
-- Acceptance throughput is about 5.8× higher than the fresh-connection variant.
+- Acceptance throughput is about 4.7× higher than the fresh-connection variant.
 - Outbox claim+ack throughput is about 2.2× higher than the fresh-connection variant.
-- The pooled PostgreSQL result is closer to SQLite for serial message acceptance, but remains slower for this outbox workload.
+- The pooled PostgreSQL result remains slower than SQLite in this serial CI setup: about half the acceptance throughput and about one quarter of the outbox claim+ack throughput.
 
 This is evidence that connection lifecycle was a major contributor to the initial PostgreSQL latency. It does not establish production performance or justify a database selection.
 
