@@ -88,6 +88,21 @@ GitHub Actions [run #45339014346](https://github.com/Elusivedamir/jet/actions/ru
 
 This is a logical backup smoke test, not PITR, disaster-recovery, failover or host/power-loss proof.
 
+### Serial persistence workload baseline
+
+GitHub Actions [run #45339664701](https://github.com/Elusivedamir/jet/actions/runs/45339664701) ran the same 100-message / two-recipient / 200-outbox serial workload against both POCs on one Ubuntu runner (Python 3.12.16, PostgreSQL 16.16, SQLite 3.46.1). The JSON artifact is available [here](https://github.com/Elusivedamir/jet/actions/runs/45339664701/artifacts/14895886319).
+
+| Metric | SQLite POC | PostgreSQL POC |
+|---|---:|---:|
+| Message acceptance p50 | 1.315 ms | 10.799 ms |
+| Message acceptance p95 | 1.587 ms | 12.356 ms |
+| Acceptance rate | 740.43 ops/s | 90.48 ops/s |
+| Outbox claim + ack p50 | 3.751 ms | 30.967 ms |
+| Outbox claim + ack p95 | 5.087 ms | 34.972 ms |
+| Claim + ack rate | 272.13 ops/s | 33.09 ops/s |
+
+These are observed results from one serial CI run, not stable capacity estimates. The current PostgreSQL POC opens a new connection for each operation and has no pool; the benchmark includes that lifecycle. SQLite uses a local file, while PostgreSQL uses a service container over the runner's local network. There were no concurrent workers in this benchmark, no repeated trials, no cache controls and no transport/network/device delivery. The figures do not establish that SQLite is the better production choice; they identify connection lifecycle and workload concurrency as necessary next measurements.
+
 ## Product and repository guardrails
 
 - The canonical business-plan PDF remains authoritative and was not edited.
@@ -98,4 +113,4 @@ This is a logical backup smoke test, not PITR, disaster-recovery, failover or ho
 
 ## Next engineering increment
 
-Add a versioned DDL migration chain with tests from each supported prior schema, then run a repeatable workload/resource comparison with documented assumptions. Only after those gates should broker/transport experiments or architecture recommendations be considered. Keep exactly-once network delivery explicitly out of scope.
+Repeat the workload across multiple runs, add controlled concurrent workers, and compare PostgreSQL connection pooling/transaction strategies before interpreting performance. Add a versioned DDL migration chain with tests from supported prior schemas. Only then consider broker/transport experiments or architecture recommendations. Keep exactly-once network delivery explicitly out of scope.
