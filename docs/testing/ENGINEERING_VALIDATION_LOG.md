@@ -59,6 +59,19 @@ The PostgreSQL tests cover atomic message/idempotency/outbox acceptance, rollbac
 
 A green test run is evidence for these specific scenarios only. It is not a production selection or an availability/durability/security claim.
 
+### Shared adapter conformance suite
+
+A reusable behavioral suite now runs against both persistence adapters via `adapter_contract/message_store_contract.py`. Nine identical scenarios cover atomic acceptance, idempotency/conflict, rollback, unknown commit outcome recovery, concurrent same-key sends, concurrent claims, lease fencing, retry due-time and dead-letter ordering/recipient isolation.
+
+GitHub Actions [run #45338191026](https://github.com/Elusivedamir/jet/actions/runs/45338191026) passed on commit `37a07c3ddcae6432a49bb39d03240890c878ff9a`:
+
+- Reference model: 26 passed.
+- SQLite: 25 existing adapter tests + 9 shared contract tests = 34 passed.
+- PostgreSQL: 9 adapter-specific tests + 9 shared contract tests = 18 passed.
+- Total: 78 tests passed, 0 failures, 0 errors.
+
+The shared suite checks observable behavior while allowing adapter-specific physical schemas. SQLite continues to project dead-letter from `dead_letter_at`; PostgreSQL stores an explicit `dead_letter` state.
+
 ## Product and repository guardrails
 
 - The canonical business-plan PDF remains authoritative and was not edited.
@@ -69,4 +82,4 @@ A green test run is evidence for these specific scenarios only. It is not a prod
 
 ## Next engineering increment
 
-Extract the shared behavioral conformance suite so SQLite and PostgreSQL execute the same scenarios through a minimal adapter facade. Then add migration/restore tests and a measured, repeatable workload comparison. Only after those gates should broker/transport experiments or architecture recommendations be considered. Keep exactly-once network delivery explicitly out of scope.
+Add versioned PostgreSQL migration and backup/restore verification, then run a repeatable workload/resource comparison with documented assumptions. Only after those gates should broker/transport experiments or architecture recommendations be considered. Keep exactly-once network delivery explicitly out of scope.
