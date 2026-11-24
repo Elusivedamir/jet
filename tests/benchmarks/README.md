@@ -46,3 +46,8 @@ The current benchmark compares the PostgreSQL adapter's new-connection-per-opera
 ## Concurrent correctness smoke test
 
 `concurrent_persistence_stress.py` exercises 1, 4 and 16 concurrent senders and dispatchers against SQLite, PostgreSQL fresh connections and PostgreSQL pool 1–4. It checks message sequence integrity, unique outbox claims, recipient isolation via the adapter's ordering rules, and completion of every expected outbox item. CI uses 40 messages per scenario and uploads a JSON report. This is a short correctness/throughput smoke test, not a load, soak, capacity or SLO test. It does not yet collect CPU, memory, pool wait, connection count or lock-wait telemetry.
+
+
+## Hot-room versus independent-room concurrency
+
+The concurrent smoke harness runs each worker-count scenario twice: once with all messages contending on a single conversation, and once spread round-robin across four independent conversations. This separates serialization pressure on one conversation's sequence counter from concurrent activity across unrelated conversations. Each run verifies per-conversation sequence continuity, exactly one outbox row per recipient/message, unique claims and full dispatch completion. Results remain short CI smoke measurements, not production capacity claims.
