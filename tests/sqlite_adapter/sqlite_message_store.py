@@ -168,9 +168,18 @@ class SQLiteMessageStore:
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
-                "SELECT message_id, recipient_id FROM outbox "
-                "WHERE state='pending' OR (state='leased' AND lease_until<=?) "
-                "ORDER BY rowid LIMIT 1",
+                "SELECT o.message_id, o.recipient_id FROM outbox o "
+                "JOIN messages m ON m.message_id=o.message_id "
+                "WHERE (o.state='pending' OR (o.state='leased' AND o.lease_until<=?)) "
+                "AND NOT EXISTS ("
+                "  SELECT 1 FROM outbox prior "
+                "  JOIN messages pm ON pm.message_id=prior.message_id "
+                "  WHERE prior.recipient_id=o.recipient_id "
+                "    AND pm.conversation_id=m.conversation_id "
+                "    AND pm.position<m.position "
+                "    AND prior.state<>'dispatched'"
+                ") "
+                "ORDER BY m.rowid, o.rowid LIMIT 1",
                 (now,),
             ).fetchone()
             if row is None:
