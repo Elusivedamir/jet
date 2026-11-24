@@ -25,12 +25,18 @@ The adapter mirrors the existing SQLite experiment's public operation shapes:
 
 The experiment tests atomic acceptance, rollback, unknown commit outcome recovery, same-key concurrent submissions, concurrent worker claims, lease fencing, retry timing and dead-letter ordering.
 
+## Validation evidence
+
+GitHub Actions run [#45337489838](https://github.com/Elusivedamir/jet/actions/runs/45337489838) passed 9 PostgreSQL integration tests on PostgreSQL 16 with Python 3.12 and psycopg 3.2.6. In the same run, 26 reference-model and 25 SQLite adapter tests also passed (60 total).
+
 ## Important limits
 
 - This is a narrow POC; it is not wired into product/runtime code.
 - It has not been tested for host/power-loss recovery, replication, backup/restore, failover, high availability or production load.
 - It does not implement a scheduler, transport, receiver dedup store, operator replay/skip workflow, alerting or E2EE.
 - PostgreSQL version and psycopg driver are pinned in CI for reproducibility, not approved as production choices.
+- The current PostgreSQL tests are candidate-specific; a shared reusable conformance suite against both SQLite and PostgreSQL is the next step.
+- The schema initializer handles clean schemas; a versioned forward migration from a prior PostgreSQL schema is not implemented.
 - A green CI run demonstrates only the listed integration tests against the CI PostgreSQL service.
 
 The existing SQLite adapter remains unchanged as the comparison baseline.
