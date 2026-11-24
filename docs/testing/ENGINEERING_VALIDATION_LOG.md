@@ -28,7 +28,7 @@ GitHub Actions run #38 passed the initial integrated packages (13 reference-mode
 - SQLite adapter: 17 tests.
 - Total: 30 tests, 0 failures, 0 errors.
 
-The latest run used Python 3.12 on Ubuntu: 26 reference-model tests (13 message + 13 outbox) and 25 SQLite adapter tests, 51 total. See [run #70](https://github.com/Elusivedamir/jet/actions/runs/45334603955).
+The latest run used Python 3.12 on Ubuntu: 26 reference-model tests (13 message + 13 outbox) and 25 SQLite adapter tests, 51 total. See [run #70](https://github.com/Elusivedamir/jet/actions/runs/45334603955). The same 51-test suite also passed directly on `project/greenfield-reset` in [run #74](https://github.com/Elusivedamir/jet/actions/runs/45334728258).
 
 ## What this proves — and what it does not
 
