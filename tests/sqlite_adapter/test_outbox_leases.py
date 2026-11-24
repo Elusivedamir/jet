@@ -31,7 +31,7 @@ class OutboxLeaseTests(unittest.TestCase):
         self.assertEqual("B", reclaimed["recipient_id"])
         self.assertEqual(2, reclaimed["attempt"])
         with self.assertRaises(OutboxClaimError):
-            self.store.acknowledge_delivery(
+            self.store.acknowledge_dispatch(
                 self.message_id, "B", "old-token", delivered_at=111
             )
         self.store.acknowledge_delivery(
@@ -39,7 +39,7 @@ class OutboxLeaseTests(unittest.TestCase):
         )
         states = self.store.snapshot("room-1")[1]
         self.assertEqual(
-            [(self.message_id, "B", "delivered"),
+            [(self.message_id, "B", "dispatched"),
              (self.message_id, "C", "pending")],
             states,
         )
@@ -61,6 +61,15 @@ class OutboxLeaseTests(unittest.TestCase):
             self.store.acknowledge_delivery(
                 claim["message_id"], claim["recipient_id"], "token-1", delivered_at=106
             )
+
+    def test_expired_worker_cannot_ack_before_reclaim(self):
+        claim = self.store.claim_next("worker-1", "token-1", 100, 10)
+        with self.assertRaises(OutboxClaimError):
+            self.store.acknowledge_dispatch(
+                claim["message_id"], claim["recipient_id"], "token-1", dispatched_at=110
+            )
+        states = self.store.snapshot("room-1")[1]
+        self.assertEqual("pending" if states[0][2] == "pending" else "leased", states[0][2])
 
 
 if __name__ == "__main__":
