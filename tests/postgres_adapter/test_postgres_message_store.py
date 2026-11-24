@@ -86,6 +86,7 @@ class PostgreSQLAdapterTests(unittest.TestCase):
         self.assertEqual(2, next_position)
 
     def test_concurrent_claims_are_exclusive_and_recipient_scoped(self):
+        self.store.send("A", "room-1", "claim-seed", "hello")
         barrier = threading.Barrier(2)
         claims, errors = [], []
         def worker(name, token):
@@ -109,6 +110,7 @@ class PostgreSQLAdapterTests(unittest.TestCase):
         self.assertEqual(1, len({claim["message_id"] for claim in claims}))
 
     def test_expired_claim_is_fenced_from_stale_ack(self):
+        self.store.send("A", "room-1", "lease-seed", "hello")
         first = self.store.claim_next("w1", "old", 100, 10)
         reclaimed = self.store.claim_next("w2", "new", 110, 20)
         self.assertEqual(first["recipient_id"], reclaimed["recipient_id"])
@@ -121,6 +123,7 @@ class PostgreSQLAdapterTests(unittest.TestCase):
         )
 
     def test_retry_and_dead_letter_preserve_order(self):
+        self.store.send("A", "room-1", "dead-letter-seed", "hello")
         first = self.store.claim_next("w1", "try1", 100, 30, max_attempts=1)
         # Clear the other recipient so the next assertion isolates recipient B.
         other = self.store.claim_next("w2", "other", 100, 30, max_attempts=1)
@@ -143,6 +146,7 @@ class PostgreSQLAdapterTests(unittest.TestCase):
         self.assertEqual("dead_letter", states[0][2])
 
     def test_retry_time_and_expired_final_lease(self):
+        self.store.send("A", "room-1", "retry-seed", "hello")
         claim = self.store.claim_next("w1", "retry", 100, 10, max_attempts=2)
         other = self.store.claim_next("w2", "other", 100, 10, max_attempts=2)
         self.store.acknowledge_dispatch(
