@@ -183,16 +183,17 @@ class SQLiteMessageStore:
                 "WHERE message_id=? AND recipient_id=?",
                 (claim_token, worker_id, now + lease_seconds, message_id, recipient_id),
             )
+            attempt = db.execute(
+                "SELECT attempts FROM outbox WHERE message_id=? AND recipient_id=?",
+                (message_id, recipient_id),
+            ).fetchone()[0]
             db.commit()
             return {
                 "message_id": message_id,
                 "recipient_id": recipient_id,
                 "worker_id": worker_id,
                 "claim_token": claim_token,
-                "attempt": db.execute(
-                    "SELECT attempts FROM outbox WHERE message_id=? AND recipient_id=?",
-                    (message_id, recipient_id),
-                ).fetchone()[0],
+                "attempt": attempt,
                 "lease_until": now + lease_seconds,
             }
 
