@@ -82,3 +82,19 @@ jobs:
         env:
           POSTGRES_DSN: postgresql://jetson:jetson_test_only@127.0.0.1:5432/jetson_test
         run: python -m unittest discover -s tests/postgres_adapter -p 'test_*.py' -v
+      - name: Prepare disposable backup fixture
+        env:
+          POSTGRES_DSN: postgresql://jetson:jetson_test_only@127.0.0.1:5432/jetson_test
+        run: python tests/postgres_adapter/backup_restore_check.py prepare
+      - name: Dump and restore disposable PostgreSQL database
+        run: |
+          set -euo pipefail
+          container_id="$(docker ps --format '{{.ID}} {{.Image}}' | awk '$2 == "postgres:16" {print $1; exit}')"
+          test -n "$container_id"
+          docker exec "$container_id" pg_dump -U jetson -d jetson_test -Fc -f /tmp/jetson-backup.dump
+          docker exec "$container_id" createdb -U jetson jetson_restore_test
+          docker exec "$container_id" pg_restore -U jetson -d jetson_restore_test /tmp/jetson-backup.dump
+      - name: Verify restored PostgreSQL state
+        env:
+          POSTGRES_RESTORE_DSN: postgresql://jetson:jetson_test_only@127.0.0.1:5432/jetson_restore_test
+        run: python tests/postgres_adapter/backup_restore_check.py verify
