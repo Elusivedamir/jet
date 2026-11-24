@@ -130,11 +130,13 @@ The existing default workflow must remain green and usable without PostgreSQL cr
 
 ## Current prototype mapping (2026-11-24)
 
-The existing SQLite experiment exposes `create_conversation`, `send`, `claim_next`, `acknowledge_dispatch`, `release_claim` and `snapshot`. The PostgreSQL POC mirrors these method shapes. The logical operations above are a semantic target, not yet a shared Python Protocol or common fixture API.
+The existing SQLite experiment exposes `create_conversation`, `send`, `claim_next`, `acknowledge_dispatch`, `release_claim` and `snapshot`. The PostgreSQL POC mirrors these operation shapes. The logical operation names above remain semantic guidance; the shared test suite currently calls the existing method shapes directly.
 
-The first PostgreSQL integration suite currently has nine candidate-specific tests. The passing CI run is recorded in `docs/testing/ENGINEERING_VALIDATION_LOG.md`. It is not yet accurate to describe this as one shared conformance suite: behavioral cases are currently implemented in separate SQLite and PostgreSQL test modules.
+A reusable behavioral suite now lives in `adapter_contract/message_store_contract.py`. It is inherited by test classes under both `tests/sqlite_adapter/` and `tests/postgres_adapter/`. Nine shared scenarios are executed against each adapter, with candidate-specific integration tests retained alongside them. The latest combined CI evidence is recorded in `docs/testing/ENGINEERING_VALIDATION_LOG.md`.
 
-A physical schema difference is intentional for this comparison: SQLite retains its earlier CHECK constraint and represents dead-letter via `dead_letter_at`, projecting it as `dead_letter` in snapshots; PostgreSQL stores `dead_letter` as an explicit state. Future shared tests must assert contract-visible behavior, not identical physical representation.
+A physical schema difference is intentional for this comparison: SQLite retains its earlier CHECK constraint and represents dead-letter via `dead_letter_at`, projecting it as `dead_letter` in snapshots; PostgreSQL stores `dead_letter` as an explicit state. Shared tests assert contract-visible behavior, not identical physical representation.
+
+The suite currently covers transactional acceptance, idempotency, rollback, unknown commit outcome, concurrent same-key sends, concurrent claims, lease fencing, retry due-time and dead-letter ordering. It does not yet prove host/power-loss durability, backup/restore, failover, schema migration from prior PostgreSQL versions, load or production operations.
 
 ## Implementation gate
 
