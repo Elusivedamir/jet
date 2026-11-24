@@ -11,6 +11,7 @@ on:
       - integration/message-reliability
       - project/greenfield-reset
       - engineering/adapter-contract-harness
+      - engineering/shared-adapter-conformance
   pull_request:
     branches:
       - engineering/message-reference-model
