@@ -25,6 +25,8 @@ This is an isolated adapter experiment, **not** a decision to use SQLite in Jets
 | #26 | `e5c30d24e6cada4b6bfe0a4372de364bf94e1168` | 16 tests passed |
 | #30 | `c5850610d9e76f416a3b73b80bb9b9661c1752e6` | 17 tests passed |
 | #64 | `67bdf12bdccce9a2fd16b0886454502acec5a12b` | 25 SQLite adapter tests passed; combined run also passed 13 reference-model tests |
+| #70 | `828eb4653c9bff9b0b0f172c5c34d2fad9b2c95c` | 25 SQLite adapter tests passed; combined run passed 26 reference-model tests |
+| #74 | `5f6d7495d18b55498ac6a2c8d7813c5ca0992c3e` | 25 SQLite adapter tests passed; combined run passed 26 reference-model tests on project branch |
 
 Run #30 includes the per-recipient ordering regression. Run #64 adds bounded retry timing, max-attempt dead-lettering, legacy schema migration, expired-lease rejection and fake receiver deduplication after a simulated crash. The combined run compiled both packages and passed 38 tests total on GitHub Actions (Python 3.12 / Ubuntu).
 
