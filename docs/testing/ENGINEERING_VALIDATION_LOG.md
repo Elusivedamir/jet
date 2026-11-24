@@ -12,12 +12,14 @@ This log records completed, reviewable engineering increments. It is evidence of
 | #15 | `research/architecture-synthesis-task` | Implementation-neutral message reliability plan and message state-machine contract | Document/traceability review; runtime tests correctly marked not run |
 | #16 | `engineering/message-reliability-test-plan` | In-memory message reference model and deterministic test oracle | 13 tests passed locally; re-run in consolidation CI #38 |
 | #17 | `engineering/message-reference-model` | SQLite adapter experiment, crash recovery, leased outbox, retry release, stale-token rejection and per-recipient ordering | CI #30, #32 and #38: 17 SQLite adapter tests passed |
+| #18 | `research/architecture-synthesis-task` | Consolidated the reliability contracts, reference model, SQLite experiment and evidence log | CI #38: 13 + 17 = 30 tests passed |
+| #19 | `project/greenfield-reset` | Narrow integration of the reliability and persistence experiment into the working project branch | Source CI #38: 30 tests passed; target-branch CI follows workflow activation |
 
 PRs #14–#18 are now merged. PRs #15–#17 were merged in dependency order into their stacked parent branches; PR #18 consolidated the model and adapter work into `research/architecture-synthesis-task`.
 
 ## Consolidation validation
 
-GitHub Actions run #38 on the final PR #18 head compiled both test packages and passed:
+GitHub Actions run #38 on the final PR #18 head compiled both test packages and passed; the exact same test source files were then integrated by PR #19 into `project/greenfield-reset`:
 
 - Reference model: 13 tests.
 - SQLite adapter: 17 tests.
@@ -36,7 +38,7 @@ It does **not** prove production message delivery, exactly-once network delivery
 - The canonical business-plan PDF remains authoritative and was not edited.
 - No product stage, pricing, feature promise, E2EE scope or SLO is approved by these experiments.
 - The original `main` branch has not been changed by this engineering sequence.
-- The work is now consolidated on `research/architecture-synthesis-task`; integration into `project/greenfield-reset` remains a separate, narrow PR.
+- The work is consolidated on `research/architecture-synthesis-task` and integrated into `project/greenfield-reset` through the narrow PR #19. The original `main` branch remains unchanged.
 
 ## Next engineering increment
 
