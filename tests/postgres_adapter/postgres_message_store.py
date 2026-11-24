@@ -73,8 +73,7 @@ class PostgreSQLMessageStore:
              *, fail_before_commit=False, lose_response_after_commit=False):
         if not operation_key or not payload:
             raise SendRejected("operation key and payload are required")
-        db = self._connect()
-        try:
+        with self._connect() as db:
             with db.transaction():
                 member = db.execute(
                     "SELECT 1 FROM members WHERE conversation_id=%s AND account_id=%s",
@@ -128,8 +127,6 @@ class PostgreSQLMessageStore:
                         "UPDATE conversations SET next_position=next_position+1 WHERE conversation_id=%s",
                         (conversation_id,),
                     )
-        finally:
-            db.close()
         if lose_response_after_commit and not previous:
             raise UnknownOutcome("committed; response was lost")
         return message_id
