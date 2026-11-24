@@ -1,3 +1,4 @@
+# CI for the in-memory contract oracle and SQLite adapter experiment.
 name: Message reliability and SQLite adapter tests
 
 on:
