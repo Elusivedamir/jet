@@ -1,3 +1,4 @@
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -179,6 +180,48 @@ class OutboxLeaseTests(unittest.TestCase):
             retried["message_id"], retried["recipient_id"], "after-restart",
             dispatched_at=111,
         )
+
+    def test_expired_worker_cannot_release_claim(self):
+        claim = self.store.claim_next("worker-1", "expired-token", 100, 10)
+        with self.assertRaises(OutboxClaimError):
+            self.store.release_claim(
+                claim["message_id"], claim["recipient_id"], "expired-token",
+                failed_at=110, retry_at=110,
+            )
+
+    def test_legacy_outbox_schema_migrates_retry_metadata_columns(self):
+        legacy_path = Path(self.temp.name) / "legacy.sqlite3"
+        with sqlite3.connect(legacy_path) as db:
+            db.executescript("""
+                CREATE TABLE conversations (
+                    conversation_id TEXT PRIMARY KEY,
+                    next_position INTEGER NOT NULL
+                );
+                CREATE TABLE messages (
+                    message_id TEXT PRIMARY KEY,
+                    conversation_id TEXT NOT NULL,
+                    position INTEGER NOT NULL,
+                    sender_id TEXT NOT NULL,
+                    operation_key TEXT NOT NULL,
+                    payload TEXT NOT NULL
+                );
+                CREATE TABLE outbox (
+                    message_id TEXT NOT NULL,
+                    recipient_id TEXT NOT NULL,
+                    state TEXT NOT NULL DEFAULT 'pending'
+                        CHECK (state IN ('pending', 'leased', 'dispatched')),
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    lease_token TEXT,
+                    lease_owner TEXT,
+                    lease_until INTEGER,
+                    dispatched_at INTEGER,
+                    PRIMARY KEY (message_id, recipient_id)
+                );
+            """)
+        SQLiteMessageStore(legacy_path)
+        with sqlite3.connect(legacy_path) as db:
+            columns = {row[1] for row in db.execute("PRAGMA table_info(outbox)")}
+        self.assertTrue({"next_attempt_at", "dead_letter_at", "last_error"}.issubset(columns))
 
 
 if __name__ == "__main__":
