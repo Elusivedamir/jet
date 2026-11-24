@@ -143,6 +143,8 @@ class PostgreSQLMessageStore:
                     "AND (state='pending' OR lease_until<=%s)",
                     (now, max_attempts, now),
                 )
+                print("DEBUG_OUTBOX", db.execute("SELECT message_id, recipient_id, state, attempts, next_attempt_at FROM outbox").fetchall())
+                print("DEBUG_JOIN", db.execute("SELECT o.message_id, o.recipient_id, o.state, o.attempts, o.next_attempt_at, m.position FROM outbox o JOIN messages m ON m.message_id=o.message_id").fetchall())
                 row = db.execute(
                     "SELECT o.message_id, o.recipient_id FROM outbox o "
                     "JOIN messages m ON m.message_id=o.message_id "
