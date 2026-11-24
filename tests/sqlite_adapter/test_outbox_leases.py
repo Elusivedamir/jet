@@ -34,6 +34,14 @@ class OutboxLeaseTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def _ack_next(self, token, now):
+        claim = self.store.claim_next("helper", token, now, 30)
+        self.assertIsNotNone(claim)
+        self.store.acknowledge_dispatch(
+            claim["message_id"], claim["recipient_id"], token, dispatched_at=now + 1
+        )
+        return claim
+
     def test_only_one_worker_claims_a_pending_recipient(self):
         first = self.store.claim_next("worker-1", "token-1", 100, 30)
         second = self.store.claim_next("worker-2", "token-2", 100, 30)
@@ -117,6 +125,7 @@ class OutboxLeaseTests(unittest.TestCase):
 
     def test_retry_is_not_claimable_before_next_attempt_time(self):
         claim = self.store.claim_next("worker-1", "token-1", 100, 30)
+        self._ack_next("clear-c", 100)
         self.store.release_claim(
             claim["message_id"], claim["recipient_id"], "token-1",
             failed_at=101, retry_at=110,
@@ -127,6 +136,7 @@ class OutboxLeaseTests(unittest.TestCase):
 
     def test_retry_limit_moves_row_to_dead_letter(self):
         first = self.store.claim_next("worker-1", "try-1", 100, 30, max_attempts=2)
+        self._ack_next("clear-c", 100)
         state = self.store.release_claim(
             first["message_id"], first["recipient_id"], "try-1",
             failed_at=101, retry_at=101, max_attempts=2, error="temporary failure",
@@ -148,12 +158,21 @@ class OutboxLeaseTests(unittest.TestCase):
     def test_expired_final_attempt_is_dead_lettered(self):
         claim = self.store.claim_next("worker-1", "last-attempt", 100, 10, max_attempts=1)
         self.assertEqual(1, claim["attempt"])
+        self._ack_next("clear-c", 100)
         self.assertIsNone(
             self.store.claim_next("worker-2", "over-limit", 110, 10, max_attempts=1)
         )
         self.assertEqual("dead_letter", self.store.snapshot("room-1")[1][0][2])
 
     def test_dead_letter_blocks_later_messages_to_preserve_order(self):
+        first_b = self.store.claim_next("drain", "room1-b", 100, 30)
+        first_c = self.store.claim_next("drain", "room1-c", 100, 30)
+        self.store.acknowledge_dispatch(
+            first_b["message_id"], "B", "room1-b", dispatched_at=101
+        )
+        self.store.acknowledge_dispatch(
+            first_c["message_id"], "C", "room1-c", dispatched_at=101
+        )
         self.store.create_conversation("room-2", ("X", "Y"))
         first_id = self.store.send("X", "room-2", "first", "first")
         self.store.send("X", "room-2", "second", "second")
