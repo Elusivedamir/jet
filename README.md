@@ -12,6 +12,7 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Branch strategy](docs/governance/BRANCHING_STRATEGY.md)
 - [Repository and branch inventory](docs/governance/REPOSITORY_INVENTORY.md)
 - [Repository landscape research method](docs/research/REPOSITORY_LANDSCAPE_METHOD.md)
+- [Persistence adapter comparison](docs/research/PERSISTENCE_ADAPTER_COMPARISON.md)
 - [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
 
 ## Engineering validation (experimental)
@@ -22,6 +23,7 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Engineering validation log](docs/testing/ENGINEERING_VALIDATION_LOG.md)
 - [In-memory reference model](tests/reference_model/README.md)
 - [SQLite durability/outbox experiment](tests/sqlite_adapter/README.md)
+- [PostgreSQL adapter experiment](tests/postgres_adapter/README.md)
 
 These are executable research contracts and adapter experiments only. They do not select a production database, broker, transport or E2EE design.
 
