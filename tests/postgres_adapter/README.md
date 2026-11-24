@@ -14,8 +14,12 @@ POSTGRES_DSN='postgresql://postgres:postgres@localhost:5432/jetson_test' \
 
 The tests create a unique temporary schema per test and remove it afterward. The adapter uses psycopg 3, transactional sequence allocation, conversation-scoped idempotency, atomic message/idempotency/outbox insertion, recipient-scoped claims with PostgreSQL row locks and `SKIP LOCKED`, lease-token fencing, retry scheduling, bounded dead-lettering and per-recipient ordering.
 
+## Validation
+
+GitHub Actions run [#5](https://github.com/Elusivedamir/jet/actions/runs/45335631811) passed all 10 PostgreSQL 16 service-backed integration tests (Python 3.12 / Ubuntu). The first run exposed a psycopg API misuse in the fixture setup; it was corrected and the full suite then passed.
+
 ## Evidence boundary
 
-A passing local PostgreSQL service-container CI run proves only the tested adapter behavior against that PostgreSQL version and test workload. It does not prove production topology, host/power-loss behavior, failover, replication, backup/restore, connection-pool sizing, security hardening, throughput, availability, E2EE or operational cost. The test uses deterministic caller-supplied timestamps; production clock and scheduler policy remain open.
+This proves only the tested adapter behavior against PostgreSQL 16 and this test workload. It does not prove production topology, host/power-loss behavior, failover, replication, backup/restore, connection-pool sizing, security hardening, throughput, availability, E2EE or operational cost. The test uses deterministic caller-supplied timestamps; production clock and scheduler policy remain open.
 
 No exactly-once network-delivery claim is made. A dispatcher acknowledgement is not a device-delivery or read receipt. PostgreSQL remains an experimental comparison candidate, not a selected production database.
