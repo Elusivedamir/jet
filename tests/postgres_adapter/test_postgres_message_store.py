@@ -133,7 +133,12 @@ class PostgreSQLAdapterTests(unittest.TestCase):
         )
         self.assertEqual("dead_letter", state)
         self.store.send("A", "room-1", "op-2", "later")
-        self.assertIsNone(self.store.claim_next("w3", "later", 102, 30))
+        later_c = self.store.claim_next("w3", "later-c", 102, 30)
+        self.assertEqual("C", later_c["recipient_id"])
+        self.store.acknowledge_dispatch(
+            later_c["message_id"], later_c["recipient_id"], "later-c", 103
+        )
+        self.assertIsNone(self.store.claim_next("w4", "blocked-b", 104, 30))
         states = self.store.snapshot("room-1")[1]
         self.assertEqual("dead_letter", states[0][2])
 
