@@ -38,19 +38,18 @@ class PostgreSQLProcessCrashRecoveryTests(unittest.TestCase):
             db.execute(f'DROP SCHEMA IF EXISTS "{self.schema}" CASCADE')
 
     def run_child(self, script, exit_code):
-        result = subprocess.run(
+        return subprocess.run(
             [sys.executable, "-c", script, self.dsn, self.module_dir, str(exit_code)],
             capture_output=True,
             text=True,
             timeout=20,
         )
-        return result
 
     def test_hard_process_exit_inside_transaction_rolls_back_all_rows(self):
         script = r"""
 import os, sys, psycopg
 dsn, _, exit_code = sys.argv[1], sys.argv[2], int(sys.argv[3])
-db = psycopg.connect(dsn)
+db = psycopg.connect(dsn, autocommit=True)
 db.execute("BEGIN")
 db.execute(
     "SELECT next_position FROM conversations WHERE conversation_id=%s FOR UPDATE",
@@ -67,10 +66,11 @@ db.execute(
     "VALUES (%s, %s, %s, %s, %s)",
     ("room-crash", "A", "crash-before-commit", "payload", message_id),
 )
-db.executemany(
-    "INSERT INTO outbox(message_id, recipient_id) VALUES (%s, %s)",
-    [(message_id, "B"), (message_id, "C")],
-)
+with db.cursor() as cursor:
+    cursor.executemany(
+        "INSERT INTO outbox(message_id, recipient_id) VALUES (%s, %s)",
+        [(message_id, "B"), (message_id, "C")],
+    )
 db.execute(
     "UPDATE conversations SET next_position=2 WHERE conversation_id=%s",
     ("room-crash",),
