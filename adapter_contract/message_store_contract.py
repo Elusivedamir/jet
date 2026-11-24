@@ -8,6 +8,7 @@ import threading
 
 class MessageStoreContractMixin:
     idempotency_conflict_type = AssertionError
+    send_rejected_type = AssertionError
     outbox_claim_error_type = AssertionError
     unknown_outcome_type = AssertionError
 
@@ -47,7 +48,7 @@ class MessageStoreContractMixin:
         self.assertEqual(2, next_position)
 
     def test_failure_before_commit_leaves_no_partial_state(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(self.send_rejected_type):
             self.store.send(
                 "sender", "contract-room", "rollback", "payload",
                 fail_before_commit=True,
