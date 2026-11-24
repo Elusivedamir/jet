@@ -5,6 +5,7 @@ on:
     branches:
       - engineering/sqlite-durability-experiment
       - engineering/message-reference-model
+      - verification/outbox-retry-ci
   pull_request:
     branches:
       - engineering/message-reference-model
