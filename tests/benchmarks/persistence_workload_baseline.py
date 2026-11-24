@@ -19,6 +19,7 @@ import psycopg
 from psycopg.conninfo import make_conninfo
 
 from postgres_message_store import PostgreSQLMessageStore
+from pooled_postgres_message_store import PooledPostgreSQLMessageStore
 from sqlite_message_store import SQLiteMessageStore
 
 
@@ -93,9 +94,9 @@ def run_sqlite():
         return exercise(store, "sqlite")
 
 
-def run_postgres():
+def run_postgres_fresh():
     base_dsn = os.environ["POSTGRES_DSN"]
-    schema = "jet_bench_" + uuid.uuid4().hex
+    schema = "jet_bench_fresh_" + uuid.uuid4().hex
     with psycopg.connect(base_dsn) as db:
         db.execute(f'CREATE SCHEMA "{schema}"')
     try:
@@ -103,10 +104,33 @@ def run_postgres():
         store = PostgreSQLMessageStore(dsn)
         with psycopg.connect(dsn) as db:
             version = db.execute("SHOW server_version").fetchone()[0]
-        result = exercise(store, "postgres")
+        result = exercise(store, "postgres-fresh")
         result["server_version"] = version
+        result["connection_strategy"] = "new connection per operation"
         return result
     finally:
+        with psycopg.connect(base_dsn) as db:
+            db.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
+
+
+def run_postgres_pooled():
+    base_dsn = os.environ["POSTGRES_DSN"]
+    schema = "jet_bench_pool_" + uuid.uuid4().hex
+    with psycopg.connect(base_dsn) as db:
+        db.execute(f'CREATE SCHEMA "{schema}"')
+    store = None
+    try:
+        dsn = make_conninfo(base_dsn, options=f"-c search_path={schema}")
+        store = PooledPostgreSQLMessageStore(dsn, min_size=1, max_size=4)
+        with psycopg.connect(dsn) as db:
+            version = db.execute("SHOW server_version").fetchone()[0]
+        result = exercise(store, "postgres-pool")
+        result["server_version"] = version
+        result["connection_strategy"] = "psycopg_pool min=1 max=4"
+        return result
+    finally:
+        if store is not None:
+            store.close()
         with psycopg.connect(base_dsn) as db:
             db.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')
 
@@ -119,7 +143,8 @@ if __name__ == "__main__":
         "message_count": MESSAGE_COUNT,
         "recipients_per_message": 2,
         "sqlite_version": sqlite3.sqlite_version,
-        "postgresql": run_postgres(),
+        "postgresql_fresh_connection": run_postgres_fresh(),
+        "postgresql_pooled": run_postgres_pooled(),
         "sqlite": run_sqlite(),
         "limitations": [
             "single CI runner and one serial workload",
