@@ -23,6 +23,7 @@ on:
       - "tests/reference_model/**"
       - "tests/sqlite_adapter/**"
       - "tests/postgres_adapter/**"
+      - "tests/benchmarks/**"
       - ".github/workflows/sqlite-adapter-tests.yml"
 
 permissions:
@@ -104,6 +105,7 @@ jobs:
         env:
           POSTGRES_DSN: postgresql://jetson:jetson_test_only@127.0.0.1:5432/jetson_test
           JET_BENCH_MESSAGES: "100"
+          JET_BENCH_TRIALS: "5"
         run: python tests/benchmarks/persistence_workload_baseline.py
       - name: Upload persistence benchmark report
         uses: actions/upload-artifact@v4
