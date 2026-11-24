@@ -42,7 +42,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile source and tests
-        run: python -m compileall -q tests/reference_model tests/sqlite_adapter tests/postgres_adapter
+        run: python -m compileall -q adapter_contract tests/reference_model tests/sqlite_adapter tests/postgres_adapter
       - name: Run reference model tests
         run: python -m unittest discover -s tests/reference_model -p 'test_*.py' -v
       - name: Run SQLite adapter tests
