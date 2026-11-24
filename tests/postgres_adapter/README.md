@@ -23,11 +23,17 @@ The adapter mirrors the existing SQLite experiment's public operation shapes:
 - acknowledge, release/retry and dead-letter;
 - snapshot for test assertions.
 
-The adapter-specific suite tests atomic acceptance, rollback, unknown commit outcome recovery, same-key concurrent submissions, concurrent worker claims, lease fencing, retry timing and dead-letter ordering. The shared behavioral suite in `adapter_contract/message_store_contract.py` also runs nine identical contract scenarios against PostgreSQL and SQLite.
+The adapter-specific suite tests atomic acceptance, rollback, unknown commit outcome recovery, same-key concurrent submissions, concurrent worker claims, lease fencing, retry timing and dead-letter ordering. The shared behavioral suite in `adapter_contract/message_store_contract.py` also runs nine identical contract scenarios against PostgreSQL and SQLite. A schema-migration suite verifies clean initialization, idempotent reinitialization and adoption of the existing unversioned POC schema without losing data.
 
 ## Validation evidence
 
 GitHub Actions run [#45337489838](https://github.com/Elusivedamir/jet/actions/runs/45337489838) passed 9 PostgreSQL integration tests on PostgreSQL 16 with Python 3.12 and psycopg 3.2.6. In the same run, 26 reference-model and 25 SQLite adapter tests also passed (60 total).
+
+## Schema versioning and backup/restore
+
+The adapter now records baseline schema version 1 in `schema_migrations`. Existing POC schemas without a registry are adopted as baseline version 1; this is a bootstrap marker, not a full chain of historical DDL migrations. Future incompatible schema changes must add ordered, forward-only migrations and tests from each supported prior version.
+
+CI prepares a disposable schema, runs `pg_dump -Fc`, creates a second database, restores with `pg_restore`, and verifies the message, sequence and outbox states. This is a logical backup/restore smoke test on one PostgreSQL 16 service, not a backup policy, point-in-time recovery, disaster-recovery or failover proof.
 
 ## Important limits
 
@@ -36,7 +42,7 @@ GitHub Actions run [#45337489838](https://github.com/Elusivedamir/jet/actions/ru
 - It does not implement a scheduler, transport, receiver dedup store, operator replay/skip workflow, alerting or E2EE.
 - PostgreSQL version and psycopg driver are pinned in CI for reproducibility, not approved as production choices.
 - Nine shared behavioral scenarios now run against both SQLite and PostgreSQL; the PostgreSQL-specific suite remains separate for database-specific integration coverage.
-- The schema initializer handles clean schemas; a versioned forward migration from a prior PostgreSQL schema is not implemented.
+- Schema version 1 currently records/adopts the baseline; a chain of future schema transformations is not yet implemented.
 - A green CI run demonstrates only the listed integration tests against the CI PostgreSQL service.
 
 The existing SQLite adapter remains unchanged as the comparison baseline.
