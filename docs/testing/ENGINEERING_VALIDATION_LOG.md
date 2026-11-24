@@ -16,22 +16,23 @@ This log records completed, reviewable engineering increments. It is evidence of
 | #19 | `project/greenfield-reset` | Narrow integration of the reliability and persistence experiment into the working project branch | Source CI #38: 30 tests passed |
 | #20 | `project/greenfield-reset` | Documented combined CI coverage on the project integration branch | Documentation-only follow-up |
 | #21 | `project/greenfield-reset` | Added bounded retries, exponential delay, dead-letter handling, schema migration and receiver-dedup crash test | CI #64: 13 reference-model + 25 SQLite tests = 38 passed |
+| #25 | `project/greenfield-reset` | Added adapter-neutral outbox dispatch contract and 13-test reference model | CI #70: 26 reference-model + 25 SQLite tests = 51 passed |
 
 PRs #14–#18 are now merged. PRs #15–#17 were merged in dependency order into their stacked parent branches; PR #18 consolidated the model and adapter work into `research/architecture-synthesis-task`.
 
 ## Consolidation validation
 
-GitHub Actions run #38 passed the initial integrated packages (13 reference-model + 17 SQLite tests). After PR #21, GitHub Actions run #64 passed the expanded packages:
+GitHub Actions run #38 passed the initial integrated packages (13 reference-model + 17 SQLite tests). After PR #21, run #64 passed the expanded packages. After PR #25, run #70 passed:
 
 - Reference model: 13 tests.
 - SQLite adapter: 17 tests.
 - Total: 30 tests, 0 failures, 0 errors.
 
-The final run used Python 3.12 on Ubuntu: 13 reference-model tests and 25 SQLite adapter tests, 38 total. See [run #64](https://github.com/Elusivedamir/jet/actions/runs/45334241074).
+The latest run used Python 3.12 on Ubuntu: 26 reference-model tests (13 message + 13 outbox) and 25 SQLite adapter tests, 51 total. See [run #70](https://github.com/Elusivedamir/jet/actions/runs/45334603955).
 
 ## What this proves — and what it does not
 
-It demonstrates that the written message contract has an executable in-memory oracle and that one SQLite adapter experiment passes deterministic transaction, restart, concurrency, lease, retry, dead-letter, receiver-dedup and ordering tests.
+It demonstrates that the written message and outbox contracts have executable in-memory oracles and that one SQLite adapter experiment passes deterministic transaction, restart, concurrency, lease, retry, dead-letter, receiver-dedup and ordering tests.
 
 It does **not** prove production message delivery, exactly-once network delivery, device receipt/read, host or power-loss durability, multi-process service behavior, replication, backup/restore, E2EE, security posture, throughput, availability or operating cost. SQLite is not selected as Jetson's production database. No messaging server has been implemented by these experiments.
 
@@ -44,4 +45,4 @@ It does **not** prove production message delivery, exactly-once network delivery
 
 ## Next engineering increment
 
-Next, define an adapter-neutral outbox contract and test it against a second storage technology or a real broker/transport sandbox. Compare behavior and operational cost before selecting any production persistence or delivery components. Keep the exactly-once network delivery claim explicitly out of scope.
+Next, compare a second storage technology or a real broker/transport sandbox against the adapter-neutral contracts. Measure operational behavior and cost before selecting any production persistence or delivery components. Keep the exactly-once network delivery claim explicitly out of scope.
