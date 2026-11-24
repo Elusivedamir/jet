@@ -82,6 +82,14 @@ class SQLiteDurabilityTests(unittest.TestCase):
         self.assertEqual("msg:room-1:1", first)
         self.assertEqual("msg:room-2:1", second)
 
+    def test_same_operation_key_can_be_reused_in_another_conversation(self):
+        self.store.create_conversation("room-2", ("A", "D"))
+        first = self.store.send("A", "room-1", "same-key", "room one")
+        second = self.store.send("A", "room-2", "same-key", "room two")
+        self.assertNotEqual(first, second)
+        self.assertEqual(1, len(self.store.snapshot("room-1")[0]))
+        self.assertEqual(1, len(self.store.snapshot("room-2")[0]))
+
     def test_concurrent_sends_allocate_unique_positions(self):
         import threading
         barrier = threading.Barrier(8)
