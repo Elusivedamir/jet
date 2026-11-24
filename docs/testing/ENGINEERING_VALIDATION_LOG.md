@@ -72,6 +72,22 @@ GitHub Actions [run #45338191026](https://github.com/Elusivedamir/jet/actions/ru
 
 The shared suite checks observable behavior while allowing adapter-specific physical schemas. SQLite continues to project dead-letter from `dead_letter_at`; PostgreSQL stores an explicit `dead_letter` state.
 
+### PostgreSQL schema registry and logical backup/restore
+
+The PostgreSQL POC now records schema baseline version 1 in `schema_migrations`. Existing unversioned POC schemas are adopted without losing stored message/outbox data. This is a bootstrap/version-registry step, not a full chain of historical DDL migrations.
+
+CI also performs a disposable logical backup/restore: prepare a known message and mixed leased/pending outbox state, run `pg_dump -Fc`, create a second database, restore with `pg_restore`, then verify the message, conversation sequence and outbox states.
+
+GitHub Actions [run #45339014346](https://github.com/Elusivedamir/jet/actions/runs/45339014346) passed on PostgreSQL 16:
+
+- Reference model: 26 passed.
+- SQLite: 34 passed.
+- PostgreSQL: 21 passed (9 adapter-specific + 9 shared contract + 3 schema registry tests).
+- Total: 81 tests passed, 0 failures, 0 errors.
+- Backup/restore prepare, dump, restore and verification steps all passed.
+
+This is a logical backup smoke test, not PITR, disaster-recovery, failover or host/power-loss proof.
+
 ## Product and repository guardrails
 
 - The canonical business-plan PDF remains authoritative and was not edited.
@@ -82,4 +98,4 @@ The shared suite checks observable behavior while allowing adapter-specific phys
 
 ## Next engineering increment
 
-Add versioned PostgreSQL migration and backup/restore verification, then run a repeatable workload/resource comparison with documented assumptions. Only after those gates should broker/transport experiments or architecture recommendations be considered. Keep exactly-once network delivery explicitly out of scope.
+Add a versioned DDL migration chain with tests from each supported prior schema, then run a repeatable workload/resource comparison with documented assumptions. Only after those gates should broker/transport experiments or architecture recommendations be considered. Keep exactly-once network delivery explicitly out of scope.
