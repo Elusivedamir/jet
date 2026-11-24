@@ -97,7 +97,7 @@ class PostgresMessageStore:
                 "INSERT INTO conversations(conversation_id, next_position) VALUES (%s, 1)",
                 (conversation_id,),
             )
-            db.executemany(
+            db.cursor().executemany(
                 "INSERT INTO members(conversation_id, account_id) VALUES (%s, %s)",
                 [(conversation_id, account) for account in members],
             )
@@ -148,7 +148,7 @@ class PostgresMessageStore:
                     "SELECT account_id FROM members WHERE conversation_id=%s AND account_id<>%s",
                     (conversation_id, sender_id),
                 ).fetchall()
-                db.executemany(
+                db.cursor().executemany(
                     "INSERT INTO outbox(message_id, recipient_id) VALUES (%s, %s)",
                     [(message_id, row["account_id"]) for row in recipients],
                 )
