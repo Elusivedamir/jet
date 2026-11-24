@@ -50,11 +50,12 @@ class SQLiteMessageStore:
                     UNIQUE (conversation_id, position)
                 );
                 CREATE TABLE IF NOT EXISTS idempotency (
+                    conversation_id TEXT NOT NULL REFERENCES conversations(conversation_id),
                     sender_id TEXT NOT NULL,
                     operation_key TEXT NOT NULL,
                     payload TEXT NOT NULL,
                     message_id TEXT NOT NULL REFERENCES messages(message_id),
-                    PRIMARY KEY (sender_id, operation_key)
+                    PRIMARY KEY (conversation_id, sender_id, operation_key)
                 );
                 CREATE TABLE IF NOT EXISTS outbox (
                     message_id TEXT NOT NULL REFERENCES messages(message_id),
@@ -96,8 +97,9 @@ class SQLiteMessageStore:
                 raise SendRejected("sender is not a conversation member")
 
             previous = db.execute(
-                "SELECT payload, message_id FROM idempotency WHERE sender_id=? AND operation_key=?",
-                (sender_id, operation_key),
+                "SELECT payload, message_id FROM idempotency "
+                "WHERE conversation_id=? AND sender_id=? AND operation_key=?",
+                (conversation_id, sender_id, operation_key),
             ).fetchone()
             if previous:
                 if previous[0] != payload:
@@ -123,8 +125,9 @@ class SQLiteMessageStore:
                 (message_id, conversation_id, position, sender_id, operation_key, payload),
             )
             db.execute(
-                "INSERT INTO idempotency(sender_id, operation_key, payload, message_id) VALUES (?, ?, ?, ?)",
-                (sender_id, operation_key, payload, message_id),
+                "INSERT INTO idempotency(conversation_id, sender_id, operation_key, payload, message_id) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (conversation_id, sender_id, operation_key, payload, message_id),
             )
             recipients = db.execute(
                 "SELECT account_id FROM members WHERE conversation_id=? AND account_id<>?",
