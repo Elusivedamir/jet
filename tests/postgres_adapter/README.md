@@ -39,7 +39,7 @@ CI prepares a disposable schema, runs `pg_dump -Fc`, creates a second database, 
 
 `PooledPostgreSQLMessageStore` is a test-only subclass that uses `psycopg_pool` while preserving the same SQL operations and transaction boundaries. The shared nine-scenario contract suite runs against it independently. CI pins `psycopg-pool==3.2.6`.
 
-The benchmark compares three candidates: SQLite local-file, PostgreSQL with a new connection per operation, and PostgreSQL with a bounded pool (`min_size=1`, `max_size=4`). The pool settings are experimental only. Five fresh serial trials are run per candidate with rotating candidate order; the benchmark is not a concurrent load test.
+The benchmark compares three candidates: SQLite local-file, PostgreSQL with a new connection per operation, and PostgreSQL with a bounded pool (`min_size=1`, `max_size=4`). The pool settings are experimental only. Five fresh serial trials are run per candidate with rotating candidate order; the benchmark is not a concurrent load test. GitHub Actions [run #45343115953](https://github.com/Elusivedamir/jet/actions/runs/45343115953) passed the pooled contract tests and the five-trial three-candidate benchmark; the raw report is [artifact #14896189281](https://github.com/Elusivedamir/jet/actions/runs/45343115953/artifacts/14896189281).
 
 ## Important limits
 
