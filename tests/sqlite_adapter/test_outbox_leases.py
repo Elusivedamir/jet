@@ -71,6 +71,21 @@ class OutboxLeaseTests(unittest.TestCase):
         states = self.store.snapshot("room-1")[1]
         self.assertEqual("leased", states[0][2])
 
+    def test_later_message_for_same_recipient_waits_for_earlier_dispatch(self):
+        first_id = self.message_id
+        second_id = self.store.send("A", "room-1", "op-2", "second")
+        first_b = self.store.claim_next("worker-1", "b-first", 100, 30)
+        first_c = self.store.claim_next("worker-2", "c-first", 100, 30)
+        self.assertEqual((first_id, "B"), (first_b["message_id"], first_b["recipient_id"]))
+        self.assertEqual((first_id, "C"), (first_c["message_id"], first_c["recipient_id"]))
+
+        # Both recipients still have the earlier message in flight.
+        self.assertIsNone(self.store.claim_next("worker-3", "later", 100, 30))
+
+        self.store.acknowledge_dispatch(first_id, "B", "b-first", dispatched_at=105)
+        next_b = self.store.claim_next("worker-3", "b-second", 106, 30)
+        self.assertEqual((second_id, "B"), (next_b["message_id"], next_b["recipient_id"]))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
