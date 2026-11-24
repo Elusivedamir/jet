@@ -18,6 +18,10 @@ class UnknownOutcome(Exception):
     """The transaction committed, but the caller did not receive confirmation."""
 
 
+class OutboxClaimError(Exception):
+    pass
+
+
 class SQLiteMessageStore:
     def __init__(self, path):
         self.path = str(path)
@@ -60,8 +64,12 @@ class SQLiteMessageStore:
                 CREATE TABLE IF NOT EXISTS outbox (
                     message_id TEXT NOT NULL REFERENCES messages(message_id),
                     recipient_id TEXT NOT NULL,
-                    state TEXT NOT NULL DEFAULT 'pending',
+                    state TEXT NOT NULL DEFAULT 'pending'
+                        CHECK (state IN ('pending', 'leased', 'delivered')),
                     attempts INTEGER NOT NULL DEFAULT 0,
+                    lease_token TEXT,
+                    lease_until INTEGER,
+                    delivered_at INTEGER,
                     PRIMARY KEY (message_id, recipient_id)
                 );
             """)
@@ -152,6 +160,67 @@ class SQLiteMessageStore:
         if lose_response_after_commit:
             raise UnknownOutcome("committed; response was lost")
         return message_id
+
+    def claim_next(self, worker_id, claim_token, now, lease_seconds):
+        if not worker_id or not claim_token or lease_seconds <= 0:
+            raise ValueError("worker, token and positive lease are required")
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT message_id, recipient_id FROM outbox "
+                "WHERE state='pending' OR (state='leased' AND lease_until<=?) "
+                "ORDER BY rowid LIMIT 1",
+                (now,),
+            ).fetchone()
+            if row is None:
+                db.commit()
+                return None
+            message_id, recipient_id = row
+            db.execute(
+                "UPDATE outbox SET state='leased', attempts=attempts+1, "
+                "lease_token=?, lease_until=?, delivered_at=NULL "
+                "WHERE message_id=? AND recipient_id=?",
+                (claim_token, now + lease_seconds, message_id, recipient_id),
+            )
+            db.commit()
+            return {
+                "message_id": message_id,
+                "recipient_id": recipient_id,
+                "worker_id": worker_id,
+                "claim_token": claim_token,
+                "attempt": db.execute(
+                    "SELECT attempts FROM outbox WHERE message_id=? AND recipient_id=?",
+                    (message_id, recipient_id),
+                ).fetchone()[0],
+                "lease_until": now + lease_seconds,
+            }
+
+    def acknowledge_delivery(self, message_id, recipient_id, claim_token, delivered_at):
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            result = db.execute(
+                "UPDATE outbox SET state='delivered', delivered_at=?, "
+                "lease_token=NULL, lease_until=NULL "
+                "WHERE message_id=? AND recipient_id=? AND state='leased' AND lease_token=?",
+                (delivered_at, message_id, recipient_id, claim_token),
+            )
+            if result.rowcount != 1:
+                db.rollback()
+                raise OutboxClaimError("claim is stale, unknown or already completed")
+            db.commit()
+
+    def release_claim(self, message_id, recipient_id, claim_token):
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            result = db.execute(
+                "UPDATE outbox SET state='pending', lease_token=NULL, lease_until=NULL "
+                "WHERE message_id=? AND recipient_id=? AND state='leased' AND lease_token=?",
+                (message_id, recipient_id, claim_token),
+            )
+            if result.rowcount != 1:
+                db.rollback()
+                raise OutboxClaimError("claim is stale, unknown or already completed")
+            db.commit()
 
     def snapshot(self, conversation_id):
         with self._connect() as db:
