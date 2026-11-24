@@ -59,10 +59,11 @@ class PostgreSQLMessageStore:
                 "INSERT INTO conversations(conversation_id, next_position) VALUES (%s, 1)",
                 (conversation_id,),
             )
-            db.executemany(
-                "INSERT INTO members(conversation_id, account_id) VALUES (%s, %s)",
-                [(conversation_id, account) for account in members],
-            )
+            with db.cursor() as cursor:
+                cursor.executemany(
+                    "INSERT INTO members(conversation_id, account_id) VALUES (%s, %s)",
+                    [(conversation_id, account) for account in members],
+                )
 
     def send(self, sender_id, conversation_id, operation_key, payload,
              *, fail_before_commit=False, lose_response_after_commit=False):
