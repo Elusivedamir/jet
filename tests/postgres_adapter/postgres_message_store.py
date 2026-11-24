@@ -45,10 +45,14 @@ class PostgreSQLMessageStore:
                 "CREATE TABLE IF NOT EXISTS idempotency (\n    conversation_id TEXT NOT NULL REFERENCES conversations(conversation_id),\n    sender_id TEXT NOT NULL,\n    operation_key TEXT NOT NULL,\n    payload TEXT NOT NULL,\n    message_id TEXT NOT NULL REFERENCES messages(message_id),\n    PRIMARY KEY (conversation_id, sender_id, operation_key)\n)",
                 "CREATE TABLE IF NOT EXISTS outbox (\n    message_id TEXT NOT NULL REFERENCES messages(message_id),\n    recipient_id TEXT NOT NULL,\n    state TEXT NOT NULL DEFAULT 'pending'\n        CHECK (state IN ('pending', 'leased', 'dispatched', 'dead_letter')),\n    attempts INTEGER NOT NULL DEFAULT 0,\n    lease_token TEXT,\n    lease_owner TEXT,\n    lease_until BIGINT,\n    dispatched_at BIGINT,\n    next_attempt_at BIGINT NOT NULL DEFAULT 0,\n    dead_letter_at BIGINT,\n    last_error TEXT,\n    PRIMARY KEY (message_id, recipient_id)\n)",
                 "CREATE INDEX IF NOT EXISTS outbox_due_idx\n    ON outbox(state, next_attempt_at, lease_until)",
-                "CREATE INDEX IF NOT EXISTS messages_conversation_position_idx\n    ON messages(conversation_id, position)"
+                "CREATE INDEX IF NOT EXISTS messages_conversation_position_idx\n    ON messages(conversation_id, position)",
+                "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)"
             ]
             for statement in statements:
                 db.execute(statement)
+            db.execute(
+                "INSERT INTO schema_migrations(version) VALUES (1) ON CONFLICT (version) DO NOTHING"
+            )
 
     def create_conversation(self, conversation_id, members):
         members = tuple(members)
