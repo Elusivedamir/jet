@@ -10,20 +10,20 @@ This log records completed, reviewable engineering increments. It is evidence of
 |---|---|---|---|
 | #14 | `research/architecture-synthesis-task` | Corrected architecture research synthesis; withdrew unsupported architecture scores; retained unknown empirical dimensions and business-plan stage order | Static document review only |
 | #15 | `research/architecture-synthesis-task` | Implementation-neutral message reliability plan and message state-machine contract | Document/traceability review; runtime tests correctly marked not run |
-| #16 | `engineering/message-reliability-test-plan` | In-memory message reference model and deterministic test oracle | 13 tests passed locally; re-run in consolidation CI #34 |
-| #17 | `engineering/message-reference-model` | SQLite adapter experiment, crash recovery, leased outbox, retry release, stale-token rejection and per-recipient ordering | CI #30 and #32: 17 SQLite adapter tests passed |
+| #16 | `engineering/message-reliability-test-plan` | In-memory message reference model and deterministic test oracle | 13 tests passed locally; re-run in consolidation CI #38 |
+| #17 | `engineering/message-reference-model` | SQLite adapter experiment, crash recovery, leased outbox, retry release, stale-token rejection and per-recipient ordering | CI #30, #32 and #38: 17 SQLite adapter tests passed |
 
-PRs #15–#17 were merged in dependency order into their stacked parent branches. PR #18 consolidates the model and adapter work into the research synthesis branch.
+PRs #14–#18 are now merged. PRs #15–#17 were merged in dependency order into their stacked parent branches; PR #18 consolidated the model and adapter work into `research/architecture-synthesis-task`.
 
 ## Consolidation validation
 
-GitHub Actions run #34 on the PR #18 head compiled both test packages and passed:
+GitHub Actions run #38 on the final PR #18 head compiled both test packages and passed:
 
 - Reference model: 13 tests.
 - SQLite adapter: 17 tests.
 - Total: 30 tests, 0 failures, 0 errors.
 
-The run used Python 3.12 on Ubuntu. See the [workflow run](https://github.com/Elusivedamir/jet/actions/runs/45332872152).
+The run used Python 3.12 on Ubuntu. See the [workflow run](https://github.com/Elusivedamir/jet/actions/runs/45332978091).
 
 ## What this proves — and what it does not
 
@@ -36,7 +36,7 @@ It does **not** prove production message delivery, exactly-once network delivery
 - The canonical business-plan PDF remains authoritative and was not edited.
 - No product stage, pricing, feature promise, E2EE scope or SLO is approved by these experiments.
 - The original `main` branch has not been changed by this engineering sequence.
-- The work remains on research/engineering branches until separately reviewed for integration.
+- The work is now consolidated on `research/architecture-synthesis-task`; integration into `project/greenfield-reset` remains a separate, narrow PR.
 
 ## Next engineering increment
 
