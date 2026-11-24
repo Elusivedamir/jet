@@ -34,3 +34,7 @@ The JSON report is written to `persistence-benchmark.json` and uploaded as a Git
 - Numbers must not be extrapolated to production capacity, user count, SLO, cost or database choice.
 
 Use the report to spot obvious regressions and guide what to measure next, not to declare a winner.
+
+## Five-trial baseline (2026-11-24)
+
+The harness now runs five fresh trials per adapter and alternates execution order. Set `JET_BENCH_TRIALS=5` (minimum supported: 3) and `JET_BENCH_MESSAGES=100`. The latest repeatability run is [#45340963701](https://github.com/Elusivedamir/jet/actions/runs/45340963701); its [raw JSON artifact](https://github.com/Elusivedamir/jet/actions/runs/45340963701/artifacts/14894714918) reports median acceptance throughput of 844.85 ops/s for SQLite and 92.59 ops/s for PostgreSQL, and median outbox claim+ack throughput of 279.25 and 34.08 ops/s respectively. All five trials passed data-integrity checks. See [the full report](../../docs/testing/PERSISTENCE_WORKLOAD_BASELINE.md) for latency ranges and limitations. This is not a production capacity comparison: SQLite is local-file and PostgreSQL is a service container; the PostgreSQL adapter opens a new connection per operation.
