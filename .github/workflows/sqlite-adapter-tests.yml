@@ -6,6 +6,7 @@ on:
     branches:
       - engineering/sqlite-durability-experiment
       - engineering/message-reference-model
+      - engineering/outbox-retry-dedup
       - integration/message-reliability
       - project/greenfield-reset
   pull_request:
