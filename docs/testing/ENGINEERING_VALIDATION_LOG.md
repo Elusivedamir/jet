@@ -103,6 +103,23 @@ GitHub Actions [run #45339664701](https://github.com/Elusivedamir/jet/actions/ru
 
 These are observed results from one serial CI run, not stable capacity estimates. The current PostgreSQL POC opens a new connection for each operation and has no pool; the benchmark includes that lifecycle. SQLite uses a local file, while PostgreSQL uses a service container over the runner's local network. There were no concurrent workers in this benchmark, no repeated trials, no cache controls and no transport/network/device delivery. The figures do not establish that SQLite is the better production choice; they identify connection lifecycle and workload concurrency as necessary next measurements.
 
+### Repeated serial persistence workload (five trials)
+
+GitHub Actions [run #45340963701](https://github.com/Elusivedamir/jet/actions/runs/45340963701) passed on commit `63765b62147f48b4a20f2dd5a04058441ada0e6a`. The benchmark now runs five fresh trials per adapter and alternates candidate order. Each trial accepts 100 messages and dispatches 200 recipient outbox items. All trials passed state-integrity checks.
+
+Median results across five trials:
+
+| Metric | SQLite POC | PostgreSQL POC |
+|---|---:|---:|
+| Acceptance throughput | 844.85 ops/s | 92.59 ops/s |
+| Acceptance p50 / p95 | 1.116 / 1.427 ms | 10.708 / 11.408 ms |
+| Outbox claim + ack throughput | 279.25 ops/s | 34.08 ops/s |
+| Outbox claim + ack p50 / p95 | 3.668 / 4.901 ms | 30.688 / 34.715 ms |
+
+The raw report is attached as [CI artifact #14894714918](https://github.com/Elusivedamir/jet/actions/runs/45340963701/artifacts/14894714918), with methodology, per-trial ranges and limitations in [PERSISTENCE_WORKLOAD_BASELINE.md](PERSISTENCE_WORKLOAD_BASELINE.md).
+
+Interpretation remains bounded: SQLite is a local file, PostgreSQL is a service container over the runner network, and the PostgreSQL POC opens a fresh connection for each operation. This is a small serial repeatability check, not an apples-to-apples production benchmark or capacity certification. It does not select a production database.
+
 ## Product and repository guardrails
 
 - The canonical business-plan PDF remains authoritative and was not edited.
@@ -113,4 +130,4 @@ These are observed results from one serial CI run, not stable capacity estimates
 
 ## Next engineering increment
 
-Repeat the workload across multiple runs, add controlled concurrent workers, and compare PostgreSQL connection pooling/transaction strategies before interpreting performance. Add a versioned DDL migration chain with tests from supported prior schemas. Only then consider broker/transport experiments or architecture recommendations. Keep exactly-once network delivery explicitly out of scope.
+Add a PostgreSQL connection-pool adapter variant and controlled concurrent sender/dispatcher workloads (1, 4 and 16 workers), measuring CPU, memory, connections, lock waits and error rates. Compare pool and no-pool under identical semantics before interpreting performance. Add a versioned DDL migration chain with tests from supported prior schemas. Only then consider broker/transport experiments or architecture recommendations. Keep exactly-once network delivery explicitly out of scope.
