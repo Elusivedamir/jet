@@ -5,10 +5,12 @@ on:
     branches:
       - engineering/sqlite-durability-experiment
       - engineering/message-reference-model
+      - integration/message-reliability
   pull_request:
     branches:
       - engineering/message-reference-model
       - research/architecture-synthesis-task
+      - project/greenfield-reset
     paths:
       - "tests/reference_model/**"
       - "tests/sqlite_adapter/**"
