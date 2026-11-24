@@ -128,6 +128,21 @@ def run_scenario(store, label, workers):
         raise AssertionError(f"{label}: outbox count or unique claim count mismatch")
     if len(completed) != expected_outbox or any(row[2] != "dispatched" for row in outbox):
         raise AssertionError(f"{label}: outbox dispatch incomplete")
+
+    # Verify each recipient has exactly one outbox item per message and that
+    # the committed per-recipient sequence remains strictly increasing.
+    position_by_message = {row[0]: row[1] for row in messages}
+    recipient_positions = {"recipient-b": [], "recipient-c": []}
+    for message_id, recipient_id, state in outbox:
+        if recipient_id not in recipient_positions:
+            raise AssertionError(f"{label}: unexpected outbox recipient {recipient_id}")
+        recipient_positions[recipient_id].append(position_by_message[message_id])
+    for recipient_id, positions_for_recipient in recipient_positions.items():
+        if positions_for_recipient != list(range(1, MESSAGE_COUNT + 1)):
+            raise AssertionError(
+                f"{label}: missing, duplicate or out-of-order outbox items for {recipient_id}"
+            )
+
     if next_position != MESSAGE_COUNT + 1:
         raise AssertionError(f"{label}: next sequence mismatch")
 
