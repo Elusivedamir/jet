@@ -98,7 +98,9 @@ class OutboxReferenceModel:
         item["lease_owner"] = worker_id
         item["lease_until"] = now + lease_seconds
         item["dispatched_at"] = None
-        return self._copy(item)
+        claim = self._copy(item)
+        claim["claim_token"] = item["lease_token"]
+        return claim
 
     def acknowledge_dispatch(self, message_id, recipient_id, claim_token, now):
         item = self._get(message_id, recipient_id)
