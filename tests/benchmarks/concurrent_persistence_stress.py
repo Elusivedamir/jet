@@ -191,7 +191,12 @@ def run_scenario(store, label, workers, conversation_count=1):
 def run_sqlite(workers):
     with tempfile.TemporaryDirectory() as temp:
         store = SQLiteMessageStore(Path(temp) / "stress.sqlite3")
-        return run_scenario(store, f"sqlite-{workers}", workers)
+        return {
+            "single_conversation": run_scenario(store, f"sqlite-hot-{workers}", workers),
+            "four_conversations": run_scenario(
+                store, f"sqlite-multi-{workers}", workers, conversation_count=4
+            ),
+        }
 
 
 def run_postgres(workers, pooled):
@@ -208,11 +213,16 @@ def run_postgres(workers, pooled):
         else:
             store = PostgreSQLMessageStore(dsn)
             label = f"postgres-fresh-{workers}"
-        result = run_scenario(store, label, workers)
-        result["connection_strategy"] = (
-            "psycopg_pool min=1 max=4" if pooled else "new connection per operation"
-        )
-        return result
+        strategy = "psycopg_pool min=1 max=4" if pooled else "new connection per operation"
+        return {
+            "connection_strategy": strategy,
+            "single_conversation": run_scenario(
+                store, f"{label}-hot", workers
+            ),
+            "four_conversations": run_scenario(
+                store, f"{label}-multi", workers, conversation_count=4
+            ),
+        }
     finally:
         if pooled and store is not None:
             store.close()
@@ -237,6 +247,7 @@ if __name__ == "__main__":
             "short CI smoke workload, not a capacity or soak test",
             "SQLite local file and PostgreSQL service container have different topology",
             "pool max size is 4; worker count 16 intentionally tests pool contention",
+            "single-conversation and four-conversation scenarios isolate hot-room contention from independent-room concurrency",
             "no CPU, memory, lock-wait or connection-wait instrumentation",
             "no transport, device delivery, replication, failover or production tuning",
         ],
