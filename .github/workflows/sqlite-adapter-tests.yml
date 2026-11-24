@@ -13,6 +13,7 @@ on:
       - engineering/adapter-contract-harness
       - engineering/shared-adapter-conformance
       - engineering/postgres-migration-backup
+      - engineering/persistence-workload-baseline
   pull_request:
     branches:
       - engineering/message-reference-model
@@ -44,7 +45,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile source and tests
-        run: python -m compileall -q adapter_contract tests/reference_model tests/sqlite_adapter tests/postgres_adapter
+        run: python -m compileall -q adapter_contract tests/reference_model tests/sqlite_adapter tests/postgres_adapter tests/benchmarks
       - name: Run reference model tests
         run: python -m unittest discover -s tests/reference_model -p 'test_*.py' -v
       - name: Run SQLite adapter tests
@@ -99,3 +100,14 @@ jobs:
         env:
           POSTGRES_RESTORE_DSN: postgresql://jetson:jetson_test_only@127.0.0.1:5432/jetson_restore_test
         run: python tests/postgres_adapter/backup_restore_check.py verify
+      - name: Run small serial persistence comparison
+        env:
+          POSTGRES_DSN: postgresql://jetson:jetson_test_only@127.0.0.1:5432/jetson_test
+          JET_BENCH_MESSAGES: "100"
+        run: python tests/benchmarks/persistence_workload_baseline.py
+      - name: Upload persistence benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: persistence-benchmark-${{ github.sha }}
+          path: persistence-benchmark.json
+          if-no-files-found: error
