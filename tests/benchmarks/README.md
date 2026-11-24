@@ -42,3 +42,7 @@ The harness now runs five fresh trials per adapter and alternates execution orde
 ## PostgreSQL pool comparison
 
 The current benchmark compares the PostgreSQL adapter's new-connection-per-operation behavior with the test-only `PooledPostgreSQLMessageStore` (psycopg-pool 3.2.6, min=1/max=4), alongside SQLite. The same message and outbox workflow is used for all candidates. Each candidate runs five fresh trials with rotating execution order. The benchmark artifact contains per-trial results, median and min/max ranges. The pool is warmed during adapter initialization; pool warm-up is not reported as a separate measurement. No concurrency is used in this stage.
+
+## Concurrent correctness smoke test
+
+`concurrent_persistence_stress.py` exercises 1, 4 and 16 concurrent senders and dispatchers against SQLite, PostgreSQL fresh connections and PostgreSQL pool 1–4. It checks message sequence integrity, unique outbox claims, recipient isolation via the adapter's ordering rules, and completion of every expected outbox item. CI uses 40 messages per scenario and uploads a JSON report. This is a short correctness/throughput smoke test, not a load, soak, capacity or SLO test. It does not yet collect CPU, memory, pool wait, connection count or lock-wait telemetry.

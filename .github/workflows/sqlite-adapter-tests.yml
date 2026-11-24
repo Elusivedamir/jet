@@ -15,6 +15,7 @@ on:
       - engineering/postgres-migration-backup
       - engineering/persistence-benchmark-rebased
       - engineering/postgres-pool-comparison-rebased
+      - engineering/persistence-concurrency-stress
       - engineering/persistence-workload-baseline
   pull_request:
     branches:
@@ -114,4 +115,15 @@ jobs:
         with:
           name: persistence-benchmark-${{ github.sha }}
           path: persistence-benchmark.json
+          if-no-files-found: error
+      - name: Run concurrent persistence correctness smoke test
+        env:
+          POSTGRES_DSN: postgresql://jetson:jetson_test_only@127.0.0.1:5432/jetson_test
+          JET_STRESS_MESSAGES: "40"
+        run: python tests/benchmarks/concurrent_persistence_stress.py
+      - name: Upload concurrent persistence report
+        uses: actions/upload-artifact@v4
+        with:
+          name: persistence-concurrency-${{ github.sha }}
+          path: persistence-concurrency-stress.json
           if-no-files-found: error
