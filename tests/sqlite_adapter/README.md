@@ -10,9 +10,9 @@ Run:
 python -m unittest discover -s tests/sqlite_adapter -p 'test_*.py' -v
 ```
 
-The tests use Python's standard-library `sqlite3` module and temporary local database files. They exercise atomic persistence of messages, conversation-scoped idempotency, per-recipient outbox intents and sequence allocation; rollback before commit; recovery after a committed transaction whose response was lost; hard child-process termination before and after commit; concurrent sends; leased outbox claims; lease expiry and reclamation; stale-token rejection; retry release; and dispatch acknowledgement.
+The tests use Python's standard-library `sqlite3` module and temporary local database files. They exercise atomic persistence of messages, conversation-scoped idempotency, per-recipient outbox intents and sequence allocation; rollback before commit; recovery after a committed transaction whose response was lost; hard child-process termination before and after commit; concurrent sends; leased outbox claims; lease expiry and reclamation; stale-token rejection; retry release; dispatch acknowledgement, deterministic capped exponential retry scheduling, bounded attempts, dead-letter marking, and receiver-side idempotency behavior under a simulated crash after the external side effect but before acknowledgement.
 
-The outbox state `dispatched` means a worker acknowledged the dispatch operation. It does **not** mean the recipient's device received, displayed or read the message. Those are separate lifecycle events and are outside this adapter experiment.
+The outbox state `dispatched` means a worker acknowledged the dispatch operation. Retryable failures receive a caller-supplied `next_attempt_at`; the adapter does not own a wall-clock scheduler. Attempts are bounded by a caller-supplied limit. Exhausted or expired final attempts are marked `dead_letter`. A dead-lettered message blocks later messages for that recipient in the same conversation until an explicit operator policy is designed; this experiment does not implement replay or skip controls. It does **not** mean the recipient's device received, displayed or read the message. Those are separate lifecycle events and are outside this adapter experiment.
 
 ## Scope boundary
 
@@ -28,5 +28,7 @@ This is an isolated adapter experiment, **not** a decision to use SQLite in Jets
 Run #30 includes the per-recipient ordering regression: a later message for the same recipient remains blocked until the earlier message is dispatched. The run compiled the adapter modules and executed the complete SQLite adapter test discovery suite on GitHub Actions (Python 3.12 / Ubuntu).
 
 At project integration level, the same CI workflow also runs the 13-test in-memory reference-model suite, for 30 tests across both packages. The workflow is enabled for pull requests targeting `project/greenfield-reset`.
+
+The retry helper uses deterministic capped exponential delays for testability; production jitter, durable scheduling policy, operator replay/skip workflow and alerting remain open. The receiver dedup test uses an in-memory fake and proves only the required idempotency-key behavior, not a real network transport.
 
 Current evidence: automated adapter tests only. No production integration or load claim is made.

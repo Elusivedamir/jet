@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - engineering/sqlite-durability-experiment
+      - engineering/outbox-retry-dedup
       - engineering/message-reference-model
       - engineering/outbox-retry-dedup
       - integration/message-reliability
