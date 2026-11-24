@@ -124,7 +124,7 @@ Interpretation remains bounded: SQLite is a local file, PostgreSQL is a service 
 
 The test-only `PooledPostgreSQLMessageStore` uses `psycopg_pool==3.2.6` with a 1–4 connection pool and runs the same nine shared contract scenarios as SQLite and unpooled PostgreSQL. A five-trial serial benchmark compares SQLite, PostgreSQL fresh-connection-per-operation and pooled PostgreSQL.
 
-GitHub Actions [run #45342642980](https://github.com/Elusivedamir/jet/actions/runs/45342642980) passed:
+GitHub Actions [run #45343115953](https://github.com/Elusivedamir/jet/actions/runs/45342642980) passed:
 - Reference model: 26 tests.
 - SQLite: 34 tests.
 - PostgreSQL: 30 tests (21 existing adapter/schema tests + 9 pooled shared-contract tests).
@@ -135,14 +135,14 @@ Median benchmark results (100 messages and 200 outbox intents per trial):
 
 | Metric | SQLite | PostgreSQL fresh | PostgreSQL pool 1–4 |
 |---|---:|---:|---:|
-| Acceptance throughput | 868.29 ops/s | 120.17 ops/s | 701.44 ops/s |
-| Acceptance p50 / p95 | 1.084 / 1.290 ms | 8.342 / 8.876 ms | 1.311 / 2.053 ms |
-| Claim + ack throughput | 306.96 ops/s | 42.58 ops/s | 93.96 ops/s |
-| Claim + ack p50 / p95 | 3.285 / 3.960 ms | 24.388 / 27.939 ms | 11.679 / 14.925 ms |
+| Acceptance throughput | 895.00 ops/s | 94.48 ops/s | 443.39 ops/s |
+| Acceptance p50 / p95 | 1.061 / 1.319 ms | 10.565 / 10.994 ms | 2.112 / 2.775 ms |
+| Claim + ack throughput | 289.69 ops/s | 34.36 ops/s | 73.94 ops/s |
+| Claim + ack p50 / p95 | 3.586 / 4.515 ms | 30.589 / 34.475 ms | 14.780 / 18.790 ms |
 
-Raw JSON: [CI artifact #14896208412](https://github.com/Elusivedamir/jet/actions/runs/45342642980/artifacts/14896208412). Full methodology and caveats: [POSTGRES_POOL_COMPARISON.md](POSTGRES_POOL_COMPARISON.md).
+Raw JSON: [CI artifact #14896189281](https://github.com/Elusivedamir/jet/actions/runs/45342642980/artifacts/14896208412). Full methodology and caveats: [POSTGRES_POOL_COMPARISON.md](POSTGRES_POOL_COMPARISON.md).
 
-Pooling improves this PostgreSQL prototype substantially versus opening a new connection per operation. It still does not make the comparison production-equivalent: SQLite is local-file, PostgreSQL is a service container, and the workload is serial. Pool size 1–4 is experimental, not a production recommendation. No database is selected.
+Pooling improves this PostgreSQL prototype substantially versus opening a new connection per operation (about 4.7× acceptance throughput and 2.2× outbox throughput in this run). It still does not make the comparison production-equivalent: SQLite is local-file, PostgreSQL is a service container, and the workload is serial. Pool size 1–4 is experimental, not a production recommendation. No database is selected.
 
 ## Product and repository guardrails
 
