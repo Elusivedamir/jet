@@ -33,7 +33,7 @@ GitHub Actions run [#45337489838](https://github.com/Elusivedamir/jet/actions/ru
 
 The adapter now records baseline schema version 1 in `schema_migrations`. Existing POC schemas without a registry are adopted as baseline version 1; this is a bootstrap marker, not a full chain of historical DDL migrations. Future incompatible schema changes must add ordered, forward-only migrations and tests from each supported prior version.
 
-CI prepares a disposable schema, runs `pg_dump -Fc`, creates a second database, restores with `pg_restore`, and verifies the message, sequence and outbox states. This is a logical backup/restore smoke test on one PostgreSQL 16 service, not a backup policy, point-in-time recovery, disaster-recovery or failover proof.
+CI prepares a disposable schema, runs `pg_dump -Fc`, creates a second database, restores with `pg_restore`, and verifies the message, sequence and outbox states. GitHub Actions run [#45339014346](https://github.com/Elusivedamir/jet/actions/runs/45339014346) passed 3 schema-registry tests and the backup/restore workflow; the full run passed 81 tests across the reference model and both adapters. This is a logical backup/restore smoke test on one PostgreSQL 16 service, not a backup policy, point-in-time recovery, disaster-recovery or failover proof.
 
 ## Important limits
 
