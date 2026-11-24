@@ -12,6 +12,7 @@ on:
       - project/greenfield-reset
       - engineering/adapter-contract-harness
       - engineering/shared-adapter-conformance
+      - engineering/postgres-migration-backup
   pull_request:
     branches:
       - engineering/message-reference-model
