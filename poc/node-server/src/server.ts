@@ -18,7 +18,8 @@ const store = new Store(pool);
 const schema = await (await import("node:fs/promises")).readFile(new URL("../schema.sql",import.meta.url),"utf8");
 for (const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
 const abort = new AbortController();
-console.info(`outbox worker concurrency=${workerConcurrency} database pool max_conns=${poolMax}`);\nvoid store.runWorker(abort.signal,workerConcurrency);
+console.info(`outbox worker concurrency=${workerConcurrency} database pool max_conns=${poolMax}`);
+void store.runWorker(abort.signal,workerConcurrency);
 
 function account(req:IncomingMessage):string {
   const value=req.headers["x-test-account"];
