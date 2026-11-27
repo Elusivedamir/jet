@@ -176,7 +176,7 @@ def main():
           CREATE OR REPLACE FUNCTION jetson_crash_pause_dispatch() RETURNS trigger
           LANGUAGE plpgsql AS $$
           BEGIN
-            PERFORM pg_sleep(30);
+            PERFORM pg_sleep(5);
             RETURN NEW;
           END $$;
           DROP TRIGGER IF EXISTS jetson_crash_pause_dispatch_trigger ON recipient_inbox;
@@ -219,7 +219,11 @@ def main():
         lease_remaining = psql(args.database_url,
             f"SELECT GREATEST(0,CEIL(EXTRACT(EPOCH FROM (lease_until-clock_timestamp()))))::int "
             f"FROM delivery_outbox WHERE message_id='{message_id}'")
-        wait_seconds = int(lease_remaining or "0") + 2
+        remaining_seconds = int(lease_remaining or "0")
+        if remaining_seconds < 1:
+            raise AssertionError("worker lease expired before SIGKILL; crash test did not exercise an unexpired lease")
+        wait_seconds = remaining_seconds + 2
+        evidence["lease_remaining_at_kill_seconds"] = remaining_seconds
         evidence["lease_expiry_wait_seconds"] = wait_seconds
         time.sleep(wait_seconds)
 
