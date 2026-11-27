@@ -29,7 +29,14 @@ This is not yet the required full vertical slice. It has no WebSocket/SSE connec
 
 ## Verification status
 
-At report creation time, files and workflow were committed to the isolated branch. The GitHub Actions run had not yet been observed; do not treat tests as passing until the run URL and completed result are recorded here. No local compilation or test execution is claimed.
+- Latest branch commit at verification: `683d988f7d7e54b8cdc52f7346fca47db48620d7`.
+- GitHub Actions run [#46013315702](https://github.com/Elusivedamir/jet/actions/runs/46013315702) completed **successfully** on this exact latest commit.
+- `go mod tidy`: passed.
+- `gofmt` check: passed.
+- `go vet ./...`: passed.
+- PostgreSQL 17 integration tests under `go test -race -count=100 -v ./...`: passed. Five integration test functions were each repeated 100 times; the concurrent-retry test exercised 12 simultaneous requests per repetition.
+- A prior intermediate commit failed static analysis because the schema helper file had not yet been added to that snapshot. The final branch includes the helper and the latest run above passes. Do not treat the superseded failed run as the current head result.
+- No local compilation or test execution is claimed; verification was performed in GitHub Actions.
 
 ## Next implementation steps
 
