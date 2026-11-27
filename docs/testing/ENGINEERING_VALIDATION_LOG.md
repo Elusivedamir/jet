@@ -186,3 +186,15 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - Added a 30-second concurrent write soak at concurrency 16 after the three-round microbenchmark. The soak and expanded crash tests have not yet produced confirmed results in the current workflow attempt.
 - Earlier Node/Kotlin SBOM and vulnerability results remain historical inventory evidence. The new fail-closed gates require fresh runs; no new clean result is claimed yet.
 - Stack recommendation remains Node.js/TypeScript for v1 as a provisional architecture choice, not a production release decision. Go's patched security scan/checksum confirmation and comparable performance result remain open.
+
+
+## 2026-11-27 — patched Go comparison and reproducibility hardening
+
+- New same-runner-class benchmark evidence from Go run [46028089040](https://github.com/Elusivedamir/jet/actions/runs/46028089040), Node run [46028089075](https://github.com/Elusivedamir/jet/actions/runs/46028089075), Kotlin run [46028089057](https://github.com/Elusivedamir/jet/actions/runs/46028089057): Go 723.39 req/s median, p95 26.873 ms, p99 30.586 ms, sampled peak RSS 18,420 KiB, 115 CPU ticks; Node 576.98 req/s, p95 69.909 ms, p99 138.041 ms, RSS 85,384 KiB, 141 ticks; Kotlin 703.05 req/s, p95 52.171 ms, p99 66.678 ms, RSS 265,864 KiB, 527 ticks.
+- All three passed two hard crash/recovery scenarios in these runs: kill during dispatch transaction and kill after committed claim while dispatch is blocked. The new lost-acceptance-response case is implemented but has not yet been executed in CI.
+- Go's patched govulncheck output: “No vulnerabilities found.” The job failed later because go-licenses could not identify the first-party module's license. Workflow now excludes the first-party module from third-party scanning. CI-generated go.mod/go.sum were reviewed and committed; workflow now checks for no drift after go mod tidy.
+- Node npm audit JSON reported zero advisories. Its first fail-closed license step stopped on the root package's UNLICENSED declaration; workflow now excludes the first-party package from the third-party allow-list.
+- Kotlin's SBOM contains 42 components; Trivy found zero vulnerabilities. Three components have EPL/LGPL/GPL-with-classpath-exception license declarations. A conservative SBOM license gate now blocks unreviewed declarations.
+- Added a committed 72-coordinate Maven version-graph lock and checker. GitHub Actions pinned to immutable commit SHAs.
+- Added a 30-second concurrent write soak and richer mean-RSS/CPU percentage metrics. These additions, the lost-response scenario, and corrected fail-closed workflows await the next CI result.
+- ADR-0002 now proposes Go + PostgreSQL for v1, superseding the earlier Node proposal. This remains provisional pending clean final CI, soak and matched product-development task evidence.
