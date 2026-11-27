@@ -93,6 +93,10 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   const publicChannel = await channelStore.create(alice, "Jetson updates", "jetson_updates", "public", "Official project updates");
   assert.equal(publicChannel.invite_code, null);
   assert.ok((await channelStore.search("jet")).some(row => row.conversation_id === publicChannel.conversation_id));
+  await assert.rejects(
+    () => channelStore.leave(alice, "jetson_updates"),
+    error => error instanceof ChannelError && error.code === "forbidden"
+  );
   const joined = await channelStore.join(bob, "jetson_updates");
   assert.equal(joined.role, "subscriber");
   await assert.rejects(
@@ -125,6 +129,12 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   );
   const privateJoin = await channelStore.join(carol, "private_notes", privateChannel.invite_code!);
   assert.equal(privateJoin.role, "subscriber");
+  await channelStore.leave(carol, "private_notes");
+  assert.ok(!(await contacts.conversations(carol)).some(row => row.conversation_id === privateChannel.conversation_id));
+  await assert.rejects(
+    () => channelStore.leave(carol, "private_notes"),
+    error => error instanceof ChannelError && error.code === "not_found"
+  );
   await assert.rejects(() => contacts.request(alice, "bob"), error => error instanceof ContactError && error.code === "already_contact");
   assert.equal(await contacts.directConversation(carol, "alice"), carolAccepted.conversation_id);
 
