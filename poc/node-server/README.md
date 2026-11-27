@@ -47,7 +47,8 @@ Direct and multi-recipient conversation fan-out are supported by this PoC. Reque
 - Search users by username or display-name prefix: `GET /v1/users/search?q=bo` (minimum two characters; results are limited to 20 and exclude the current account).
 - Send a contact request by username: `POST /v1/contacts/requests` with `{"username":"bob"}`.
 - List pending requests: `GET /v1/contacts/requests` returns separate `incoming` and `outgoing` arrays.
-- Accept an incoming request: `POST /v1/contacts/requests/{request_id}/accept`. Only its recipient may accept it.\n- Decline an incoming request: `POST /v1/contacts/requests/{request_id}/decline`. Only its recipient may decline it.
+- Accept an incoming request: `POST /v1/contacts/requests/{request_id}/accept`. Only its recipient may accept it.
+- Decline an incoming request: `POST /v1/contacts/requests/{request_id}/decline`. Only its recipient may decline it.
 - List accepted contacts: `GET /v1/contacts`.
 - Get the existing personal conversation with an accepted contact: `POST /v1/conversations/direct` with `{"username":"bob"}`.
 - Accepting a request atomically creates the normalized contact pair and a single stable direct-conversation ID with both participants as members. Repeated direct-conversation lookup returns the same conversation.
