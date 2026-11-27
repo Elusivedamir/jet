@@ -51,7 +51,7 @@ export class Store {
   }
 
   async history(account: string, conversation: string, after: number, limit=50): Promise<Message[]> {
-    if (!account || !conversation || after < 0 || limit < 1 || limit > 100) throw new InvalidRequestError();
+    if (!account || !conversation || !Number.isSafeInteger(after) || after < 0 || limit < 1 || limit > 100) throw new InvalidRequestError();
     const member = await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
     if (member.rowCount !== 1) throw new NotMemberError();
     const result = await this.pool.query<Message>(
@@ -102,6 +102,7 @@ export class Store {
   }
 
   async inbox(account:string,conversation:string,after:number,limit=50):Promise<Message[]> {
+    if(!account || !conversation || !Number.isSafeInteger(after) || after<0 || limit<1 || limit>100) throw new InvalidRequestError();
     const member=await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
     if(member.rowCount!==1) throw new NotMemberError();
     const result=await this.pool.query<Message>(`SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.operation_key,m.payload,m.position
