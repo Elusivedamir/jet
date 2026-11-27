@@ -78,6 +78,29 @@ CREATE INDEX IF NOT EXISTS recipient_inbox_cursor_idx ON recipient_inbox(recipie
 CREATE INDEX IF NOT EXISTS delivery_outbox_pending_idx ON delivery_outbox(state, available_at, lease_until, id);
 CREATE INDEX IF NOT EXISTS messages_conversation_position_idx ON messages(conversation_id, position);
 
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+CREATE TABLE IF NOT EXISTS message_versions (
+  id BIGSERIAL PRIMARY KEY,
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  editor_id TEXT NOT NULL,
+  previous_payload TEXT NOT NULL,
+  changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS message_versions_message_idx ON message_versions(message_id,changed_at);
+CREATE TABLE IF NOT EXISTS conversation_event_log (
+  id BIGSERIAL PRIMARY KEY,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  recipient_id TEXT NOT NULL,
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK (event_type IN ('message.edited','message.deleted')),
+  payload JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS conversation_event_log_cursor_idx
+  ON conversation_event_log(recipient_id,conversation_id,id);
+
+
 CREATE TABLE IF NOT EXISTS message_reactions (
   message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
   account_id TEXT NOT NULL,
