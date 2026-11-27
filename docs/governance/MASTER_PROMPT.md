@@ -227,6 +227,15 @@ For implementation changes, invoke `$loop-code-review` (or the equivalent skill 
 
 High-risk changes (authentication, authorization, stored data, migrations, cryptography, concurrency, external contracts and cross-module failure handling) require the strongest available reviewer at high effort. Do not mark the review passed if required independent review or validation is unavailable.
 
-**Capability honesty:** only claim that a fresh sub-agent was started when the active coding environment actually exposes sub-agent orchestration. If it does not, say that independent sub-agent review is unavailable in this session; perform a clearly labelled manual review as a fallback, and do not represent it as an independent sub-agent result. Never fabricate reviewer identity, model, effort, scores or rounds.
+**Operating mode in this ChatGPT environment — mandatory manual review:** this session does not expose a sub-agent spawning/orchestration mechanism. Therefore, do not claim or imply that an independent reviewer/sub-agent was launched. Apply the skill's review rules directly as a separate, explicit review phase after implementation and before committing:
+1. Finish implementation, then switch deliberately from authoring to reviewer mode. Re-read the approved requirements and acceptance criteria; do not rely on the implementation explanation as proof.
+2. Inspect the complete task-scoped diff against the target base/HEAD, all changed files and relevant surrounding code, plus untracked files. Do not stage, reset or discard the user's unrelated work.
+3. Independently trace each requirement to code and tests. Challenge assumptions and inspect realistic invalid-input, empty-state, failure, retry, concurrency, authorization, data-integrity, compatibility, configuration and deployment cases as relevant.
+4. Run relevant automated checks. Where a material regression is plausible, add a regression test that fails before the fix and passes after it, when practical.
+5. Record each finding with file/line, evidence, reproducible or realistic failure scenario, impact and accepted/rejected status. Fix accepted material findings only, rerun checks, and perform another complete manual review pass. Use up to five rounds.
+6. Label every result **manual self-review (not independent)**. A score may be recorded only as a self-assessed implementation score, never as an independent reviewer score. Record round count, score history, checks and versions, accepted/rejected findings, unresolved risks and missing validations.
+7. Report `passed` only if no accepted material findings remain and all applicable checks for this task pass. If any check is unavailable, material risk remains, or five rounds end without a clean result, report `open` and explain why.
+
+If a future coding runtime genuinely provides independent sub-agent orchestration, the original fresh-reviewer loop may be used there; clearly distinguish that evidence from this environment's manual reviews. Never fabricate reviewer identity, model, effort, scores, rounds, test output or a successful result.
 
 The skill is a quality workflow, not permission to commit, push, merge, deploy, alter shared data, or change product scope. Existing Git/branch governance and owner approval requirements remain in force.
