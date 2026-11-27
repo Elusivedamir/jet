@@ -87,6 +87,24 @@ export class Store {
     return this.send(account,targetConversation,operationKey,source.rows[0]!.payload,null,sourceMessage);
   }
 
+  async searchMessages(account:string,conversation:string,query:string,limit=20) {
+    if(!account || !conversation || typeof query!=="string" || query.trim().length<2 || query.trim().length>128 || !Number.isSafeInteger(limit) || limit<1 || limit>50) {
+      throw new InvalidRequestError("search query must contain 2–128 characters and limit must be 1–50");
+    }
+    const member=await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
+    if(member.rowCount!==1) throw new NotMemberError();
+    const result=await this.pool.query(
+      `SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.payload,m.position,
+              m.created_at,m.edited_at,m.reply_to_message_id,m.forwarded_from_message_id,
+              ts_rank_cd(to_tsvector('simple',m.payload),plainto_tsquery('simple',$2)) AS relevance
+       FROM messages m
+       WHERE m.conversation_id=$1 AND m.deleted_at IS NULL
+         AND to_tsvector('simple',m.payload) @@ plainto_tsquery('simple',$2)
+       ORDER BY relevance DESC,m.position DESC
+       LIMIT $3`,[conversation,query.trim(),limit]);
+    return result.rows;
+  }
+
   async history(account: string, conversation: string, after: number, limit=50): Promise<Message[]> {
     if (!account || !conversation || !Number.isSafeInteger(after) || after < 0 || limit < 1 || limit > 100) throw new InvalidRequestError();
     const member = await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
