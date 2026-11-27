@@ -41,9 +41,12 @@ func main() {
 		log.Fatalf("apply PoC schema: %v", err)
 	}
 
+	store := NewStore(pool)
+	go RunOutboxWorker(ctx, store, 250*time.Millisecond)
+
 	server := &http.Server{
 		Addr:              envOr("LISTEN_ADDR", ":8080"),
-		Handler:           NewAPI(NewStore(pool)),
+		Handler:           NewAPI(store),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	go func() {
