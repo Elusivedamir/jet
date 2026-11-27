@@ -16,6 +16,7 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Architecture synthesis and decision log](docs/research/JETSON_ARCHITECTURE_SYNTHESIS.md)
 - [Stack candidate screen and PoC gate](docs/research/STACK_CANDIDATE_SCREEN_AND_POC_GATE_2026-11-27.md)
 - [Agent task 05 — comparable server-stack PoC](docs/agent/tasks/AGENT_TASK_05_STACK_POC.md)
+- [Go durable-message core PoC report](docs/research/GO_DURABLE_MESSAGE_POC_REPORT_2026-11-27.md)
 - [Agent task 01 — message reliability](docs/agent/tasks/AGENT_TASK_01_MESSAGE_RELIABILITY.md)
 - [Agent task 02 — CRM and campaigns](docs/agent/tasks/AGENT_TASK_02_CRM_CAMPAIGNS.md)
 - [Agent task 03 — security, licenses and operations](docs/agent/tasks/AGENT_TASK_03_SECURITY_LICENSES_OPERATIONS.md)
