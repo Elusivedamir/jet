@@ -99,10 +99,17 @@ test("user search, contact request, acceptance and direct conversation lifecycle
     () => new Store(pool).send(bob, publicChannel.conversation_id, "subscriber-post", "I should not publish"),
     error => error instanceof ForbiddenError
   );
+  await assert.rejects(
+    () => channelStore.addAdmin(bob, "jetson_updates", "carol"),
+    error => error instanceof ChannelError && error.code === "forbidden"
+  );
+  await channelStore.addAdmin(alice, "jetson_updates", "bob");
+  const adminMessage = await new Store(pool).send(bob, publicChannel.conversation_id, "admin-post-1", "Admin announcement");
   const channelMessage = await new Store(pool).send(alice, publicChannel.conversation_id, "channel-post-1", "Official announcement");
   const channelDeliveries = await new Store(pool).claim(20,5000);
   for (const item of channelDeliveries) await new Store(pool).dispatch(item);
   assert.ok((await new Store(pool).inbox(bob,publicChannel.conversation_id,0)).some(row => row.message_id === channelMessage.message_id));
+  assert.ok((await new Store(pool).inbox(alice,publicChannel.conversation_id,0)).some(row => row.message_id === adminMessage.message_id));
   const channelInbox = await contacts.conversations(bob);
   const channelEntry = channelInbox.find(row => row.conversation_id === publicChannel.conversation_id);
   assert.equal(channelEntry?.kind, "channel");
