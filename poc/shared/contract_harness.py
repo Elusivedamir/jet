@@ -4,6 +4,7 @@ import argparse
 import concurrent.futures
 import http.client
 import json
+import platform
 import statistics
 import time
 import urllib.error
@@ -102,6 +103,8 @@ def main():
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--per-round", type=int, default=100)
+    parser.add_argument("--concurrency", type=int, default=16)
+    parser.add_argument("--concurrent-requests", type=int, default=200)
     args = parser.parse_args()
     base = args.base_url
     conversation = "room-a"
@@ -173,11 +176,42 @@ def main():
             "mean_ms": round(statistics.mean(latencies), 3),
         })
 
+    # Same concurrent write workload for all candidate stacks.
+    concurrent_latencies = []
+    concurrent_started = time.perf_counter()
+    def send_benchmark(index):
+        op = f"concurrent-{index}-{uuid.uuid4()}"
+        started = time.perf_counter()
+        status, body = request(base, "POST", f"/v1/conversations/{conversation}/messages",
+                               "alice", {"operation_key": op, "payload": "concurrent-benchmark"})
+        elapsed = (time.perf_counter() - started) * 1000
+        if status != 202:
+            raise AssertionError(f"concurrent benchmark send failed: HTTP {status}, {body}")
+        return elapsed
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as executor:
+        concurrent_latencies = list(executor.map(send_benchmark, range(args.concurrent_requests)))
+    concurrent_elapsed = time.perf_counter() - concurrent_started
+
     print(json.dumps({
         "contract": "PASS",
         "candidate": base,
-        "rounds": benchmark,
-        "note": "CI-runner microbenchmark only; not a capacity/SLO claim; server CPU/RSS not measured.",
+        "runtime_environment": {
+            "platform": platform.platform(),
+            "python": platform.python_version(),
+            "logical_cpus": __import__("os").cpu_count(),
+        },
+        "sequential_rounds": benchmark,
+        "concurrent_write_probe": {
+            "requests": len(concurrent_latencies),
+            "concurrency": args.concurrency,
+            "elapsed_seconds": round(concurrent_elapsed, 3),
+            "requests_per_second": round(len(concurrent_latencies) / concurrent_elapsed, 2),
+            "p50_ms": percentile(concurrent_latencies, 0.50),
+            "p95_ms": percentile(concurrent_latencies, 0.95),
+            "p99_ms": percentile(concurrent_latencies, 0.99),
+            "mean_ms": round(statistics.mean(concurrent_latencies), 3),
+        },
+        "note": "Same CI runner class and workload intent, but separate hosted runners introduce noise. These are PoC microbenchmarks, not capacity/SLO claims.",
     }, indent=2))
 
 
