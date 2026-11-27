@@ -2,131 +2,80 @@
 
 ## Decision status
 
-**Provisional v1 recommendation: Node.js/TypeScript + PostgreSQL**, as detailed in ADR-0001. This is not a production release decision. Go remains under evaluation pending patched-toolchain security/checksum evidence and a comparable benchmark; Kotlin remains a valid alternative if framework requirements change.
+**Provisional v1 recommendation: Go + PostgreSQL**, documented in [ADR-0002](../architecture/ADR-0002-backend-stack-go.md). This supersedes the earlier Node.js proposal in ADR-0001. It is not production-release authorization: the latest fail-closed security/license CI and 30-second soak are still pending.
 
 ## Decision criteria and weights
 
 | Criterion | Weight | Evidence required |
 |---|---:|---|
-| Correctness and crash recovery | 25% | Shared contract plus hard SIGKILL/restart test; atomic rollback, lease recovery, idempotent retry |
-| Reproducible builds and supply-chain risk | 15% | Committed lock/checksum metadata, clean install, SBOM, vulnerability and license reports |
-| Performance under comparable workload | 15% | Sequential p50/p95/p99 and concurrent write throughput/p50/p95/p99 from same workload |
-| Resource efficiency | 15% | Sampled server RSS, CPU ticks, runner OS/CPU metadata; same runner class and PostgreSQL service |
-| Product development velocity | 15% | Clarity of code, testability, iteration cost for chat, channels, CRM, campaigns, KPI and AI integration |
-| Operational simplicity | 10% | Build artifact, startup, deployment model, runtime footprint, observability and staffing burden |
-| Maintainability | 5% | Type safety, code organization, ecosystem maturity, test quality and dependency discipline |
+| Correctness and crash recovery | 25% | Shared contract plus hard SIGKILL/restart; atomic rollback, lease recovery, idempotent retry |
+| Reproducible builds and supply-chain risk | 15% | Committed dependency metadata, clean install, SBOM, vulnerability and license reports |
+| Performance under comparable workload | 15% | Repeated p50/p95/p99 and concurrent write throughput |
+| Resource efficiency | 15% | Sampled server RSS, CPU time, runner OS/CPU metadata |
+| Product development velocity | 15% | Matched implementation/maintenance tasks for chat, channels, CRM, campaigns, KPI and AI |
+| Operational simplicity | 10% | Build artifact, startup, deployment model, runtime footprint, observability and staffing |
+| Maintainability | 5% | Code organization, ecosystem maturity, test quality and dependency discipline |
 
-Weighted total is calculated only after every candidate has evidence. A missing or failed gate is not converted into a guessed score.
+No weighted total is published yet: product development velocity and maintenance-task evidence are not measured. Missing evidence is not converted into a guessed score.
 
-## Candidate hypotheses (not scores)
+## Comparable CI performance evidence
 
-### Go + PostgreSQL
-- Likely strengths: compact deployment, low runtime overhead, explicit concurrency, mature networking and database drivers.
-- Risks to validate: more code must be written explicitly; domain/business feature iteration may take more effort than TypeScript; operational conventions need to be established.
-- Fit hypothesis: strong candidate for the message-delivery core if crash recovery passes and measured resource/latency advantages are material.
+Runner class: Ubuntu 26.04, Linux 7.0.0-1018-aws, 4 logical CPUs, PostgreSQL 17. Shared workload: five sequential rounds × 100 writes, plus three concurrent rounds × 200 unique writes at concurrency 16. Resource sampling is for the direct server process only and excludes PostgreSQL.
 
-### Node.js / TypeScript + PostgreSQL
-- Likely strengths: fast product iteration, broad web ecosystem, TypeScript shared with web clients and admin interfaces, straightforward integration with AI/business workflows.
-- Risks to validate: runtime memory and event-loop behavior under CPU-heavy or highly concurrent workloads; dependency graph and npm supply-chain churn.
-- Fit hypothesis: strong candidate for a product-led modular backend if its measured throughput and resource use meet the target without excessive operational complexity.
+| Candidate / run | Median throughput | Median p50 | Median p95 | Median p99 | Peak sampled RSS | CPU ticks / CPU seconds |
+|---|---:|---:|---:|---:|---:|---:|
+| **Go 1.26.11 + pgx 5.9.2** [46028089040](https://github.com/Elusivedamir/jet/actions/runs/46028089040) | **723.39 req/s** | 20.674 ms | **26.873 ms** | **30.586 ms** | **18,420 KiB** | **115 / 1.15 s** |
+| Node.js 22 / TypeScript [46028089075](https://github.com/Elusivedamir/jet/actions/runs/46028089075) | 576.98 req/s | **17.057 ms** | 69.909 ms | 138.041 ms | 85,384 KiB | 141 / 1.41 s |
+| Kotlin 21 / Spring [46028089057](https://github.com/Elusivedamir/jet/actions/runs/46028089057) | 703.05 req/s | 18.925 ms | 52.171 ms | 66.678 ms | 265,864 KiB | 527 / 5.27 s |
 
-### Kotlin / Spring + PostgreSQL
-- Likely strengths: mature enterprise framework, explicit domain modeling, strong JVM tooling, transaction and integration ecosystem.
-- Risks to validate: JVM memory/startup footprint, framework and build complexity, and whether the additional structure provides enough value for the current team and stage.
-- Fit hypothesis: attractive if enterprise integrations, complex workflows and JVM expertise dominate; otherwise may be heavier than required for the first messenger core.
+Interpretation:
+- Go delivered about 25% more requests/second than Node and about 3% more than Kotlin.
+- Go had the best p95/p99 and lowest sampled memory: approximately 4.6× less RSS than Node and 14.4× less than Kotlin.
+- Go used 1.15 CPU seconds during the measurement window, versus 1.41 seconds for Node and 5.27 seconds for Kotlin.
+- Node had the lowest p50, but materially higher p95/p99 in this run.
+- Kotlin was close to Go in throughput but used much more memory and CPU.
 
-## Benchmark protocol
+This is a short CI microbenchmark, not a capacity/SLO forecast. Hosted-runner noise remains possible; the 30-second concurrent soak is now part of the shared harness but awaits the next CI result.
 
-The same shared Python harness runs against all three candidates:
-- five sequential rounds × 100 unique message writes;
-- one concurrent write probe of 200 unique messages at concurrency 16;
-- same PostgreSQL 17 service class, fixture shape, HTTP contract and CI runner class;
-- p50/p95/p99/mean latency and requests/second;
-- direct server process RSS sampled every 200 ms during the shared probe and CPU tick delta;
-- runner platform, logical CPU count and kernel clock tick rate recorded alongside measurements.
+## Correctness and crash recovery
 
-Hosted CI runners are not a controlled laboratory: separate jobs may land on different physical hosts and measurements have noise. Treat differences below roughly 10–15% as inconclusive unless repeated runs confirm them. The current benchmark is a comparative PoC microbenchmark, not a production capacity test or SLO forecast.
+All three candidates passed the shared contract and two hard process-kill scenarios in the same CI generation:
+1. SIGKILL during recipient-inbox dispatch transaction; verify rollback, lease expiry and recovery.
+2. SIGKILL after the outbox claim commits while the worker is blocked before inbox insertion; verify claim recovery and one durable inbox row.
 
-## Hard gates before selecting a backend
+The third scenario—client closes without reading the committed acceptance response, server restarts, then the client retries the same idempotency key—has been added to the shared harness and awaits its first CI result. A further post-dispatch-commit and lost-ack scenario remains open.
 
-1. Shared contract passes for all candidates.
-2. Hard process-kill/restart test passes for all candidates.
-3. No unexplained data loss, duplicate inbox records, or stale-worker completion.
-4. Every candidate has an auditable dependency graph and SBOM; critical/high vulnerabilities and license exceptions are reviewed.
-5. The selected candidate's resource and latency profile is acceptable at the expected first-year scale.
-6. A second independent run confirms any material performance advantage.
+## Dependency and security gates
+
+- **Go:** the patched run's govulncheck output says “No vulnerabilities found.” The job failed later because go-licenses attempted to find a license for the first-party Go module, which is not yet licensed. The workflow now excludes the first-party module from third-party scanning while retaining the project's own license as an explicit owner decision. CI-generated go.mod/go.sum changes were reviewed and committed; the workflow now fails if `go mod tidy` changes the committed metadata. Latest clean allow-list/Trivy confirmation is pending.
+- **Node:** npm audit reported zero advisories in the run; the first fail-closed license step stopped because the root package is `UNLICENSED`. The workflow now excludes the root package from the third-party allow-list check. Fresh audit/license/Trivy run is pending.
+- **Kotlin:** CycloneDX generated 42 components; Trivy reported zero vulnerabilities. The SBOM lists three components with EPL/LGPL/GPL-with-classpath-exception declarations that require human review. A conservative license gate now blocks unreviewed declarations. A committed 72-coordinate dependency version fingerprint and CI comparison have been added; latest verification is pending.
+
+GitHub Actions are now pinned to immutable commit SHAs. The Maven dependency graph fingerprint plus strict checksums is a version-resolution control, not a cryptographic lock of every artifact.
+
+## Candidate fit
+
+### Go + PostgreSQL — current front-runner
+Best measured throughput, p95/p99, memory and CPU efficiency. Patched govulncheck is clean. The remaining gates are the refreshed license allow-list/Trivy run, clean reproducibility check on committed go.sum, 30-second soak, and a matched product-development task to test whether explicit Go code costs materially more to maintain.
+
+### Node.js/TypeScript + PostgreSQL — strong alternative
+Best p50 and fast web/product iteration ecosystem. It may reduce implementation time for CRM, campaigns, KPI and admin surfaces. Current benchmark shows lower throughput and worse tail latency than Go, with about 4.6× the memory. Keep TypeScript for web/admin clients even if Go is selected for the backend.
+
+### Kotlin/Spring + PostgreSQL — not preferred for v1
+Mature enterprise framework and close throughput to Go, but about 14.4× the measured RSS and 4.6× the CPU time. Three SBOM license declarations need review. Reconsider if enterprise integration requirements justify the runtime footprint.
 
 ## Provisional architecture direction
 
-Keep PostgreSQL as the durable source of truth for the current PoC. Do not introduce Kafka, Redis, microservices or a separate broker solely to make the benchmark look more scalable. The production architecture should remain a modular monolith until measured throughput, operational needs or team boundaries justify a split.
+Use a **Go modular monolith + PostgreSQL** for the backend. Keep PostgreSQL as the durable source of truth. Do not introduce Kafka, Redis, microservices or a polyglot backend solely to optimize a PoC benchmark. Use TypeScript for web/admin clients where appropriate. Separate AI and analytics jobs asynchronously when required; do not make a second backend language the default.
 
-The eventual decision may choose one backend language while keeping TypeScript for web/mobile-facing clients. A polyglot production backend is not the default: it increases deployment, observability, testing and staffing costs and must earn its complexity through measured value.
+## Current gates
 
-## Current evidence state
+- Go: patched toolchain and dependency graph are committed; govulncheck clean on the current candidate run; license-check allow-list and Trivy rerun pending after excluding the first-party module.
+- Node: npm audit clean in the previous run; corrected license allow-list and fresh Trivy gate pending.
+- Kotlin: SBOM and vulnerability scan clean; license review gate identifies three components; dependency version lock check newly added.
+- All candidates: three-case crash harness and 30-second soak are awaiting fresh CI evidence on the latest commit.
+- Product velocity, long soak, deployment cost, operational comparison and production security remain open.
 
-- Previous code-level contract/integration CI passed on the earlier implementation revision; that is not evidence for the newly added hard-crash harness.
-- New CI runs are in progress for all three candidates.
-- Go and Node lock artifacts are generated in CI for review, but are not yet committed lockfiles.
-- Kotlin resolved dependency tree is generated in CI; this is not yet a full transitive lockfile.
-- SBOM, vulnerability and license reports are not yet reviewed.
-- No final stack ranking or production selection is made in this document.
+## Decision caveats
 
-
-## Repeated concurrent CI evidence — 2026-11-27
-
-The shared harness now performs three independent rounds of 200 writes at concurrency 16. The latest Node and Kotlin runs use the same runner class (Ubuntu 26.04, Linux kernel 7.0.0-1020-azure, 4 logical CPUs, PostgreSQL 17). Go's available result remains an earlier single-probe baseline on the pre-remediation toolchain.
-
-| Candidate / run | Crash recovery | Sampled peak RSS | CPU ticks / 100 Hz | Median throughput | Median concurrent p50 / p95 / p99 |
-|---|---|---:|---:|---:|---:|
-| Go baseline, run 87 [46025003199](https://github.com/Elusivedamir/jet/actions/runs/46025003199) | PASS | 17,708 KiB | 64 (0.64 s) | 341.2 req/s (one probe) | 15.956 / 380.520 / 384.246 ms |
-| Node, run 101 [46026586747](https://github.com/Elusivedamir/jet/actions/runs/46026586747) | PASS | 87,252 KiB | 179 (1.79 s) | 565.87 req/s | 21.127 / 64.592 / 94.321 ms |
-| Kotlin, run 101 [46026586769](https://github.com/Elusivedamir/jet/actions/runs/46026586769) | PASS | 269,716 KiB | 487 (4.87 s) | 599.28 req/s | 20.612 / 62.050 / 80.862 ms |
-
-Node's three throughput rounds were 489.55, 566.14 and 565.87 req/s. Kotlin's were 581.78, 599.28 and 622.78 req/s. Kotlin's approximately 6% median throughput advantage is small enough to be within expected hosted-runner and short-test variance; its p95 was also close. Kotlin used about 3.1× Node's sampled RSS and 2.7× its process CPU ticks during the probe.
-
-### Security and reproducibility observations
-
-- Node run 101: committed npm v3 lockfile passed `npm ci`; npm audit reported zero advisories; Trivy found zero vulnerabilities in the scanned npm dependency graph. The license inventory includes MIT/ISC/Apache-2.0 dependencies; the root project package is `UNLICENSED`, so the product's own licensing decision remains open.
-- Kotlin run 101: Maven strict-checksum verification, dependency tree and CycloneDX SBOM succeeded; after PostgreSQL JDBC was raised to 42.7.12, Trivy reported zero vulnerabilities in the scanned dependency graph. SBOM contains 42 components.
-- Go run 87: hard crash recovery and shared contract passed, but govulncheck reported 24 reachable advisories on Go 1.24.13, pgx 5.7.2 and x/text 0.21.0. Remediation is committed (Go 1.26.11, pgx 5.9.2, x/text 0.41.0); a confirmed post-remediation Go run, refreshed go.sum and clean security report are still outstanding.
-
-### Decision
-
-**Recommend Node.js/TypeScript for Jetson's first backend implementation**, as a provisional architecture decision:
-- Node is close to Kotlin on the repeated concurrency probe (566 versus 599 req/s) and tail latency, while using roughly one-third of Kotlin's server memory and CPU in this workload.
-- The npm lockfile is committed and clean-install CI passes; current npm audit and Trivy reports are clean.
-- TypeScript supports fast end-to-end product iteration across messenger, CRM, campaigns, KPI and AI-facing modules, and can share types/tooling with web/admin clients.
-- Kotlin's framework strengths do not currently justify its materially higher runtime footprint for this first product stage.
-- Go's low memory footprint remains compelling, but the currently available Go baseline has poor concurrent tail latency and failed its first vulnerability scan. The remediation is committed but not yet evidenced by a visible post-fix Go CI result.
-
-Go remains the preferred candidate for a future isolated high-volume delivery worker only if a patched-toolchain run is clean and repeated benchmarks show a material advantage. Do not introduce a polyglot backend in v1 without that evidence.
-
-This is a backend implementation recommendation for the PoC-to-product transition, not production release authorization. The current benchmark is still a short microbenchmark; load, soak, memory under sustained concurrency and deployment costs remain open.
-
-### Measurement caveats
-
-- The Go row is an earlier run on a vulnerable toolchain and is not directly comparable to the later Node/Kotlin runs.
-- RSS is sampled only for the server process, not PostgreSQL or the runner; CPU ticks are process ticks, not whole-host CPU.
-- The benchmark is a short 200-write concurrency-16 probe, not a sustained-load test, capacity estimate or SLO.
-- Different hosted runners can vary despite matching OS and logical CPU count. Do not rank candidates from a single run.
-
-
-## Expanded tests and fail-closed CI — 2026-11-27
-
-The shared harness now includes three executable crash scenarios:
-1. SIGKILL during the recipient-inbox dispatch transaction;
-2. SIGKILL after the outbox claim commits while the worker is blocked before inbox insertion;
-3. a client sends a message and closes without reading the acceptance response, then retries after server restart.
-
-Only scenario 1 has historical PASS evidence across all three candidates. Scenarios 2 and 3 await their first CI execution on the latest harness.
-
-All three CI workflows now use read-only repository permissions and branch-scoped push triggers. Security gates were tightened: Node npm audit and license allow-list; Go govulncheck and go-licenses allow-list; Kotlin third-party license inventory; Trivy exits nonzero for HIGH/CRITICAL vulnerabilities. The new fail-closed workflow runs are pending and supersede the earlier non-blocking scan steps for decision purposes.
-
-The current Go checksum file is not yet confirmed against the patched dependency graph; the updated workflow publishes the generated checksum/diff as an artifact for review. Node's lockfile is committed. Kotlin uses strict Maven checksum verification and a resolved dependency tree but still lacks a committed transitive lock.
-
-## Current decision gates
-
-- Node: retain as v1 front-runner pending fresh fail-closed CI and 30-second soak evidence.
-- Go: do not rank until the updated go.sum is committed, govulncheck and Trivy gates pass, and the same three-round + soak benchmark completes.
-- Kotlin: retain as the measured alternative; investigate the memory/CPU premium and commit a dependency-lock strategy before production selection.
-- All candidates: complete remaining crash boundaries, sustained soak beyond 30 seconds, production auth/security, deployment cost and operations comparison.
+This recommendation is evidence-led but provisional. Do not claim production readiness, capacity or SLOs. Revisit ADR-0002 if the soak or matched maintenance-task comparison materially changes the trade-off.
