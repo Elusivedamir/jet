@@ -1,14 +1,16 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import pg from "pg";
 const { Pool } = pg;
-import { Store, ConflictError, NotMemberError, InvalidRequestError } from "./store.js";
+import { Store, ConflictError, NotMemberError, ForbiddenError, InvalidRequestError } from "./store.js";
 import { AuthStore, AuthError } from "./auth.js";
 import { ContactsStore, ContactError } from "./contacts.js";
+import { ChannelsStore, ChannelError } from "./channels.js";
 
 const pool = new Pool({connectionString:process.env.DATABASE_URL});
 const store = new Store(pool);
 const auth = new AuthStore(pool);
 const contacts = new ContactsStore(pool);
+const channels = new ChannelsStore(pool);
 const schema = await (await import("node:fs/promises")).readFile(new URL("../schema.sql",import.meta.url),"utf8");
 for (const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
 const abort = new AbortController();
@@ -105,6 +107,22 @@ const server=createServer(async(req,res)=>{
     if(req.method==="GET" && url.pathname==="/v1/contacts") {
       json(res,200,await contacts.list(user));return;
     }
+    if(req.method==="GET" && url.pathname==="/v1/channels/search") {
+      json(res,200,await channels.search(url.searchParams.get("q")??""));return;
+    }
+    if(req.method==="POST" && url.pathname==="/v1/channels") {
+      const input=await body(req);
+      const description=input.description===undefined ? "" : typeof input.description==="string" ? input.description : (()=>{throw new InvalidRequestError();})();
+      const channel=await channels.create(user,requiredString(input,"title",80),requiredString(input,"slug",32),
+        typeof input.visibility==="string" ? input.visibility : "",description);
+      json(res,201,channel);return;
+    }
+    const joinChannel=url.pathname.match(/^\\/v1\\/channels\\/([^/]+)\\/join$/);
+    if(req.method==="POST" && joinChannel) {
+      const input=await body(req);
+      const inviteCode=input.invite_code===undefined ? "" : typeof input.invite_code==="string" ? input.invite_code : (()=>{throw new InvalidRequestError();})();
+      json(res,200,await channels.join(user,decodeURIComponent(joinChannel[1]!),inviteCode));return;
+    }
     if(req.method==="POST" && url.pathname==="/v1/conversations/groups") {
       const input=await body(req);
       if(!Array.isArray(input.usernames) || input.usernames.some(value=>typeof value!=="string")) throw new InvalidRequestError();
@@ -158,7 +176,12 @@ const server=createServer(async(req,res)=>{
     }
     json(res,404,{error:"not found"});
   } catch(e) {
-    if(e instanceof ContactError) {
+    if(e instanceof ChannelError) {
+      if(e.code==="invalid") json(res,400,{error:"invalid channel data"});
+      else if(e.code==="exists") json(res,409,{error:"channel slug unavailable"});
+      else json(res,404,{error:"channel not found or invite invalid"});
+    }
+    else if(e instanceof ContactError) {
       if(e.code==="invalid") json(res,400,{error:"invalid request"});
       else if(e.code==="not_recipient") json(res,403,{error:"only the recipient can accept this request"});
       else if(e.code==="already_contact") json(res,409,{error:"already a contact"});
@@ -171,7 +194,7 @@ const server=createServer(async(req,res)=>{
       else json(res,401,{error:"invalid credentials"});
     }
     else if(e instanceof ConflictError) json(res,409,{error:"operation key conflict"});
-    else if(e instanceof NotMemberError) json(res,403,{error:"not a conversation member"});
+    else if(e instanceof ForbiddenError) json(res,403,{error:"channel is read-only for subscribers"});\n    else if(e instanceof NotMemberError) json(res,403,{error:"not a conversation member"});
     else if(e instanceof InvalidRequestError || e instanceof URIError) json(res,400,{error:"invalid request"});
     else json(res,500,{error:"internal error"});
   }
