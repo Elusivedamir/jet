@@ -2,7 +2,7 @@
 
 ## Status
 
-**Designed; not implemented or executed yet.** This document is a test specification, not evidence that any candidate passed a process-kill test. The existing lease-expiry, stale-token and transaction-rollback integration tests remain state-level tests.
+**Executable harness implemented.** The first process-kill scenario has passed on all three candidates in earlier CI runs. Two additional crash/recovery scenarios have now been added to the shared harness; their first three-candidate CI execution is pending. This document distinguishes previously observed PASS evidence from newly added tests awaiting execution.
 
 ## Objective
 
@@ -77,3 +77,29 @@ For each, assert idempotent retry/recovery and no lost or duplicate logical deli
 ## Acceptance gate
 
 A candidate is marked PASS only when the executable test is committed, run in its own CI workflow, logs the fault boundary, and passes on the exact commit SHA. A design document or lease-expiry unit/integration test is not a substitute. Keep all candidate scores and the production-stack decision Open until all three candidates have equivalent evidence.
+
+
+## Expanded executable harness — 2026-11-27
+
+The shared `poc/shared/crash_recovery_harness.py` now executes three distinct process-failure scenarios:
+
+1. **Kill during dispatch transaction:** a test-only PostgreSQL trigger pauses recipient-inbox insertion while the lease is valid; SIGKILL must roll back inbox insertion and outbox completion; restart after lease expiry must deliver one inbox row.
+2. **Kill after committed claim, before dispatch completes:** the harness holds an AccessExclusiveLock on `recipient_inbox`, waits until the worker's committed outbox claim is in `processing` and the worker is blocked on the inbox insert, kills the server, releases the lock, waits for lease expiry and verifies recovery with one inbox row.
+3. **Lost acceptance response:** the test client sends a complete HTTP request and closes without reading the response, waits for the committed message row, kills the server, restarts, then retries the same sender/operation key and verifies the original message ID and one durable inbox row.
+
+The first scenario has historical PASS evidence on Go baseline run 87, Node run 101 and Kotlin run 101. Scenarios 2 and 3 are newly implemented and are **not marked PASS until their CI runs complete on the exact current commit**.
+
+CI workflow hardening on this branch:
+- All three workflows have read-only repository permissions.
+- Research-branch push triggers run each candidate workflow when its source/shared files change.
+- npm audit now fails the job for advisories at low severity or above; the license checker uses an explicit allow-list.
+- Go's govulncheck and go-licenses checks are required; Trivy exits nonzero for HIGH/CRITICAL findings.
+- Kotlin generates a third-party license inventory; Trivy exits nonzero for HIGH/CRITICAL findings.
+- The updated Go dependency graph/checksum diff is retained as a CI artifact for review; do not claim the committed `go.sum` is refreshed until the artifact is reviewed and committed.
+
+## Remaining crash boundaries
+
+Still not implemented:
+- process death after dispatch transaction commit but before the worker's next poll;
+- recipient acknowledgement commit followed by a genuinely lost acknowledgement response;
+- repeated kill/restart loops and recovery under concurrent worker processes.
