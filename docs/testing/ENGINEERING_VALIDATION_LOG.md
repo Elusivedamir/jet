@@ -49,3 +49,21 @@ Specify and test the outbox dispatch boundary with a fake external transport: re
 - The reliability workflow's `pull_request.branches` filter listed `research/architecture-synthesis-task` but omitted its actual PR target, `research/repository-landscape`. Added the actual target branch to the filter so future PRs targeting the research baseline can trigger the workflow once the workflow definition is present in that base branch.
 - This workflow correction does not retroactively execute CI for PR #13: a newly introduced workflow is not available from the base branch before it is merged, and no workflow run is associated with the current head in this check.
 - No test result is claimed for this documentation/configuration update. Existing SQLite/reference-model test evidence remains the earlier independently recorded run evidence only; it is not a new run for this commit.
+
+
+## 2026-11-27 — Idempotency scope consistency review
+
+**Finding:** the implementation-neutral state-machine contract scopes an operation key to the authenticated sender/account, but the SQLite prototype originally scoped its uniqueness key to (conversation_id, sender_id, operation_key). The in-memory reference model used (sender_id, operation_key) but did not reject a same-payload key reuse in another conversation; it could return the prior message from the wrong conversation. The SQLite test suite also explicitly asserted that one sender could reuse the same operation key in another conversation. These behaviors were inconsistent with the documented contract and unsafe for client retry reconciliation.
+
+**Correction applied on research/architecture-synthesis-task:**
+- Both prototypes now enforce (sender_id, operation_key) scope.
+- A repeated key with the same payload and same conversation resolves to the same message.
+- A repeated key with a different payload or a different conversation is rejected as an idempotency conflict without allocating a new sequence or outbox rows.
+- A different sender may independently use the same operation key.
+- Added regression coverage to both prototype suites and clarified the contract table.
+
+**Targeted verification:** an isolated Python/SQLite regression harness executed the revised SQL uniqueness/query shape and send transaction behavior. Four assertions passed: same-operation retry returns the original message; cross-conversation reuse by the same sender conflicts without mutation; changed payload conflicts; another sender has an independent scope.
+
+**Not run / limitations:** the complete repository Python reference-model and SQLite adapter suites were not executed in this environment. A temporary validation PR #41 targeting the branch containing the workflow definition produced no associated workflow runs and an empty combined commit status. This is recorded as Not run, not as a CI pass. The added test case was copied into the main research PR branch; PR #41 is only a validation attempt and is not required for the proposed change.
+
+**Compatibility note:** the prototype creates fresh disposable SQLite databases in tests. No migration for an existing deployed schema is included because this is not production code and no deployed SQLite data contract exists.
