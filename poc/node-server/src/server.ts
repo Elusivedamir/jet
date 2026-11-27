@@ -203,6 +203,22 @@ const server=createServer(async(req,res)=>{
       res.on("close",()=>clearInterval(timer));
       return;
     }
+    const messageEvents=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/updates$/);
+    if(req.method==="GET" && messageEvents) {
+      const after=Number(url.searchParams.get("after")??0);
+      if(!Number.isSafeInteger(after)||after<0) throw new InvalidRequestError();
+      json(res,200,await store.events(user,decodeURIComponent(messageEvents[1]!),after,100));return;
+    }
+    const messageEdit=url.pathname.match(/^\/v1\/messages\/([^/]+)$/);
+    if(req.method==="PATCH" && messageEdit) {
+      const input=await body(req);
+      const payload=requiredString(input,"payload",32768);
+      json(res,200,await store.editMessage(user,decodeURIComponent(messageEdit[1]!),payload));return;
+    }
+    if(req.method==="DELETE" && messageEdit) {
+      await store.deleteMessage(user,decodeURIComponent(messageEdit[1]!));
+      res.writeHead(204);res.end();return;
+    }
     const reaction=url.pathname.match(/^\/v1\/messages\/([^/]+)\/reactions$/);
     if(req.method==="GET" && reaction) {
       json(res,200,await store.listReactions(user,decodeURIComponent(reaction[1]!)));return;
