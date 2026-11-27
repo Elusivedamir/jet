@@ -211,3 +211,33 @@ The assistant is free to propose and iterate the design and research approach. T
 The project has completed the first business-plan study gate using the owner's complete supplied text. The verified working baseline is `docs/product/BUSINESS_PLAN_BASELINE.md`. The original PDF is preserved in the repository; exact byte-level text extraction comparison remains outstanding. Repository/branch inventory and broad research are in progress. No backend, language, framework, database, transport, protocol, hosting or UI implementation is selected.
 
 **Next task:** translate the verified business plan into testable product requirements and user journeys; then continue repository landscape research against those requirements. Keep all technology choices open until comparative evidence and risk-focused proofs of concept justify them. Do not implement a production stack merely to start coding.
+
+
+## 16. Owner-approved product additions — 2026-11-27
+
+The owner explicitly added three connected product capabilities. Their detailed working specification is [Business Offers, Interest Graph and Mutuality](../product/BUSINESS_OFFERS_INTERESTS_MUTUALITY.md). These additions supplement the canonical plan; they do not authorize editing the source PDF or silently changing its commercial terms.
+
+### Business Offers
+- Add the recipient-controlled **"Разрешить предложения от бизнеса"** setting, OFF by default.
+- With consent, business offers go to a separate **"Предложения"** folder, not the personal inbox.
+- Position relevant offers as a way to discover work, education, useful services and practical opportunities. Never guarantee outcomes or use deceptive claims.
+- Consent withdrawal, sender identity, category labels, report/block and dispatch-time suppression are mandatory.
+
+### Interests and audience matching
+- Let users explicitly select and manage interests using a simple topic-selection experience.
+- Business subscribers may target permitted interest categories only among users who opted into Business Offers and interest-based matching.
+- Do not expose named-user directories or raw personal interest profiles to businesses. Provide privacy-safe audience estimates and recheck consent at dispatch.
+- Sensitive-trait inference/targeting is prohibited. Users can reset interests and pause personalization.
+
+### Mutuality
+- **Базовый** is the default mode.
+- **Максимум** is pair-scoped and activates only after explicit acceptance by both parties; either side can revoke it.
+- Maximum removes ordinary pairwise frequency/repeated-contact limits for that pair while active; it does not grant campaign consent, override blocks/reports/security/legal controls, or promise literally infinite capacity.
+- Mutuality must be voluntary, including in employment relationships; no employer can silently enable it or make it a condition of wages or essential access.
+
+### Campaign throughput and anti-abuse
+- A high-volume campaign is not spam solely because of its rate if it is relevant, consented and compliant; a future 100,000 recipients/minute workload is a capacity target to test, not a guarantee.
+- Subscription and Mutuality never create immunity from abuse enforcement. Separate consent policy from infrastructure capacity; use durable queues, backpressure, fairness, idempotency and protection for personal messaging.
+- Do not implement "unlimited sending" or "never blocked" claims.
+
+These are approved product directions; detailed consent taxonomy, legal basis, stage placement, numerical limits, recommendation signals and implementation remain subject to specification and validation. The source PDF and business-plan baseline remain unchanged unless the owner separately authorizes a change.
