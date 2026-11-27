@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17.12
         env:
           POSTGRES_USER: jetson
           POSTGRES_PASSWORD: jetson_test_only
