@@ -26,7 +26,12 @@ def request(base, method, path, account, payload=None):
             return response.status, json.loads(raw) if raw else None
     except urllib.error.HTTPError as error:
         raw = error.read()
-        return error.code, json.loads(raw) if raw else None
+        if not raw:
+            return error.code, None
+        try:
+            return error.code, json.loads(raw)
+        except json.JSONDecodeError:
+            return error.code, raw.decode("utf-8", errors="replace")
 
 
 def sse_event(base, conversation, after, timeout=12):
