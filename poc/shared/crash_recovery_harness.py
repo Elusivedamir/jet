@@ -16,10 +16,27 @@ import signal
 import subprocess
 import sys
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 import uuid
+
+
+def validate_base_url(base):
+    parsed = urllib.parse.urlsplit(base)
+    if (
+        parsed.scheme not in ("http", "https")
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in ("", "/")
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("base URL must be an http_request(s) origin without credentials, path, query or fragment")
+    try:
+        _ = parsed.port
+    except ValueError as error:
+        raise ValueError("base URL contains an invalid port") from error
+    return parsed
 
 
 def psql(database_url, sql, capture=True):
@@ -31,34 +48,40 @@ def psql(database_url, sql, capture=True):
     return result.stdout.strip() if capture else ""
 
 
-def http(base, method, path, account=None, payload=None, timeout=5):
+def http_request(base, method, path, account=None, payload=None, timeout=5):
+    parsed = validate_base_url(base)
     data = None if payload is None else json.dumps(payload).encode()
     headers = {"Content-Type": "application/json"}
     if account:
         headers["X-Test-Account"] = account
-    req = urllib.request.Request(base.rstrip("/") + path, data=data, method=method, headers=headers)
+    connection_type = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+    connection = connection_type(parsed.hostname, parsed.port, timeout=timeout)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            raw = response.read()
-            return response.status, json.loads(raw) if raw else None
-    except urllib.error.HTTPError as error:
-        raw = error.read()
-        return error.code, json.loads(raw) if raw else None
+        connection.request(method, path, body=data, headers=headers)
+        response = connection.getresponse()
+        raw = response.read()
+        return response.status, json.loads(raw) if raw else None
+    finally:
+        connection.close()
 
 
 def wait_health(base, process, log_path, timeout=45):
     deadline = time.monotonic() + timeout
+    last_error = "no health response received"
     while time.monotonic() < deadline:
         if process.poll() is not None:
             raise RuntimeError(f"server exited with {process.returncode}; see {log_path}")
         try:
-            status, _ = http(base, "GET", "/healthz", account="alice", timeout=1)
+            status, _ = http_request(base, "GET", "/healthz", account="alice", timeout=1)
             if status in (200, 204):
                 return
-        except Exception:
-            pass
+            last_error = f"unexpected HTTP status {status}"
+        except Exception as error:
+            last_error = f"{type(error).__name__}: {error}"
         time.sleep(0.25)
-    raise TimeoutError(f"server did not become healthy; see {log_path}")
+    raise TimeoutError(
+        f"server did not become healthy; last probe: {last_error}; see {log_path}"
+    )
 
 
 def start_server(command, env, log_path):
@@ -82,14 +105,24 @@ def stop_server(process, log, hard=False):
     log.close()
 
 
-def post_without_reading_response(base, path, account, payload):
-    """Send a complete HTTP request, then close without reading its response."""
-    parsed = urllib.parse.urlsplit(base)
-    connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+def post_without_reading_response(base, path, account, payload, database_url, commit_sql, timeout=20):
+    """Send a request, wait for its DB commit without reading the response, then close."""
+    parsed = validate_base_url(base)
+    connection_type = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+    connection = connection_type(parsed.hostname, parsed.port, timeout=5)
     body = json.dumps(payload).encode()
-    connection.request("POST", path, body=body,
-                       headers={"Content-Type": "application/json", "X-Test-Account": account})
-    connection.close()
+    try:
+        connection.request(
+            "POST",
+            path,
+            body=body,
+            headers={"Content-Type": "application/json", "X-Test-Account": account},
+        )
+        # Keep the socket open while a separate DB connection observes commit.
+        # The HTTP response is intentionally never read by this client.
+        return wait_for_sql_value(database_url, commit_sql, timeout=timeout)
+    finally:
+        connection.close()
 
 
 def wait_for_sql_value(database_url, sql, timeout=20):
@@ -124,24 +157,33 @@ def proc_snapshot(pid):
 
 
 def run_contract_and_sample(args, process):
-    command = [sys.executable, args.contract_harness, "--base-url", args.base_url,
-               "--rounds", str(args.rounds), "--per-round", str(args.per_round),
-               "--concurrent-rounds", "3", "--soak-seconds", "30", "--soak-concurrency", "16"]
+    producer_harness = os.path.join(os.path.dirname(os.path.abspath(args.contract_harness)),
+                                    "producer_soak_harness.py")
     started = time.monotonic()
-    child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    cpu_start = proc_snapshot(process.pid)
     peak_rss = 0
     rss_samples = []
-    cpu_start = proc_snapshot(process.pid)
-    while child.poll() is None:
-        snap = proc_snapshot(process.pid)
-        if snap:
-            peak_rss = max(peak_rss, snap["rss_kib"])
-            rss_samples.append(snap["rss_kib"])
-        time.sleep(0.2)
-    stdout, stderr = child.communicate()
+    probes = []
+    for repetition in range(1, args.soak_repetitions + 1):
+        if repetition == 1:
+            command = [sys.executable, args.contract_harness, "--base-url", args.base_url,
+                       "--rounds", str(args.rounds), "--per-round", str(args.per_round),
+                       "--concurrent-rounds", "3", "--soak-seconds", "30", "--soak-concurrency", "16"]
+        else:
+            command = [sys.executable, producer_harness, "--base-url", args.base_url,
+                       "--duration-seconds", "30", "--concurrency", "16"]
+        child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        while child.poll() is None:
+            snap = proc_snapshot(process.pid)
+            if snap:
+                peak_rss = max(peak_rss, snap["rss_kib"])
+                rss_samples.append(snap["rss_kib"])
+            time.sleep(0.2)
+        stdout, stderr = child.communicate()
+        if child.returncode != 0:
+            raise RuntimeError(f"producer/contract repetition {repetition} failed:\n{stdout}\n{stderr}")
+        probes.append(json.loads(stdout))
     elapsed = round(time.monotonic() - started, 3)
-    if child.returncode != 0:
-        raise RuntimeError(f"shared contract/benchmark failed:\n{stdout}\n{stderr}")
     final = proc_snapshot(process.pid)
     cpu_ticks = None
     if cpu_start and final:
@@ -152,6 +194,7 @@ def run_contract_and_sample(args, process):
     logical_cpus = os.cpu_count() or 1
     return {
         "elapsed_seconds": elapsed,
+        "repetitions": len(probes),
         "peak_server_rss_kib_sampled": peak_rss,
         "mean_server_rss_kib_sampled": round(sum(rss_samples) / len(rss_samples), 1) if rss_samples else None,
         "rss_sample_count": len(rss_samples),
@@ -161,9 +204,48 @@ def run_contract_and_sample(args, process):
         "server_cpu_percent_host": round(cpu_percent_one_core / logical_cpus, 2) if cpu_percent_one_core is not None else None,
         "kernel_clock_ticks_per_second": clock_ticks,
         "runtime_environment": {"platform": platform.platform(), "logical_cpus": logical_cpus},
-        "contract_and_latency_probe": json.loads(stdout),
-        "resource_metric_note": "Linux /proc sampling of the direct server PID every 200ms; excludes PostgreSQL and is runner-specific. CPU percentage is derived from process CPU ticks divided by elapsed wall time; one-core and whole-host-normalized figures are both reported.",
+        "contract_and_latency_probe": probes[0] if probes else {},
+        "repeated_contract_and_capacity_probes": probes,
+        "resource_metric_note": "Linux /proc sampling of the direct server PID every 200ms across all repetitions; excludes PostgreSQL and is runner-specific. CPU percentage is derived from process CPU ticks divided by elapsed wall time; one-core and whole-host-normalized figures are both reported.",
     }
+
+
+def read_outbox_snapshot(database_url):
+    raw = psql(database_url, """
+      SELECT json_build_object(
+        'total', count(*),
+        'completed', count(*) FILTER (WHERE state='completed'),
+        'pending', count(*) FILTER (WHERE state='pending'),
+        'processing', count(*) FILTER (WHERE state='processing'),
+        'retry_wait', count(*) FILTER (WHERE state='retry_wait'),
+        'terminal_failure', count(*) FILTER (WHERE state='terminal_failure'),
+        'terminal_failure_samples', COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', id, 'attempt_count', attempt_count, 'last_error', last_error
+          ) ORDER BY id)
+          FROM (
+            SELECT id, attempt_count, last_error
+            FROM delivery_outbox WHERE state='terminal_failure'
+            ORDER BY id LIMIT 5
+          ) terminal_rows
+        ), '[]'::json),
+        'open', count(*) FILTER (WHERE state IN ('pending','processing','retry_wait')),
+        'p95_completed_delivery_ms', COALESCE(
+          percentile_cont(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (completed_at-created_at))*1000
+          ) FILTER (WHERE state='completed'), 0
+        ),
+        'oldest_open_delivery_age_seconds', COALESCE(
+          CEIL(EXTRACT(EPOCH FROM (
+            clock_timestamp() - MIN(created_at) FILTER (
+              WHERE state IN ('pending','processing','retry_wait')
+            )
+          ))), 0
+        )
+      )::text
+      FROM delivery_outbox
+    """)
+    return json.loads(raw)
 
 
 def main():
@@ -173,10 +255,16 @@ def main():
     parser.add_argument("--contract-harness", required=True)
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--per-round", type=int, default=100)
+    parser.add_argument("--soak-repetitions", type=int, default=3)
+    parser.add_argument("--drain-seconds", type=int, default=60)
+    parser.add_argument("--drain-sample-seconds", type=int, default=5)
     parser.add_argument("--output", default="crash-recovery-results.json")
     parser.add_argument("--log", default="crash-recovery-server.log")
     parser.add_argument("--server-command", nargs=argparse.REMAINDER, required=True)
     args = parser.parse_args()
+    if not 1 <= args.soak_repetitions <= 5 or not 0 <= args.drain_seconds <= 300 or not 1 <= args.drain_sample_seconds <= 30:
+        parser.error("soak repetitions must be 1..5, drain seconds 0..300, sample interval 1..30")
+    validate_base_url(args.base_url)
     command = args.server_command
     if command and command[0] == "--":
         command = command[1:]
@@ -219,7 +307,7 @@ def main():
           FOR EACH ROW WHEN (NEW.conversation_id = '{conversation}')
           EXECUTE FUNCTION jetson_crash_pause_dispatch();
         """)
-        status, message = http(args.base_url, "POST",
+        status, message = http_request(args.base_url, "POST",
             f"/v1/conversations/{conversation}/messages", "alice",
             {"operation_key": operation_key, "payload": payload})
         if status != 202:
@@ -270,7 +358,7 @@ def main():
             f"SELECT count(*) FROM recipient_inbox WHERE message_id='{message_id}' AND recipient_id='bob'")
         if recovered_inbox != "1":
             raise AssertionError(f"expected exactly one recovered inbox row, got {recovered_inbox}")
-        status, retry = http(args.base_url, "POST",
+        status, retry = http_request(args.base_url, "POST",
             f"/v1/conversations/{conversation}/messages", "alice",
             {"operation_key": operation_key, "payload": payload})
         if status != 202 or retry["message_id"] != message_id:
@@ -299,7 +387,7 @@ def main():
             wait_for_sql(args.database_url,
                 "SELECT count(*) FROM pg_locks WHERE relation='recipient_inbox'::regclass "
                 "AND mode='AccessExclusiveLock' AND granted", "1", timeout=15)
-            status, claim_message = http(args.base_url, "POST",
+            status, claim_message = http_request(args.base_url, "POST",
                 f"/v1/conversations/{claim_conversation}/messages", "alice",
                 {"operation_key": claim_operation_key, "payload": claim_payload})
             if status != 202:
@@ -354,7 +442,7 @@ def main():
             f"SELECT count(*) FROM recipient_inbox WHERE message_id='{claim_message_id}' AND recipient_id='bob'")
         if claim_recovered_inbox != "1":
             raise AssertionError(f"expected one inbox row after claim-boundary recovery, got {claim_recovered_inbox}")
-        status, claim_retry = http(args.base_url, "POST",
+        status, claim_retry = http_request(args.base_url, "POST",
             f"/v1/conversations/{claim_conversation}/messages", "alice",
             {"operation_key": claim_operation_key, "payload": claim_payload})
         if status != 202 or claim_retry["message_id"] != claim_message_id:
@@ -377,12 +465,15 @@ def main():
           INSERT INTO conversation_members(conversation_id,account_id)
             VALUES ('{lost_conversation}','alice'),('{lost_conversation}','bob');
         """)
-        post_without_reading_response(args.base_url,
-            f"/v1/conversations/{lost_conversation}/messages", "alice",
-            {"operation_key": lost_operation_key, "payload": lost_payload})
-        committed_message_id = wait_for_sql_value(args.database_url,
+        committed_message_id = post_without_reading_response(
+            args.base_url,
+            f"/v1/conversations/{lost_conversation}/messages",
+            "alice",
+            {"operation_key": lost_operation_key, "payload": lost_payload},
+            args.database_url,
             f"SELECT id FROM messages WHERE sender_id='alice' AND operation_key='{lost_operation_key}'",
-            timeout=20)
+            timeout=20,
+        )
         # The client closes without reading the server's acceptance response.
         stop_server(process, log, hard=True)
         process = None
@@ -396,7 +487,7 @@ def main():
             f"SELECT count(*) FROM recipient_inbox WHERE message_id='{committed_message_id}' AND recipient_id='bob'")
         if lost_inbox_rows != "1":
             raise AssertionError(f"lost-response recovery expected one inbox row, got {lost_inbox_rows}")
-        status, lost_retry = http(args.base_url, "POST",
+        status, lost_retry = http_request(args.base_url, "POST",
             f"/v1/conversations/{lost_conversation}/messages", "alice",
             {"operation_key": lost_operation_key, "payload": lost_payload})
         if status != 202 or lost_retry["message_id"] != committed_message_id:
@@ -420,31 +511,37 @@ def main():
             ('room-a','alice'),('room-a','bob'),('room-b','alice'),('room-b','carol')
           ON CONFLICT DO NOTHING;
         """)
+        evidence["worker_configuration"] = {
+            "concurrency": int(env.get("OUTBOX_WORKER_CONCURRENCY", env.get("JET_WORKER_CONCURRENCY", "1"))),
+            "database_pool_max_connections": int(env.get("DATABASE_POOL_MAX_CONNS", env.get("SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE", "40"))),
+            "claim_batch_size": 20,
+            "poll_interval_ms": 250,
+            "lease_duration_ms": 15000,
+        }
         evidence["performance"] = run_contract_and_sample(args, process)
-        outbox_snapshot = psql(args.database_url, """
-          SELECT json_build_object(
-            'total', count(*),
-            'completed', count(*) FILTER (WHERE state='completed'),
-            'pending', count(*) FILTER (WHERE state='pending'),
-            'processing', count(*) FILTER (WHERE state='processing'),
-            'retry_wait', count(*) FILTER (WHERE state='retry_wait'),
-            'terminal_failure', count(*) FILTER (WHERE state='terminal_failure'),
-            'p95_completed_delivery_ms', COALESCE(
-              percentile_cont(0.95) WITHIN GROUP (
-                ORDER BY EXTRACT(EPOCH FROM (completed_at-created_at))*1000
-              ) FILTER (WHERE state='completed'), 0
-            ),
-            'oldest_open_delivery_age_seconds', COALESCE(
-              CEIL(EXTRACT(EPOCH FROM (
-                clock_timestamp() - MIN(created_at) FILTER (
-                  WHERE state IN ('pending','processing','retry_wait')
-                )
-              ))), 0
-            )
-          )::text
-          FROM delivery_outbox
-        """)
-        evidence["outbox_state_after_soak"] = json.loads(outbox_snapshot)
+        evidence["outbox_state_after_soak"] = read_outbox_snapshot(args.database_url)
+        drain_started = time.monotonic()
+        drain_samples = []
+        while True:
+            snapshot = read_outbox_snapshot(args.database_url)
+            drain_samples.append({
+                "elapsed_seconds": round(time.monotonic() - drain_started, 1),
+                **snapshot,
+            })
+            if snapshot["open"] == 0:
+                break
+            remaining = args.drain_seconds - (time.monotonic() - drain_started)
+            if remaining <= 0:
+                break
+            time.sleep(min(args.drain_sample_seconds, remaining))
+        evidence["queue_drain"] = {
+            "window_seconds": args.drain_seconds,
+            "sample_interval_seconds": args.drain_sample_seconds,
+            "actual_elapsed_seconds": round(time.monotonic() - drain_started, 2),
+            "drained_to_zero": drain_samples[-1]["open"] == 0,
+            "samples": drain_samples,
+            "final": drain_samples[-1],
+        }
         with open(args.output, "w", encoding="utf-8") as handle:
             json.dump(evidence, handle, indent=2)
         print(json.dumps(evidence, indent=2))

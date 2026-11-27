@@ -2,7 +2,7 @@
 
 ## Status
 
-**Executable harness implemented.** Two process-kill scenarios passed on all three candidates in runs 46028089040, 46028089075 and 46028089057. A third lost-acceptance-response scenario and a 30-second concurrent soak are implemented and await the latest CI execution.
+**Executable harness implemented.** All three process-kill scenarios and the 30-second concurrent soak passed on Go and Node. Kotlin passed all crash/contract/soak checks but its overall workflow remains failed by the conservative SBOM license gate.
 
 ## Objective
 
@@ -29,8 +29,8 @@ Run the same scenario against Go, Node.js/TypeScript and Kotlin/Spring using Pos
    - Wait for lease expiry, restart and verify one inbox row, completed outbox and idempotent retry.
 
 3. **Lost acceptance response**
-   - Send a complete HTTP request, then close the client connection without reading the server response.
-   - Wait until the message row is visible in PostgreSQL, proving the transaction committed.
+   - Send a complete HTTP request, keep the client socket open without reading the server response, and wait until a separate PostgreSQL connection observes the committed message row.
+   - Only after the commit is observed, close the client socket without reading the response.
    - SIGKILL and restart the server.
    - Retry the same sender-scoped operation key and payload; verify the original message ID and one durable inbox row.
 
@@ -109,3 +109,20 @@ Still not implemented:
 - process death after dispatch transaction commit but before the worker's next poll;
 - recipient acknowledgement commit followed by a genuinely lost acknowledgement response;
 - repeated kill/restart loops and recovery under concurrent worker processes.
+
+
+## Latest exact-head execution — 2026-11-27
+
+Source commit: `7a7301310cb6757cfe17046158c6da185138deea`.
+
+- Go [run 46036340867](https://github.com/Elusivedamir/jet/actions/runs/46036340867): all three crash cases, shared contract, 30-second soak, govulncheck, third-party license allow-list and Trivy passed.
+- Node [run 46036340934](https://github.com/Elusivedamir/jet/actions/runs/46036340934): all three crash cases, shared contract, 30-second soak, npm audit, license inventory and Trivy passed.
+- Kotlin [run 46036340835](https://github.com/Elusivedamir/jet/actions/runs/46036340835): all three crash cases, shared contract and soak passed; the job later failed only at the conservative license policy check for three components requiring human/legal review.
+
+### Harness defects found and corrected
+
+1. Semgrep identified dynamic URL handling. Both shared HTTP harnesses now validate credential-free HTTP(S) origins and use `http.client`; regression tests cover real 204 health responses and JSON request/response behavior.
+2. The crash harness function was named `http`, shadowing the imported `http.client` module. This prevented health probes from being sent while exceptions were swallowed. The helper is now named `http_request`, and health-check timeout errors include the last probe failure.
+3. The original lost-response test closed the socket immediately after sending, before proving the server had committed. This made Go's request context cancel before persistence could finish. The helper now leaves the socket open without reading the response until PostgreSQL confirms the commit, then closes it. A regression test verifies the response is not read before close.
+
+The corrected harness is more precise: it now tests a genuinely committed message with an intentionally discarded acceptance response, rather than a client disconnect racing the transaction.

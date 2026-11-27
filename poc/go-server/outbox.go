@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -130,7 +131,13 @@ func (s *Store) RetryOutbox(ctx context.Context, item ClaimedDelivery, cause err
 	return nil
 }
 
-func RunOutboxWorker(ctx context.Context, store *Store, poll time.Duration) {
+// RunOutboxWorker claims durable batches and dispatches each batch with a
+// strict concurrency bound. A batch is fully drained before the next claim,
+// so the worker never accumulates an unbounded in-memory queue.
+func RunOutboxWorker(ctx context.Context, store *Store, poll time.Duration, concurrency int) {
+	if concurrency < 1 || concurrency > 16 {
+		panic("outbox worker concurrency must be between 1 and 16")
+	}
 	ticker := time.NewTicker(poll)
 	defer ticker.Stop()
 	for {
@@ -138,13 +145,38 @@ func RunOutboxWorker(ctx context.Context, store *Store, poll time.Duration) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			items, err := store.ClaimOutbox(ctx, 20, 15*time.Second)
-			if err != nil {
-				continue
-			}
-			for _, item := range items {
-				if err := store.Dispatch(ctx, item); err != nil {
-					_ = store.RetryOutbox(ctx, item, err)
+			// A full batch means the queue is still backlogged: claim the next
+			// batch immediately after this one completes. The poll interval is
+			// only the idle wait after an empty/partial batch or DB error.
+			for {
+				items, err := store.ClaimOutbox(ctx, 20, 15*time.Second)
+				if err != nil || len(items) == 0 {
+					break
+				}
+				sem := make(chan struct{}, concurrency)
+				var workers sync.WaitGroup
+				for _, item := range items {
+					select {
+					case sem <- struct{}{}:
+						workers.Add(1)
+						go func(delivery ClaimedDelivery) {
+							defer workers.Done()
+							defer func() { <-sem }()
+							if err := store.Dispatch(ctx, delivery); err != nil {
+								_ = store.RetryOutbox(ctx, delivery, err)
+							}
+						}(item)
+					case <-ctx.Done():
+						// Remaining committed claims are safely recovered after lease expiry.
+						break
+					}
+					if ctx.Err() != nil {
+						break
+					}
+				}
+				workers.Wait()
+				if ctx.Err() != nil || len(items) < 20 {
+					break
 				}
 			}
 		}

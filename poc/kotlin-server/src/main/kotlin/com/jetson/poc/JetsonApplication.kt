@@ -4,6 +4,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.boot.CommandLineRunner
 import org.springframework.context.annotation.Bean
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.ClassPathResource
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator
@@ -20,13 +21,20 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import java.sql.ResultSet
 import java.util.UUID
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 @SpringBootApplication
 @EnableScheduling
 class JetsonApplication {
     @Bean fun schemaRunner(dataSource: javax.sql.DataSource) = CommandLineRunner {
         ResourceDatabasePopulator(ClassPathResource("schema.sql")).execute(dataSource)
+    }
+
+    @Bean(destroyMethod="shutdown")
+    fun outboxExecutor(@Value("\${jet.worker.concurrency:1}") concurrency:Int):ExecutorService {
+        require(concurrency in 1..16) { "jet.worker.concurrency must be between 1 and 16" }
+        return Executors.newFixedThreadPool(concurrency)
     }
 }
 fun main(args: Array<String>) { runApplication<JetsonApplication>(*args) }
@@ -129,11 +137,29 @@ class MessageStore(private val jdbc:JdbcTemplate, manager:PlatformTransactionMan
 
 @Service
 @ConditionalOnProperty(name=["jet.worker.enabled"], havingValue="true", matchIfMissing=true)
-class OutboxScheduler(private val store:MessageStore) {
+class OutboxScheduler(private val store:MessageStore, private val executor:ExecutorService) {
     @Scheduled(fixedDelay=250)
     fun poll() {
-        try { store.claim().forEach { item -> try { store.dispatch(item) } catch(e:Exception) { store.retry(item,e) } } }
-        catch(_:Exception) { /* transient DB failure; next poll retries */ }
+        // Keep claiming immediately while every batch is full. The 250ms
+        // fixed delay is the idle poll interval, not a throttle between
+        // batches when a durable backlog exists.
+        try {
+            while(true) {
+                val items=store.claim(20,15000)
+                if(items.isEmpty()) return
+                val tasks=items.map { item ->
+                    executor.submit {
+                        try { store.dispatch(item) }
+                        catch(e:Exception) {
+                            try { store.retry(item,e) }
+                            catch(_:Exception) { /* lease expiry/reclaim remains authoritative */ }
+                        }
+                    }
+                }
+                tasks.forEach { it.get() }
+                if(items.size<20) return
+            }
+        } catch(_:Exception) { /* transient database failure; next poll retries */ }
     }
 }
 

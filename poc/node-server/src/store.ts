@@ -122,16 +122,37 @@ export class Store {
     }
   }
 
-  async runWorker(signal:AbortSignal) {
+  async runWorker(signal:AbortSignal, concurrency=1) {
+    if(!Number.isInteger(concurrency) || concurrency<1 || concurrency>16)
+      throw new RangeError("outbox worker concurrency must be an integer from 1 to 16");
     while(!signal.aborted) {
-      try {
-        const items=await this.claim();
-        for(const item of items) {
+      let items: Awaited<ReturnType<typeof this.claim>> = [];
+      let claimFailed = false;
+      try { items = await this.claim(20,15000); }
+      catch { claimFailed = true; }
+      if(claimFailed || items.length===0) {
+        if(signal.aborted) return;
+        await new Promise(resolve=>setTimeout(resolve,250));
+        continue;
+      }
+      let next=0;
+      const workers=Array.from({length:Math.min(concurrency,items.length)},async()=>{
+        while(!signal.aborted) {
+          const index=next++;
+          if(index>=items.length) return;
+          const item=items[index]!;
           try { await this.dispatch(item); }
-          catch(e) { await this.retry(item,e); }
+          catch(e) {
+            try { await this.retry(item,e); }
+            catch { /* lease may have expired; recovery/reclaim is authoritative */ }
+          }
         }
-      } catch { /* transient database failure; retry on next poll */ }
-      await new Promise(resolve=>setTimeout(resolve,250));
+      });
+      await Promise.all(workers);
+      // A full batch proves backlog remains: claim again without the idle
+      // poll delay. Wait 250ms only when the queue is empty/partially filled.
+      if(signal.aborted) return;
+      if(items.length<20) await new Promise(resolve=>setTimeout(resolve,250));
     }
   }
 }

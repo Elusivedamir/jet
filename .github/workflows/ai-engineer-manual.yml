@@ -14,8 +14,7 @@ on:
         type: string
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: ai-engineer-${{ github.ref }}
@@ -24,6 +23,10 @@ concurrency:
 jobs:
   agent:
     runs-on: ubuntu-latest
+    environment: ai-engineering
+    permissions:
+      contents: write
+      pull-requests: write
     timeout-minutes: 20
     steps:
       - name: Check API credential
@@ -55,8 +58,9 @@ jobs:
 
       - name: Checkout approved base
         if: steps.preflight.outputs.enabled == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           ref: ${{ inputs.base_branch }}
           fetch-depth: 0
 
@@ -74,11 +78,11 @@ jobs:
       - name: Run Codex
         if: steps.preflight.outputs.enabled == 'true'
         id: codex
-        uses: openai/codex-action@v1
+        uses: openai/codex-action@306c6a196a99dcc6582530c396a19d2672d5e9ec # v1.14
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           prompt: |
-            First read README.md, docs/governance/MASTER_PROMPT.md, docs/governance/BRANCHING_STRATEGY.md, docs/governance/REPOSITORY_INVENTORY.md and docs/product/BUSINESS_PLAN_BASELINE.md. The original business-plan PDF is canonical; the Markdown transcription is unverified until page-by-page reconciliation. Do not change product scope or business terms. If a task depends on a product requirement that cannot be verified against the PDF, stop and report the blocker.
+            First read README.md, docs/governance/MASTER_PROMPT.md, docs/governance/BRANCHING_STRATEGY.md, docs/governance/REPOSITORY_INVENTORY.md and docs/product/BUSINESS_PLAN_BASELINE.md. The owner-supplied complete business-plan text is structured in BUSINESS_PLAN_BASELINE.md and is the current working product baseline. The canonical PDF remains preserved; byte-for-byte extraction comparison is a separate verification task. Do not change product scope or business terms.
             Owner task:
             ${{ inputs.task }}
           permission-profile: ":workspace"
@@ -112,6 +116,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "agent: focused engineering change"
+          gh auth setup-git
           git push --set-upstream origin "$BRANCH_NAME"
 
       - name: Open draft pull request
@@ -131,7 +136,7 @@ jobs:
 
       - name: Upload agent report
         if: steps.preflight.outputs.enabled == 'true' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-report-${{ github.run_id }}
           path: ${{ runner.temp }}/codex-report.md

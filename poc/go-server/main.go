@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -25,7 +26,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := pgxpool.New(ctx, dsn)
+	poolConfig, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		log.Fatalf("parse PostgreSQL configuration: %v", err)
+	}
+	poolMax := envInt("DATABASE_POOL_MAX_CONNS", 40, 4, 100)
+	poolConfig.MaxConns = int32(poolMax)
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		log.Fatalf("create PostgreSQL pool: %v", err)
 	}
@@ -42,7 +49,9 @@ func main() {
 	}
 
 	store := NewStore(pool)
-	go RunOutboxWorker(ctx, store, 250*time.Millisecond)
+	workerConcurrency := envInt("OUTBOX_WORKER_CONCURRENCY", 1, 1, 16)
+	log.Printf("outbox worker concurrency=%d database pool max_conns=%d", workerConcurrency, poolMax)
+	go RunOutboxWorker(ctx, store, 250*time.Millisecond, workerConcurrency)
 
 	server := &http.Server{
 		Addr:              envOr("LISTEN_ADDR", ":8080"),
@@ -66,4 +75,16 @@ func envOr(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func envInt(key string, fallback, minValue, maxValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < minValue || parsed > maxValue {
+		log.Fatalf("%s must be an integer between %d and %d", key, minValue, maxValue)
+	}
+	return parsed
 }

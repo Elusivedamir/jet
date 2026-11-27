@@ -3,12 +3,23 @@ import pg from "pg";
 const { Pool } = pg;
 import { Store, ConflictError, NotMemberError, InvalidRequestError } from "./store.js";
 
-const pool = new Pool({connectionString:process.env.DATABASE_URL});
+function boundedEnvInt(name:string,fallback:number,min:number,max:number):number {
+  const raw=process.env[name];
+  if(raw===undefined || raw==="") return fallback;
+  const value=Number(raw);
+  if(!Number.isInteger(value) || value<min || value>max)
+    throw new Error(`${name} must be an integer from ${min} to ${max}`);
+  return value;
+}
+const poolMax=boundedEnvInt("DATABASE_POOL_MAX_CONNS",40,4,100);
+const workerConcurrency=boundedEnvInt("OUTBOX_WORKER_CONCURRENCY",1,1,16);
+const pool = new Pool({connectionString:process.env.DATABASE_URL,max:poolMax});
 const store = new Store(pool);
 const schema = await (await import("node:fs/promises")).readFile(new URL("../schema.sql",import.meta.url),"utf8");
 for (const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
 const abort = new AbortController();
-void store.runWorker(abort.signal);
+console.info(`outbox worker concurrency=${workerConcurrency} database pool max_conns=${poolMax}`);
+void store.runWorker(abort.signal,workerConcurrency);
 
 function account(req:IncomingMessage):string {
   const value=req.headers["x-test-account"];

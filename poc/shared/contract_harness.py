@@ -7,32 +7,51 @@ import json
 import platform
 import statistics
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 import uuid
 
 
-def request(base, method, path, account, payload=None):
-    data = None if payload is None else json.dumps(payload).encode()
-    req = urllib.request.Request(
-        base.rstrip("/") + path,
-        data=data,
-        method=method,
-        headers={"X-Test-Account": account, "Content-Type": "application/json"},
-    )
+def validate_base_url(base):
+    parsed = urllib.parse.urlsplit(base)
+    if (
+        parsed.scheme not in ("http", "https")
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in ("", "/")
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("base URL must be an http(s) origin without credentials, path, query or fragment")
     try:
-        with urllib.request.urlopen(req, timeout=15) as response:
-            raw = response.read()
-            return response.status, json.loads(raw) if raw else None
-    except urllib.error.HTTPError as error:
-        raw = error.read()
+        _ = parsed.port
+    except ValueError as error:
+        raise ValueError("base URL contains an invalid port") from error
+    return parsed
+
+
+def request(base, method, path, account, payload=None):
+    parsed = validate_base_url(base)
+    data = None if payload is None else json.dumps(payload).encode()
+    connection_type = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+    connection = connection_type(parsed.hostname, parsed.port, timeout=15)
+    try:
+        connection.request(
+            method,
+            path,
+            body=data,
+            headers={"X-Test-Account": account, "Content-Type": "application/json"},
+        )
+        response = connection.getresponse()
+        raw = response.read()
         if not raw:
-            return error.code, None
+            return response.status, None
         try:
-            return error.code, json.loads(raw)
+            return response.status, json.loads(raw)
         except json.JSONDecodeError:
-            return error.code, raw.decode("utf-8", errors="replace")
+            return response.status, raw.decode("utf-8", errors="replace")
+    finally:
+        connection.close()
 
 
 def sse_event(base, conversation, after, timeout=12, use_last_event_id=False):
@@ -110,6 +129,7 @@ def main():
     parser.add_argument("--soak-concurrency", type=int, default=16)
     args = parser.parse_args()
     base = args.base_url
+    validate_base_url(base)
     conversation = "room-a"
 
     # Idempotency and post-commit acceptance.

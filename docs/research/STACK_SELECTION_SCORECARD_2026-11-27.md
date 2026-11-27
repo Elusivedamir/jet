@@ -2,7 +2,7 @@
 
 ## Decision status
 
-**Provisional v1 recommendation: Go + PostgreSQL**, documented in [ADR-0002](../architecture/ADR-0002-backend-stack-go.md). This supersedes the earlier Node.js proposal in ADR-0001. It is not production-release authorization: the latest fail-closed security/license CI and 30-second soak are still pending.
+**Owner-selected v1 backend direction: Node.js / TypeScript + PostgreSQL**, documented in [ADR-0003](../architecture/ADR-0003-backend-stack-node-typescript-owner-selected.md). Go remains a strong measured performance/resource candidate in short PoC tests, but the product owner selected Node. This is not production-release authorization: controlled Node repeatability and production engineering gates remain open.
 
 ## Decision criteria and weights
 
@@ -43,7 +43,7 @@ All three candidates passed the shared contract and two hard process-kill scenar
 1. SIGKILL during recipient-inbox dispatch transaction; verify rollback, lease expiry and recovery.
 2. SIGKILL after the outbox claim commits while the worker is blocked before inbox insertion; verify claim recovery and one durable inbox row.
 
-The third scenario—client closes without reading the committed acceptance response, server restarts, then the client retries the same idempotency key—has been added to the shared harness and awaits its first CI result. A further post-dispatch-commit and lost-ack scenario remains open.
+The third scenario—client keeps the socket open without reading the acceptance response until PostgreSQL confirms commit, then closes; server restarts and the client retries the same idempotency key—passed on all three candidates. A further post-dispatch-commit and lost-ack scenario remains open.
 
 ## Dependency and security gates
 
@@ -55,27 +55,36 @@ GitHub Actions are now pinned to immutable commit SHAs. The Maven dependency gra
 
 ## Candidate fit
 
-### Go + PostgreSQL — current front-runner
+### Go + PostgreSQL — comparative performance candidate
 Best measured throughput, p95/p99, memory and CPU efficiency. Patched govulncheck is clean. The remaining gates are the refreshed license allow-list/Trivy run, clean reproducibility check on committed go.sum, 30-second soak, and a matched product-development task to test whether explicit Go code costs materially more to maintain.
 
-### Node.js/TypeScript + PostgreSQL — strong alternative
+### Node.js/TypeScript + PostgreSQL — owner-selected backend direction
 Best p50 and fast web/product iteration ecosystem. It may reduce implementation time for CRM, campaigns, KPI and admin surfaces. Current benchmark shows lower throughput and worse tail latency than Go, with about 4.6× the memory. Keep TypeScript for web/admin clients even if Go is selected for the backend.
 
 ### Kotlin/Spring + PostgreSQL — not preferred for v1
 Mature enterprise framework and close throughput to Go, but about 14.4× the measured RSS and 4.6× the CPU time. Three SBOM license declarations need review. Reconsider if enterprise integration requirements justify the runtime footprint.
 
-## Provisional architecture direction
+## Owner-selected architecture direction
 
-Use a **Go modular monolith + PostgreSQL** for the backend. Keep PostgreSQL as the durable source of truth. Do not introduce Kafka, Redis, microservices or a polyglot backend solely to optimize a PoC benchmark. Use TypeScript for web/admin clients where appropriate. Separate AI and analytics jobs asynchronously when required; do not make a second backend language the default.
+Use a **Node.js / TypeScript modular monolith + PostgreSQL** as the primary backend direction, per ADR-0003. Keep PostgreSQL as the current PoC/initial architecture database. Do not introduce Kafka, Redis or microservices solely to optimize a PoC benchmark. Separate AI and analytics jobs asynchronously when required. Go and Kotlin remain comparative PoCs.
 
 ## Current gates
 
 - Go: patched toolchain and dependency graph are committed; govulncheck clean on the current candidate run; license-check allow-list and Trivy rerun pending after excluding the first-party module.
 - Node: npm audit clean in the previous run; corrected license allow-list and fresh Trivy gate pending.
 - Kotlin: SBOM and vulnerability scan clean; license review gate identifies three components; dependency version lock check newly added.
-- All candidates: three-case crash harness and 30-second soak are awaiting fresh CI evidence on the latest commit.
+- All candidates: three-case crash harness and 30-second soak passed on the latest candidate run; serial worker backlog is a shared open issue.
 - Product velocity, long soak, deployment cost, operational comparison and production security remain open.
 
 ## Decision caveats
 
 This recommendation is evidence-led but provisional. Do not claim production readiness, capacity or SLOs. Revisit ADR-0002 if the soak or matched maintenance-task comparison materially changes the trade-off.
+
+
+## Latest end-to-end delivery signal — 2026-11-27
+
+All candidates completed the three crash scenarios and 30-second producer soak with zero request errors. However, the worker design claims 20 rows and dispatches them serially. Pending outbox after the latest revalidation: Go 32,837; Node 22,801; Kotlin 20,196. Oldest open delivery: 29–30 seconds; p95 completed-delivery latency: approximately 26.6–28.1 seconds. API acceptance throughput was 1,261/s Go, 807/s Node and 817/s Kotlin. These are not end-to-end delivery rates.
+
+This common architecture bottleneck makes the earlier stack ranking provisional. Before final selection, compare bounded worker concurrency 1/4/8/16 and queue-drain latency on equivalent runner/database configurations. See [OUTBOX_WORKER_CAPACITY_FINDINGS](OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md).
+
+Kotlin's crash-recovery and vulnerability checks passed, but the candidate CI remains blocked by three conservative SBOM license review findings. Human/legal review is required; the policy was not weakened.

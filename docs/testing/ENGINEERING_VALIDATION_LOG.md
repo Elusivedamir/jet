@@ -235,3 +235,182 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Updated `docs/governance/MASTER_PROMPT.md` with mandatory OpenCommit governance and linked the guide from README.
 - No GitHub Action workflow was added; no local workstation CLI or hook installation is claimed. No API credentials were requested or stored.
 - Documentation only; no application build/test is applicable.
+
+
+## 2026-11-27 — continuous security and quality gate integration (initial)
+
+- Created dedicated branch `governance/continuous-quality-security-gates-2026-11-27`, based on the current PR #44 research branch head; `main` was not modified.
+- Vendored four unmodified Trail of Bits skills from upstream commit `149d7b21f4067765b82e67029730b42d228ef4b4`: differential-review, post-patch-validation, spec-to-code-compliance and supply-chain-risk-auditor. Preserved the upstream CC BY-SA 4.0 license and recorded source blob SHAs. The upstream license is not MIT; do not relicense these files.
+- Added the Jetson continuous security gate policy and an OWASP ASVS 5.0.0 evidence checklist.
+- Added a pull-request/weekly/manual workflow for Semgrep CLI 1.187.0, Gitleaks pinned by OCI digest, zizmor action/CLI pinned, and CodeQL pinned to an immutable commit for Go, JavaScript/TypeScript and Java/Kotlin.
+- Semgrep's archived `semgrep/semgrep-action` was explicitly rejected in favor of the native CLI.
+- OpenSSF Scorecard and Renovate remain documented follow-ups, not active integrations: Scorecard needs a separate least-privilege/publication decision; Renovate requires external GitHub App installation/authorization.
+- Workflow execution, action compatibility, findings and language extraction are **NOT RUN / NOT VERIFIED** at the time of this documentation change. No security PASS, ASVS compliance or production-readiness claim is made.
+- Manual self-review only; no independent sub-agent review was available in this environment.
+
+
+- Follow-up completion: added `.github/workflows/scorecard.yml` with a pinned OpenSSF Scorecard action, default-branch/weekly triggers and result publication disabled; added conservative `renovate.json` with automerge disabled. Scorecard execution is not yet verified; Renovate remains inactive pending owner-authorized GitHub App installation.
+
+
+## 2026-11-27 — first security workflow baseline run
+
+- Initial continuous-security workflow run [#46032883696](https://github.com/Elusivedamir/jet/actions/runs/46032883696) executed on PR #46 merge commit `892532f0f726548587b41e3a9ec3eb40867c2184`.
+- Gitleaks scanned 808 commits / approximately 2.53 MB and reported one leak. The exact location has not yet been established from the current log output; do not dismiss or classify it as a false positive until a redacted verbose report is available. The gate correctly failed closed.
+- The initial full-repository zizmor scan reported 40 findings (14 ignored; 15 high and 11 medium active). Confirmed examples include workflow-wide write permissions and unpinned actions in `ai-engineer-klinch.yml` and `ai-engineer-manual.yml`, unpinned PostgreSQL 17.12 service images in three PoC workflows, and unpinned actions in `sqlite-adapter-tests.yml`. Details and limitations are in `docs/security/ZIZMOR_BASELINE_AUDIT_2026-11-27.md`.
+- This is existing repository baseline debt, not attributed to the new workflow. The new workflow is being changed to block on the two newly introduced workflow files while retaining a separate non-blocking full-repository baseline report until legacy findings are triaged.
+- CodeQL and Semgrep were still running when the job snapshot was inspected. No result is claimed for them here.
+
+
+## 2026-11-27 — first security-gate findings triage and configuration corrections
+
+- Semgrep's first run found two dynamic `urllib.request.urlopen` call sites in the shared HTTP test harnesses. Both harnesses now validate the base URL as a credential-free HTTP(S) origin and use `http.client` instead of `urlopen`. Added regression tests rejecting file/FTP/JavaScript schemes, credentials, paths, query strings and fragments. Rerun pending.
+- CodeQL Go analysis passed on the first run. Java/Kotlin autobuild failed because the Maven project is nested; JavaScript/TypeScript does not support CodeQL autobuild. Workflow corrected to Go autobuild, JS/TS no-build extraction, and explicit Maven build for Java/Kotlin. Rerun pending.
+- zizmor reported legacy workflow findings across the repository. New PR workflows now run a blocking scan on the two newly added workflow files and a separate advisory full-workflow baseline scan. No legacy findings were silently suppressed.
+- Gitleaks now runs with verbose redacted reporting so the single detected historical leak can be located without printing the secret value. The location remains unknown pending a fresh run.
+
+
+- Gitleaks follow-up: verbose redacted output identified the only hit as the public RFC 6455 example `Sec-WebSocket-Key` nonce in `deploy/juggleim-poc/scripts/probe-websocket-upgrade.sh:20`, historical commit `e5389461480650126244c86c939d11de0772f041`. It is a protocol test fixture, not an account/API credential. Added `.gitleaks.toml` allowlisting only the exact known example value at that exact path. The next Gitleaks run must confirm that no other findings remain; until then the gate is not marked PASS.
+
+
+## 2026-11-27 — security gates verified on head 7739f116
+
+- Workflow run [#46033361622](https://github.com/Elusivedamir/jet/actions/runs/46033361622): Gitleaks PASS (820 commits, approximately 2.55 MB, no leaks after the narrowly scoped RFC6455 fixture allowlist); Semgrep PASS (131 rules, 99 files, zero findings; URL validation unit tests PASS); blocking zizmor audit of both newly added workflow files PASS (zero findings).
+- The separate full-repository zizmor advisory job continues to report pre-existing workflow debt and remains open; it is not represented as a clean scan.
+- CodeQL Go, JavaScript/TypeScript and Java/Kotlin jobs were still in progress at the time of this entry. No PASS is claimed for CodeQL until all three exact-head jobs complete.
+
+
+## 2026-11-27 — legacy workflow remediation and complete security-gate run
+
+- Initial zizmor baseline was corrected to 41 total findings: 15 ignored, 15 high and 11 medium. Remediated all active findings across the eight workflow files: workflow-wide write permissions moved to job scope, third-party actions pinned to immutable SHAs, PostgreSQL 17.12 pinned to verified multi-platform index digest `sha256:cdbfb3de010ef603c29f10a5dfc79e023f66ad662ec6fddcda7130afe5d65e7b`, checkout credentials disabled, and secret-consuming AI workflow jobs scoped to the `ai-engineering` environment. Repository Environment protection rules remain an external GitHub settings task and are not claimed configured.
+- Added explicit `GH_TOKEN` to the KLINCH workflow's isolated branch push step after manual review found the credential was not passed to `gh auth setup-git`.
+- Exact-head workflow run [#46034027567](https://github.com/Elusivedamir/jet/actions/runs/46034027567), commit `bccb1135360245b77526e446bc575baea5b5aaa4`: overall SUCCESS.
+- Gitleaks PASS: 830 commits scanned; no findings after the path/value-specific RFC 6455 test nonce allowlist.
+- Semgrep PASS: 131 rules, 100 files, zero findings; URL validation tests passed.
+- zizmor changed-workflow gate PASS; full-repository zizmor PASS, no findings to report (15 default-ignored rules).
+- CodeQL Go PASS: 6/7 Go files extracted (all six non-test Go source files; test file `store_test.go` not in the extracted set). JavaScript/TypeScript PASS: 3/3 TypeScript files. Java/Kotlin PASS: 2/2 Kotlin files. Results are static-analysis coverage, not a certification.
+- Manual self-review (not independent) of the changed workflows found and fixed the missing KLINCH `GH_TOKEN` environment. Full review remains open until the latest follow-up commit is revalidated by CI.
+
+
+## 2026-11-27 — blocking zizmor and expanded Go CodeQL coverage
+
+- Changed the full-repository zizmor job from advisory to blocking after the clean eight-workflow baseline was established. No `continue-on-error` remains on this audit.
+- Changed CodeQL Go build mode from autobuild to manual and added a pinned setup-go v5 action plus `go test ./...` before analysis. The compile/test step passed and included the Go test package; integration tests that require PostgreSQL skip when the CI job does not supply `TEST_DATABASE_URL`.
+- Exact-head security workflow run [#46034534649](https://github.com/Elusivedamir/jet/actions/runs/46034534649), commit `197f5a1c6270d2e41277077c36d3036a8525a73e`, run 76: overall SUCCESS.
+- Gitleaks PASS: 837 commits scanned, approximately 2.56 MB, no leaks.
+- Semgrep PASS: 131 rules across 100 files, zero findings; harness URL-validation tests passed.
+- zizmor changed-workflow audit PASS; full-repository blocking zizmor audit PASS across all eight workflows, no findings (15 default-ignored rules).
+- CodeQL Go PASS: manual `go test ./...` compile/test step and CodeQL analysis succeeded. JavaScript/TypeScript PASS and Java/Kotlin PASS; both language jobs uploaded their SARIF results.
+- Manual self-review (not independent), round 1 identified a missing `GH_TOKEN` in the KLINCH workflow's git-push step; corrected before this run. Round 2 re-reviewed the workflow permissions, immutable action pins, checkout credential handling, environment scoping, container digest, CodeQL build modes and documentation. No further material findings identified. Score: self-assessed 9/10 for this bounded workflow-governance task; not an independent reviewer score.
+- This is evidence for the governance/security workflow, not a production security certification. The separate supply-chain collector assets for the Trail of Bits skill are still not vendored and must not be claimed as executed.
+
+
+## 2026-11-27 — final security workflow revalidation after documentation sync
+
+- Exact commit `2f2b04d928dc9419de0ce7a401faf7270a04b5bb`, run [#46034928833](https://github.com/Elusivedamir/jet/actions/runs/46034928833), run 84: overall SUCCESS; all seven security workflow jobs completed successfully.
+- Gitleaks PASS: 840 commits / approximately 2.57 MB scanned, no leaks.
+- Semgrep PASS: 131 rules on 100 files, zero findings; URL validation regression tests passed.
+- zizmor changed-workflow audit PASS; full-repository blocking audit PASS with no findings (15 default-ignored rules).
+- CodeQL Go PASS: manual `go test ./...` build/test step and CodeQL analysis succeeded. JavaScript/TypeScript PASS. Java/Kotlin PASS after Maven build.
+- The full-repository zizmor check is blocking for future workflow changes; no separate advisory-only baseline job remains.
+- Documentation sync is verified against the exact-head run. No product code or business-plan content changed in this follow-up.
+
+
+## 2026-11-27 — corrected shared crash harness and refreshed three-candidate CI
+
+- Exact candidate source commit: `7a7301310cb6757cfe17046158c6da185138deea`.
+- Found and fixed a Python name-shadowing defect: `def http` shadowed the imported `http.client` package, causing all shared health probes to fail while their exceptions were swallowed. Renamed it to `http_request`, added last-probe diagnostics and added real HTTP regression tests for 204 health responses and JSON request/response.
+- Found and fixed a lost-acceptance test race: the client closed immediately after sending, before the server transaction was known to have committed. The helper now leaves the socket open without reading the response until PostgreSQL confirms the commit, then closes it. Added a regression test for this behavior.
+- Security workflow [run 46036340870](https://github.com/Elusivedamir/jet/actions/runs/46036340870): PASS — Gitleaks, Semgrep (including new harness tests), CodeQL Go/TypeScript/Kotlin, changed-workflow zizmor and blocking full-repository zizmor all passed.
+- Go PoC [run 46036340867](https://github.com/Elusivedamir/jet/actions/runs/46036340867): PASS — PostgreSQL integration/race tests, all three crash cases, contract, 30-second soak, govulncheck, go-licenses and Trivy.
+- Node PoC [run 46036340934](https://github.com/Elusivedamir/jet/actions/runs/46036340934): PASS — clean install, PostgreSQL integration tests, all three crash cases, contract, 30-second soak, npm audit, license inventory and Trivy.
+- Kotlin PoC [run 46036340835](https://github.com/Elusivedamir/jet/actions/runs/46036340835): overall FAIL at conservative license policy gate. PostgreSQL integration tests, all three crash cases, contract, 30-second soak and Trivy passed; three SBOM declarations remain REVIEW_REQUIRED: logback-classic 1.5.18, logback-core 1.5.18, jakarta.annotation-api 2.1.1. No automatic exception was added.
+- The latest 30-second soak revealed a shared delivery bottleneck: Go accepted 1,260.92 writes/s but had 36,488 pending outbox rows; Node 807.32 writes/s / 23,852 pending; Kotlin 816.98 writes/s / 23,480 pending. Oldest open age was 29–30 seconds and p95 completed-delivery latency 27–28 seconds. All workers currently claim 20 rows and dispatch serially. Detailed results and the next matched bounded-concurrency experiment are documented in `docs/research/OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md`.
+- Manual self-review (not independent) of the harness changes: round 1 found the module-shadowing defect and incorrect lost-response timing; round 2 verified the rename, HTTP regression coverage, commit-before-close ordering, exact test workflow inclusion and documentation. No further material findings identified. Score: self-assessed 9/10 for this bounded test-harness task.
+
+
+## 2026-11-27 — current-head rerun and outbox evidence refresh
+
+- Current docs head at the time of this validation: `9dbec25214df3011d2c1bfc48b7da35f6f802e53`.
+- Continuous security workflow [#46037451504](https://github.com/Elusivedamir/jet/actions/runs/46037451504): overall SUCCESS; Gitleaks, Semgrep, all three CodeQL language jobs, changed-workflow zizmor and blocking full-repository zizmor passed.
+- Go PoC [#46037451522](https://github.com/Elusivedamir/jet/actions/runs/46037451522): overall PASS; all three crash cases, shared contract, 30-second soak, govulncheck, license allow-list and Trivy passed.
+- Node PoC [#46037451549](https://github.com/Elusivedamir/jet/actions/runs/46037451549): overall PASS; all three crash cases, shared contract, 30-second soak, npm audit, license inventory and Trivy passed.
+- Kotlin PoC [#46037451443](https://github.com/Elusivedamir/jet/actions/runs/46037451443): overall FAIL only at the conservative license gate; crash cases, contract, soak and Trivy passed. The three review-required dependencies remain unchanged.
+- Latest exact-head 30-second soak metrics: Go 1,134.86 accepted writes/s, p95 19.104 ms, 32,837 pending outbox rows; Node 772.24/s, p95 55.471 ms, 22,801 pending; Kotlin 708.64/s, p95 55.011 ms, 20,196 pending. All three had zero request errors. Oldest open delivery was 29–30 seconds and p95 completed-delivery latency 26.6–28.1 seconds.
+- This confirms that the current serial outbox worker is the shared bottleneck. Added task `AGENT_TASK_06_OUTBOX_WORKER_CONCURRENCY.md`; final backend stack selection is deferred until the matched 1/4/8/16 worker-concurrency and queue-drain experiment is completed.
+- The latest candidate evidence and all caveats are documented in `OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md`, `STACK_POC_RESULTS.md`, scorecard and ADR-0002.
+
+
+## 2026-11-27 — bounded outbox worker implementation started
+
+- Added bounded dispatch concurrency to all three PoC servers. Runtime setting range is 1..16 and default remains 1.
+  - Go: semaphore-limited goroutines, `OUTBOX_WORKER_CONCURRENCY`.
+  - Node: bounded async worker loops, `OUTBOX_WORKER_CONCURRENCY`.
+  - Kotlin: fixed-size executor, `JET_WORKER_CONCURRENCY`; fixed-delay scheduler waits for the current batch before claiming another.
+- All three candidates claim at most 20 rows per batch and complete the batch before the next claim. No new unbounded in-memory work queue was introduced.
+- CI database pool maximum normalized to 40 connections across candidates.
+- Updated all three PoC workflows to run a non-fail-fast matrix at worker concurrency 1, 4, 8 and 16.
+- Extended the shared crash harness to perform three sequential 30-second producer/contract repetitions per matrix cell, record resource metrics and sample the outbox every 5 seconds for up to 60 seconds after producers stop.
+- Prior exact-head CI before these worker changes: security run [#46038242308](https://github.com/Elusivedamir/jet/actions/runs/46038242308) passed all seven jobs; Go [#46038242410](https://github.com/Elusivedamir/jet/actions/runs/46038242410) passed; Node [#46038242669](https://github.com/Elusivedamir/jet/actions/runs/46038242669) passed; Kotlin [#46038242496](https://github.com/Elusivedamir/jet/actions/runs/46038242496) failed only at the unchanged conservative license gate (3 review-required components). All three prior crash/contract/soak portions passed.
+- New concurrency implementation and matrix have not yet been validated by CI. Do not infer correctness or performance improvement until current-head matrix jobs finish and artifacts are reviewed.
+- Manual self-review (not independent), first pass: checked lease fencing remains in the same transactional dispatch path; bounded batch processing; fixed pool limits; environment bounds; batch completion before subsequent claim; retry failure leaves reclaim to lease expiry; same 40-connection DB pool cap. Full reviewer pass and fixes pending CI.
+
+
+## 2026-11-27 — first matrix compile failures and immediate corrections
+
+- First compile/security matrix run exposed two implementation mistakes before any performance conclusion:
+  1. Kotlin Spring `@Value` placeholder was not escaped for Kotlin string interpolation. The compiler reported an annotation constant/unresolved reference error. Corrected source to `@Value("\\${jet.worker.concurrency:1}")`.
+  2. Node server startup contained a literal backslash-n separator, producing TypeScript TS1127/TS1435. Replaced it with a real newline.
+- Both fixes are committed on the comparison branch. The first matrix runs at the previous head are treated as failed and discarded; they are not performance evidence.
+- Current-head CI is being rerun after these corrections. Do not mark the matrix green until the new Go, Node, Kotlin and security runs complete.
+- Manual self-review finding: the CI compile gates caught two source-generation mistakes that were not visible from a superficial text inspection. Reviewer round 1 therefore remains OPEN until corrected-head CI and full diff review complete.
+
+
+## 2026-11-27 — isolate repeated producer soaks from functional contract
+
+- Manual review found that re-running the entire SSE/ack contract before each soak could make later repetitions fail for the wrong reason: with deliberately accumulated outbox backlog, a newly enqueued SSE event may sit behind the queue and exceed the contract's short delivery timeout.
+- Added `poc/shared/producer_soak_harness.py` for repeated 30-second producer-only runs. The first repetition still executes the complete functional contract + benchmark + soak; repetitions 2 and 3 exercise only producer acceptance under load. This preserves three comparable producer periods without coupling later repeats to an SSE timeout unrelated to HTTP acceptance.
+- The crash harness still measures queue state after the three producer periods and samples drain every 5 seconds for up to 60 seconds.
+- Previous matrix runs are superseded by this methodology correction and will not be used as evidence. Corrected-head CI is required.
+- Manual self-review (not independent), round 2: identified and removed the false-failure path caused by repeated SSE assertions behind a deliberately accumulated queue. No production protocol or lease semantics changed.
+
+
+## 2026-11-27 — first full outbox concurrency matrix and batch-throttle fix
+
+- Completed all 12 matrix cells at head `a890811e6b26b597f3d4e556d98d667b05df6cea`:
+  - Node run [#46040365281](https://github.com/Elusivedamir/jet/actions/runs/46040365281): all four concurrency cells passed.
+  - Go run [#46040365209](https://github.com/Elusivedamir/jet/actions/runs/46040365209): all four concurrency cells passed.
+  - Kotlin run [#46040365411](https://github.com/Elusivedamir/jet/actions/runs/46040365411): all four crash/contract/soak cells passed; overall candidate workflow failed only at conservative dependency-license policy, with previously identified EPL/LGPL/GPL-with-classpath-exception review-required components.
+- All 12 cells passed all three hard crash/restart cases; producer requests had zero HTTP errors.
+- Measured queue drain stayed at 67–80 deliveries/s across all concurrency settings. Code inspection traced this to a shared 250ms delay after every 20-row batch. That throttled claim rate to roughly 80/s regardless of dispatch concurrency.
+- Corrected Go, Node and Kotlin workers: full 20-row batches now trigger an immediate next claim; 250ms is the idle poll interval after an empty/partial batch or DB error. Bounded dispatch concurrency, batch size 20, lease 15s and pool maximum 40 are unchanged.
+- The initial 12-cell performance table is recorded in `docs/research/OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md`, but is diagnostic only and superseded for stack selection due the identified throttle and hosted-runner variability.
+- Open observation: Node had one terminal-failure row in every concurrency cell. Root cause not yet classified; investigate before final acceptance.
+- Corrected-head security and 12-cell worker matrix are required. No merge yet. User has explicitly authorized merging, but the PR is still a draft, its base is the separate PoC branch (not main), and the corrected code has not passed CI. Authorization does not waive these checks.
+- Manual self-review (not independent), round 3: found the batch cadence ceiling, corrected all three implementations, and documented the prior matrix as superseded. Reviewer round remains open pending corrected-head CI, Node terminal-failure classification and full diff review.
+
+
+## 2026-11-27 — corrected outbox matrix complete
+
+- Exact tested head: `6593d501dcdb8921e221edffc142c368f2ea1e0b`.
+- Go [#46041977725](https://github.com/Elusivedamir/jet/actions/runs/46041977725): four worker settings passed all functional, crash-recovery, soak, vulnerability and license checks.
+- Node [#46041977599](https://github.com/Elusivedamir/jet/actions/runs/46041977599): four worker settings passed all functional, crash-recovery, soak, dependency and security checks.
+- Kotlin [#46041977715](https://github.com/Elusivedamir/jet/actions/runs/46041977715): all four functional/crash/soak cells passed, but the workflow remains failed by conservative license policy; one cell's license-inventory generation also failed. Do not waive this automatically.
+- Security [#46041977777](https://github.com/Elusivedamir/jet/actions/runs/46041977777): all seven jobs passed (Gitleaks, Semgrep, CodeQL Go/JS/Kotlin, changed-workflow zizmor, blocking full-repository zizmor).
+- All 12 cells had zero HTTP producer request errors and passed the hard crash/restart and message contract checks.
+- Queue drained to zero within 60 seconds in 11/12 cells. Go concurrency 1 retained 9,491 open rows at the end of the drain window; Go 4/8/16, Node 1/4/8/16 and Kotlin 1/4/8/16 reached zero.
+- Full metrics and run/artifact provenance are in `docs/research/OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md`.
+- Node has one deterministic terminal row per cell: attempt_count=2, last_error `Error: final injected failure`. HTTP errors remain zero. The exact test origin has not yet been traced to source; classify as open, not accepted.
+- Runner classes differ (Go/Node Azure 4-vCPU, Kotlin AWS 4-vCPU) and queue starting sizes vary, so these results validate the worker-loop fix but do not support a definitive language ranking or production SLO.
+- Kotlin license gate remains unresolved; no exception was introduced. PR #46 remains Draft and unmerged. User has authorized merges, but authorization does not override failing checks or license review.
+- Manual self-review (not independent), round 4: reviewed full corrected worker loop and matrix evidence. No data-loss/crash regression observed in the 12 cells; remaining review items are Node's deterministic terminal row, Kotlin dependency licensing, and controlled repeatability before backend selection.
+
+
+
+## Node backend selection and terminal-fixture investigation — 2026-11-27
+
+- Product owner selected Node.js / TypeScript as the primary backend direction; formal record: ADR-0003.
+- Manual source trace confirmed the deterministic Node terminal row originated in the unit test `parallel workers claim distinct outbox rows and max attempts terminate`. It intentionally called `store.retry` with an in-memory attempt count of 8 and `Error("final injected failure")`, but left the fixture in the shared PostgreSQL database. The subsequent live harness counted it.
+- Patch commit: `2e89e0155ab113e9b069894599222a79aabb8502`. Node test setup/teardown now share a fixture reset, and the terminal test asserts its exact expected error.
+- **Status:** source cause confirmed; CI regression verification pending. Required evidence: Node workflow passes on the exact new head and all four crash/soak artifacts report `terminal_failure=0`.
+- Manual self-review (not independent): verified test setup and teardown use the same TRUNCATE set, teardown runs before pool shutdown, and the unit test still explicitly checks the terminal transition and error. No separate reviewer/agent was launched.
+- Worker concurrency default remains 1. Controlled repeatability and production gates remain open.

@@ -51,3 +51,11 @@ Product scope, commercial model, user promises, release boundaries and roadmap m
 Historical JuggleIM experiments, LansetSpBot reviews and earlier architecture proposals remain research evidence only, not mandatory foundations or production dependencies. Historical branches and commits are preserved.
 
 Work on focused branches, never directly on `main`. No merge, deployment or release without explicit owner approval.
+
+
+## Security and quality engineering
+
+- [Continuous security and quality gates](docs/security/CONTINUOUS_SECURITY_GATES.md)
+- [OWASP ASVS 5.0.0 Jetson evidence checklist](docs/security/OWASP_ASVS_5.0.0_CHECKLIST.md)
+- [Trail of Bits and repository agent skills](docs/governance/AGENT_SKILLS.md)
+- [Continuous security CI workflow](.github/workflows/continuous-security-quality.yml)
