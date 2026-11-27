@@ -43,8 +43,9 @@ This log separates approved product decisions from technical recommendations and
 | T-008 | OPEN | Launch-region, privacy/retention, moderation and operational SLOs are not finalized. | Requires owner/product/legal/security review. |
 | T-009 | PROVISIONAL | Prefer a small, modular first-party core and a single end-to-end vertical slice before splitting into services. | Recommendation to reduce integration risk; not an approved stack or architecture. Validate against scale/security requirements in ADR. |
 | T-010 | PROVISIONAL | Continue comparing SQLite, PostgreSQL unpooled and pooled only as test candidates until concurrency and operational evidence exists. | No database is selected by current benchmarks. |
-| T-011 | OPEN | PR #38 is not considered fully validated until its PostgreSQL multiprocessing test is shown in a PostgreSQL 16 workflow run. | Commit status query empty; surfaced successful run was named SQLite workflow. |
+| T-011 | OBSERVED | PR #38's independent-process claim test passed in PostgreSQL 16 CI. | Run #45349515731; PostgreSQL job passed 33 tests and log explicitly records `test_independent_processes_cannot_claim_same_item_twice ... ok`. PR remains open; no merge performed. |
 | T-012 | OPEN | Security/license diligence is incomplete. | PR #9 report explicitly says live upstream revisions, full license trees and current advisories were not verified. |
+| T-013 | OBSERVED | PR #26 PostgreSQL adapter experiment passed its PostgreSQL 16 integration workflow. | Run #45335827757; 10 tests, 0 failures. PR remains draft and does not select a production database. |
 
 ## Superseded or non-binding work
 
