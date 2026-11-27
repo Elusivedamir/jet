@@ -219,6 +219,16 @@ def read_outbox_snapshot(database_url):
         'processing', count(*) FILTER (WHERE state='processing'),
         'retry_wait', count(*) FILTER (WHERE state='retry_wait'),
         'terminal_failure', count(*) FILTER (WHERE state='terminal_failure'),
+        'terminal_failure_samples', COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', id, 'attempt_count', attempt_count, 'last_error', last_error
+          ) ORDER BY id)
+          FROM (
+            SELECT id, attempt_count, last_error
+            FROM delivery_outbox WHERE state='terminal_failure'
+            ORDER BY id LIMIT 5
+          ) terminal_rows
+        ), '[]'::json),
         'open', count(*) FILTER (WHERE state IN ('pending','processing','retry_wait')),
         'p95_completed_delivery_ms', COALESCE(
           percentile_cont(0.95) WITHIN GROUP (
