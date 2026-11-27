@@ -120,3 +120,11 @@ No production adoption, merge to `main`, deployment or release. A final producti
 - Added `docs/agent/PARALLEL_ENGINEERING_WORKSTREAMS_2026-11-27.md` defining seven logical workstreams: reliability, Go, Node.js, Kotlin, supply-chain, performance and product/security architecture.
 - Tooling transparency: the connected toolset does not expose a direct Copilot/Codex coding-agent launch/assignment action for this repository. No separate autonomous coding agents are claimed to be running. Use independent candidate CI workflows and evidence-backed review workstreams until a dedicated runner is available.
 - Current PR head is documentation-only; no new CI run is expected from the docs-only path filters. The current head has no status checks reported. Prior code-level green CI results remain tied to implementation SHA `f86d25e755b17fcc7509b90288ae5c55f05f14e0`.
+
+
+## Dependency reproducibility audit — 2026-11-27
+
+- Added `docs/research/DEPENDENCY_REPRODUCIBILITY_AUDIT_2026-11-27.md` based on committed manifests.
+- Findings: Go `go.sum` absent; Node `package-lock.json` absent and CI currently uses `npm install`; Kotlin versions are declared through Maven parent/properties/plugins but no full transitive lock/checksum enforcement is committed.
+- All three dependency-reproducibility gates remain OPEN. This was a manifest-level inspection only, not a vulnerability scan, SBOM or license audit.
+- Remediation is defined per candidate, including clean-checkout verification and exact-SHA SBOM/vulnerability/license reports.
