@@ -71,3 +71,18 @@ The first intermediate runs exposed issues in the test harness and Kotlin source
 ## Governance
 
 All code remains under poc/. No product requirement, business-plan PDF, roadmap, pricing or user journey changed. No upstream messenger implementation was adopted. No changes to main, no deployment and no merge authorization.
+
+
+## Follow-up correctness review — 2026-11-27
+
+A cross-candidate review found that a fencing token alone is insufficient if an expired lease has not yet been reclaimed. Dispatch completion and retry writes now also require the lease to remain active at the instant of the write, using PostgreSQL `clock_timestamp()` rather than transaction-start `now()` so a long-running transaction cannot pass an expired-lease check with a stale timestamp. This invariant has been applied to Go, Node.js/TypeScript and Kotlin/Spring.
+
+Additional integration coverage was added for:
+- Expired lease rejection before another worker reclaims the row (all three candidates).
+- Concurrent claims by five workers over ten rows without duplicate ownership (Go, Node, Kotlin).
+- Terminal failure after the maximum attempt count (Go, Node, Kotlin).
+- Existing stale-token-after-reclaim checks remain in place.
+
+The Go run for the first new test commit failed only at the formatting gate (`store_test.go`); formatting was corrected. A Kotlin run failed because two newly appended tests were outside the test class; test placement was corrected. These failed intermediate runs are retained in Actions history and are not represented as passing. Final verification must use the exact current head and the three corresponding workflow runs.
+
+Hard process-kill tests at transaction/claim/dispatch/ack boundaries, production identity/security, complete committed dependency lockfiles/checksums, SBOM/license inventory and sustained-load/resource benchmarks remain open. No stack selection is authorized.
