@@ -1,0 +1,51 @@
+name: Go durable-message PoC
+
+on:
+  pull_request:
+    paths:
+      - "poc/go-server/**"
+      - ".github/workflows/go-durable-message-poc.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: jetson
+          POSTGRES_PASSWORD: jetson_test_only
+          POSTGRES_DB: jetson_poc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jetson -d jetson_poc"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: poc/go-server
+    env:
+      TEST_DATABASE_URL: postgres://jetson:jetson_test_only@localhost:5432/jetson_poc?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.x"
+          cache: true
+          cache-dependency-path: poc/go-server/go.mod
+      - name: Resolve and verify module graph
+        run: go mod tidy
+      - name: Format check
+        run: |
+          test -z "$(gofmt -l *.go)"
+      - name: Static analysis
+        run: go vet ./...
+      - name: PostgreSQL integration and race tests
+        run: go test -race -count=100 -v ./...
