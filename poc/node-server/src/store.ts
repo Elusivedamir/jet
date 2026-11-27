@@ -122,15 +122,28 @@ export class Store {
     }
   }
 
-  async runWorker(signal:AbortSignal) {
+  async runWorker(signal:AbortSignal, concurrency=1) {
+    if(!Number.isInteger(concurrency) || concurrency<1 || concurrency>16)
+      throw new RangeError("outbox worker concurrency must be an integer from 1 to 16");
     while(!signal.aborted) {
       try {
-        const items=await this.claim();
-        for(const item of items) {
-          try { await this.dispatch(item); }
-          catch(e) { await this.retry(item,e); }
-        }
+        const items=await this.claim(20,15000);
+        let next=0;
+        const workers=Array.from({length:Math.min(concurrency,items.length)},async()=>{
+          while(!signal.aborted) {
+            const index=next++;
+            if(index>=items.length) return;
+            const item=items[index]!;
+            try { await this.dispatch(item); }
+            catch(e) {
+              try { await this.retry(item,e); }
+              catch { /* lease may have expired; recovery/reclaim is authoritative */ }
+            }
+          }
+        });
+        await Promise.all(workers);
       } catch { /* transient database failure; retry on next poll */ }
+      if(signal.aborted) return;
       await new Promise(resolve=>setTimeout(resolve,250));
     }
   }
