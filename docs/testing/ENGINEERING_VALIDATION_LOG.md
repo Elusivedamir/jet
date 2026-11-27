@@ -104,3 +104,13 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - All 8 weighted criteria remain Unknown for all candidates until an identical Jetson-specific PoC is run. No score or aggregate is claimed.
 - Defined a common durable direct-message contract, 12 P0 tests, fair resource/test measurements, stop conditions and dependency/security/license checks.
 - No production code, product scope, business plan or stack configuration changed. No PoC runtime tests were run in this documentation step.
+
+
+## 2026-11-27 — Go durable-message core PoC (partial)
+
+- Added isolated `poc/go-server` with PostgreSQL schema, sender-scoped idempotency, transactional message/position/outbox creation, post-commit HTTP acceptance, membership-scoped history and integration tests.
+- Added `.github/workflows/go-durable-message-poc.yml` for PostgreSQL-backed CI, formatting, vet, race detection and 100 repeated test runs.
+- Added `docs/research/GO_DURABLE_MESSAGE_POC_REPORT_2026-11-27.md` and PoC README documenting implemented behavior, security limitations and missing delivery stages.
+- **Not yet verified:** no CI result observed at log entry time; no local compile/test run claimed. Do not mark the Go candidate as passing.
+- **Incomplete contract:** no realtime transport, outbox worker/lease recovery, recipient ack, reconnect client or hard-crash fault injection. No comparative scoring or production selection.
+- Business plan/product requirements unchanged; `main` untouched.
