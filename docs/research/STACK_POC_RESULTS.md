@@ -2,7 +2,7 @@
 
 ## Decision summary
 
-**Current recommendation: Go + PostgreSQL for Jetson v1**, proposed in [ADR-0002](../architecture/ADR-0002-backend-stack-go.md), superseding the earlier Node proposal in ADR-0001. This is not production-release authorization. The latest security workflow and three-case crash/soak runs are complete; the soak exposed a shared serial outbox-worker backlog that must be resolved before final stack selection.
+**Owner-selected primary backend direction: Node.js / TypeScript + PostgreSQL**, recorded in [ADR-0003](../architecture/ADR-0003-backend-stack-node-typescript-owner-selected.md). Go remains the comparative performance/resource leader in some short PoC measurements, but the owner selected Node for the product direction. This is not production-release authorization; the selected Node PoC still requires terminal-fixture cleanup CI confirmation, controlled repeatability and full production engineering gates.
 
 ## Correctness and recovery
 
@@ -39,9 +39,9 @@ This is a short microbenchmark, not a capacity/SLO forecast. The shared harness 
 
 GitHub Actions are pinned to immutable commit SHAs. The Maven dependency graph fingerprint plus strict checksums detects version drift; it is not a cryptographic lock of every artifact.
 
-## Current stack recommendation
+## Historical comparative performance observation
 
-Go is the best measured backend candidate on throughput, tail latency, memory and CPU. Keep the backend a Go modular monolith with PostgreSQL; use TypeScript for web/admin clients where it is useful. Avoid introducing a polyglot backend until an actual measured need justifies it.
+Go led several earlier short-run throughput, tail-latency and memory measurements. Those results remain research evidence, not the current owner decision or a final language ranking. The product owner selected Node.js / TypeScript; see ADR-0003. Avoid introducing a polyglot backend unless a measured need justifies it.
 
 ## Open gates
 
@@ -55,7 +55,8 @@ Go is the best measured backend candidate on throughput, tail latency, memory an
 
 ## References
 
-- [ADR-0002 — Go backend recommendation](../architecture/ADR-0002-backend-stack-go.md)
+- [ADR-0003 — owner-selected Node.js backend](../architecture/ADR-0003-backend-stack-node-typescript-owner-selected.md)
+- [ADR-0002 — superseded Go recommendation](../architecture/ADR-0002-backend-stack-go.md)
 - [ADR-0001 — superseded Node.js proposal](../architecture/ADR-0001-backend-stack-node-typescript.md)
 - [Weighted scorecard and decision caveats](STACK_SELECTION_SCORECARD_2026-11-27.md)
 - [Dependency reproducibility and supply-chain audit](DEPENDENCY_REPRODUCIBILITY_AUDIT_2026-11-27.md)
