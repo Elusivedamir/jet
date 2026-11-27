@@ -387,3 +387,19 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Open observation: Node had one terminal-failure row in every concurrency cell. Root cause not yet classified; investigate before final acceptance.
 - Corrected-head security and 12-cell worker matrix are required. No merge yet. User has explicitly authorized merging, but the PR is still a draft, its base is the separate PoC branch (not main), and the corrected code has not passed CI. Authorization does not waive these checks.
 - Manual self-review (not independent), round 3: found the batch cadence ceiling, corrected all three implementations, and documented the prior matrix as superseded. Reviewer round remains open pending corrected-head CI, Node terminal-failure classification and full diff review.
+
+
+## 2026-11-27 — corrected outbox matrix complete
+
+- Exact tested head: `6593d501dcdb8921e221edffc142c368f2ea1e0b`.
+- Go [#46041977725](https://github.com/Elusivedamir/jet/actions/runs/46041977725): four worker settings passed all functional, crash-recovery, soak, vulnerability and license checks.
+- Node [#46041977599](https://github.com/Elusivedamir/jet/actions/runs/46041977599): four worker settings passed all functional, crash-recovery, soak, dependency and security checks.
+- Kotlin [#46041977715](https://github.com/Elusivedamir/jet/actions/runs/46041977715): all four functional/crash/soak cells passed, but the workflow remains failed by conservative license policy; one cell's license-inventory generation also failed. Do not waive this automatically.
+- Security [#46041977777](https://github.com/Elusivedamir/jet/actions/runs/46041977777): all seven jobs passed (Gitleaks, Semgrep, CodeQL Go/JS/Kotlin, changed-workflow zizmor, blocking full-repository zizmor).
+- All 12 cells had zero HTTP producer request errors and passed the hard crash/restart and message contract checks.
+- Queue drained to zero within 60 seconds in 11/12 cells. Go concurrency 1 retained 9,491 open rows at the end of the drain window; Go 4/8/16, Node 1/4/8/16 and Kotlin 1/4/8/16 reached zero.
+- Full metrics and run/artifact provenance are in `docs/research/OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md`.
+- Node has one deterministic terminal row per cell: attempt_count=2, last_error `Error: final injected failure`. HTTP errors remain zero. The exact test origin has not yet been traced to source; classify as open, not accepted.
+- Runner classes differ (Go/Node Azure 4-vCPU, Kotlin AWS 4-vCPU) and queue starting sizes vary, so these results validate the worker-loop fix but do not support a definitive language ranking or production SLO.
+- Kotlin license gate remains unresolved; no exception was introduced. PR #46 remains Draft and unmerged. User has authorized merges, but authorization does not override failing checks or license review.
+- Manual self-review (not independent), round 4: reviewed full corrected worker loop and matrix evidence. No data-loss/crash regression observed in the 12 cells; remaining review items are Node's deterministic terminal row, Kotlin dependency licensing, and controlled repeatability before backend selection.
