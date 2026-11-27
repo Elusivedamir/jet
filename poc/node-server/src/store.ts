@@ -8,6 +8,7 @@ export type Message = { [key: string]: any;
 };
 export class ConflictError extends Error {}
 export class NotMemberError extends Error {}
+export class ForbiddenError extends Error {}
 export class InvalidRequestError extends Error {}
 
 export class Store {
@@ -19,8 +20,14 @@ export class Store {
     try {
       await c.query("BEGIN");
       await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [sender + ":" + key]);
-      const member = await c.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2", [conversation, sender]);
+      const member = await c.query<{role:string;kind:string|null}>(
+        "SELECT cm.role,d.kind FROM conversation_members cm LEFT JOIN conversation_details d ON d.conversation_id=cm.conversation_id WHERE cm.conversation_id=$1 AND cm.account_id=$2",
+        [conversation,sender]
+      );
       if (member.rowCount !== 1) throw new NotMemberError();
+      if (member.rows[0]!.kind === "channel" && !["owner","admin"].includes(member.rows[0]!.role)) {
+        throw new ForbiddenError("only channel owners and admins can publish");
+      }
       const prior = await c.query<Message>(
         "SELECT id AS message_id, conversation_id, sender_id, operation_key, payload, position FROM messages WHERE sender_id=$1 AND operation_key=$2",
         [sender, key]);
