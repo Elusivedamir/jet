@@ -302,3 +302,14 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - CodeQL Go PASS: manual `go test ./...` compile/test step and CodeQL analysis succeeded. JavaScript/TypeScript PASS and Java/Kotlin PASS; both language jobs uploaded their SARIF results.
 - Manual self-review (not independent), round 1 identified a missing `GH_TOKEN` in the KLINCH workflow's git-push step; corrected before this run. Round 2 re-reviewed the workflow permissions, immutable action pins, checkout credential handling, environment scoping, container digest, CodeQL build modes and documentation. No further material findings identified. Score: self-assessed 9/10 for this bounded workflow-governance task; not an independent reviewer score.
 - This is evidence for the governance/security workflow, not a production security certification. The separate supply-chain collector assets for the Trail of Bits skill are still not vendored and must not be claimed as executed.
+
+
+## 2026-11-27 — final security workflow revalidation after documentation sync
+
+- Exact commit `2f2b04d928dc9419de0ce7a401faf7270a04b5bb`, run [#46034928833](https://github.com/Elusivedamir/jet/actions/runs/46034928833), run 84: overall SUCCESS; all seven security workflow jobs completed successfully.
+- Gitleaks PASS: 840 commits / approximately 2.57 MB scanned, no leaks.
+- Semgrep PASS: 131 rules on 100 files, zero findings; URL validation regression tests passed.
+- zizmor changed-workflow audit PASS; full-repository blocking audit PASS with no findings (15 default-ignored rules).
+- CodeQL Go PASS: manual `go test ./...` build/test step and CodeQL analysis succeeded. JavaScript/TypeScript PASS. Java/Kotlin PASS after Maven build.
+- The full-repository zizmor check is blocking for future workflow changes; no separate advisory-only baseline job remains.
+- Documentation sync is verified against the exact-head run. No product code or business-plan content changed in this follow-up.
