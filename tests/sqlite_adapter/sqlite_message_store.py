@@ -59,7 +59,7 @@ class SQLiteMessageStore:
                     operation_key TEXT NOT NULL,
                     payload TEXT NOT NULL,
                     message_id TEXT NOT NULL REFERENCES messages(message_id),
-                    PRIMARY KEY (conversation_id, sender_id, operation_key)
+                    PRIMARY KEY (sender_id, operation_key)
                 );
                 CREATE TABLE IF NOT EXISTS outbox (
                     message_id TEXT NOT NULL REFERENCES messages(message_id),
@@ -106,13 +106,15 @@ class SQLiteMessageStore:
                 raise SendRejected("sender is not a conversation member")
 
             previous = db.execute(
-                "SELECT payload, message_id FROM idempotency "
-                "WHERE conversation_id=? AND sender_id=? AND operation_key=?",
-                (conversation_id, sender_id, operation_key),
+                "SELECT payload, message_id, conversation_id FROM idempotency "
+                "WHERE sender_id=? AND operation_key=?",
+                (sender_id, operation_key),
             ).fetchone()
             if previous:
                 if previous[0] != payload:
                     raise IdempotencyConflict("operation key reused with different payload")
+                if previous[2] != conversation_id:
+                    raise IdempotencyConflict("operation key reused in a different conversation")
                 db.commit()
                 return previous[1]
 
