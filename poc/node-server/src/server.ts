@@ -92,6 +92,11 @@ const server=createServer(async(req,res)=>{
     if(req.method==="GET" && url.pathname==="/v1/contacts/requests") {
       json(res,200,await contacts.requests(user));return;
     }
+    const decline=url.pathname.match(/^\/v1\/contacts\/requests\/([^/]+)\/decline$/);
+    if(req.method==="POST" && decline) {
+      await contacts.decline(user,decodeURIComponent(decline[1]!));
+      res.writeHead(204);res.end();return;
+    }
     const accept=url.pathname.match(/^\/v1\/contacts\/requests\/([^/]+)\/accept$/);
     if(req.method==="POST" && accept) {
       const result=await contacts.accept(user,decodeURIComponent(accept[1]!));
