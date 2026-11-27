@@ -20,6 +20,10 @@ concurrency:
   cancel-in-progress: true
 jobs:
   integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        worker-concurrency: [1, 4, 8, 16]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     services:
@@ -40,6 +44,8 @@ jobs:
       run:
         working-directory: poc/kotlin-server
     env:
+      JET_WORKER_CONCURRENCY: ${{ matrix.worker-concurrency }}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "40"
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/jetson_poc
       SPRING_DATASOURCE_USERNAME: jetson
       SPRING_DATASOURCE_PASSWORD: jetson_test_only
@@ -89,7 +95,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: kotlin-message-poc-evidence
+          name: kotlin-message-poc-evidence-${{ matrix.worker-concurrency }}
           path: |
             /tmp/kotlin-crash-recovery.json
             /tmp/jet-kotlin-server.log
