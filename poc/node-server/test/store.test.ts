@@ -7,14 +7,22 @@ import { Store, ConflictError, NotMemberError } from "../src/store.js";
 
 const pool=new Pool({connectionString:process.env.TEST_DATABASE_URL});
 const store=new Store(pool);
+async function resetFixtures() {
+ await pool.query("TRUNCATE delivery_receipts,recipient_inbox,delivery_outbox,messages,conversation_counters,conversation_members,conversations RESTART IDENTITY CASCADE");
+}
 before(async()=>{
  const schema=await readFile(new URL("../schema.sql",import.meta.url),"utf8");
  for(const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
- await pool.query("TRUNCATE delivery_receipts,recipient_inbox,delivery_outbox,messages,conversation_counters,conversation_members,conversations CASCADE");
+ await resetFixtures();
  await pool.query("INSERT INTO conversations(id) VALUES('room-a'),('room-b')");
  await pool.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES('room-a','alice'),('room-a','bob'),('room-b','alice'),('room-b','carol')");
 });
-after(async()=>pool.end());
+// The integration workflow reuses this PostgreSQL service for the subsequent
+// crash-recovery/soak harness. Never leave terminal-failure fixtures behind.
+after(async()=>{
+ try { await resetFixtures(); }
+ finally { await pool.end(); }
+});
 
 test("send is idempotent and creates one outbox intent",async()=>{
  const first=await store.send("alice","room-a","op-1","hello");
@@ -80,8 +88,9 @@ test("parallel workers claim distinct outbox rows and max attempts terminate",as
  const terminal=items[0]!;
  terminal.attempt_count=8;
  await store.retry(terminal,new Error("final injected failure"));
- const state=await pool.query("SELECT state FROM delivery_outbox WHERE id=$1",[terminal.id]);
+ const state=await pool.query("SELECT state,last_error FROM delivery_outbox WHERE id=$1",[terminal.id]);
  assert.equal(state.rows[0]!.state,"terminal_failure");
+ assert.equal(state.rows[0]!.last_error,"Error: final injected failure");
 });
 
 
