@@ -1,9 +1,9 @@
 # Jetson Messenger — repository and engineering audit
 
 **Audit date:** 2026-11-27  
-**Audited repository:** \`Elusivedamir/jet\`  
-**Audit base:** \`project/greenfield-reset\`  
-**Audit branch:** \`docs/jet-audit-and-roadmap-2026-11-27\`  
+**Audited repository:** `Elusivedamir/jet`  
+**Audit base:** `project/greenfield-reset`  
+**Audit branch:** `docs/jet-audit-and-roadmap-2026-11-27`  
 **Status:** evidence-based snapshot; not a production-readiness certification.
 
 ## 1. Executive conclusion
@@ -50,23 +50,23 @@ Snapshot retrieved from GitHub on 2026-11-27. The recent-PR endpoint returned 38
 
 | PR | Title / branch | Base | Audit assessment |
 |---:|---|---|---|
-| #38 | PostgreSQL independent-process outbox claim test; \`engineering/postgres-multiprocess-claim-fencing\` | \`project/greenfield-reset\` | Relevant test-only increment. Mergeable flag true, but no commit status checks were returned for head SHA. The associated workflow run surfaced by the connector is named "Message reliability and SQLite adapter tests"; it does not establish that the new PostgreSQL multiprocessing test ran. Require explicit PostgreSQL workflow evidence before approval. |
-| #26 | PostgreSQL outbox adapter comparison; \`engineering/postgres-adapter-poc\` | \`project/greenfield-reset\` | Draft experiment. Valuable candidate evidence, not a production database decision. No commit status checks were returned for head SHA. |
-| #13 | Architecture synthesis task brief; \`research/architecture-synthesis-task\` | \`research/repository-landscape\` | Task staging only. It is not the architecture synthesis result. The expected synthesis output was not found at the checked path on the research branch. |
-| #9 | Security, licensing and operations report; \`agent/klinch-45263308927\` | \`research/repository-landscape\` | Incomplete diligence report. Its own body says live upstream revisions, full license trees, advisories and upstream tests were not verified because network access failed. Do not treat security/license gates as passed. |
-| #8 | Harden KLINCH research workflow; \`fix/klinch-agent-workflow-hardening\` | \`research/repository-landscape\` | Workflow maintenance change on a research branch; review separately from product/architecture work. |
-| #1 | Android JuggleIM PoC; \`project/foundation-and-juggleim-poc\` | \`main\` | Historical/isolated PoC, explicitly not the MVP or approved production stack. Keep out of the greenfield product path; do not merge to main. |
+| #38 | PostgreSQL independent-process outbox claim test; `engineering/postgres-multiprocess-claim-fencing` | `project/greenfield-reset` | Relevant test-only increment. Mergeable flag true, but no commit status checks were returned for head SHA. The associated workflow run surfaced by the connector is named "Message reliability and SQLite adapter tests"; it does not establish that the new PostgreSQL multiprocessing test ran. Require explicit PostgreSQL workflow evidence before approval. |
+| #26 | PostgreSQL outbox adapter comparison; `engineering/postgres-adapter-poc` | `project/greenfield-reset` | Draft experiment. Valuable candidate evidence, not a production database decision. No commit status checks were returned for head SHA. |
+| #13 | Architecture synthesis task brief; `research/architecture-synthesis-task` | `research/repository-landscape` | Task staging only. It is not the architecture synthesis result. The expected synthesis output was not found at the checked path on the research branch. |
+| #9 | Security, licensing and operations report; `agent/klinch-45263308927` | `research/repository-landscape` | Incomplete diligence report. Its own body says live upstream revisions, full license trees, advisories and upstream tests were not verified because network access failed. Do not treat security/license gates as passed. |
+| #8 | Harden KLINCH research workflow; `fix/klinch-agent-workflow-hardening` | `research/repository-landscape` | Workflow maintenance change on a research branch; review separately from product/architecture work. |
+| #1 | Android JuggleIM PoC; `project/foundation-and-juggleim-poc` | `main` | Historical/isolated PoC, explicitly not the MVP or approved production stack. Keep out of the greenfield product path; do not merge to main. |
 
 ### 3.2 Closed and merged PRs
 
 | PRs | Merged into / increment |
 |---|---|
-| #37–#33 | \`project/greenfield-reset\`: PostgreSQL hard-process recovery, multi-conversation concurrency, persistence stress, pooled/unpooled comparison and repeated serial benchmark. |
-| #31, #30, #29, #28 | \`project/greenfield-reset\`: SQLite/PostgreSQL workload baseline, schema registry/backup-restore, shared adapter conformance and PostgreSQL adapter harness. |
-| #25, #21, #20, #19 | \`project/greenfield-reset\`: outbox contract, bounded retry/dedup, reliability CI and narrow integration of message-reliability work. |
+| #37–#33 | `project/greenfield-reset`: PostgreSQL hard-process recovery, multi-conversation concurrency, persistence stress, pooled/unpooled comparison and repeated serial benchmark. |
+| #31, #30, #29, #28 | `project/greenfield-reset`: SQLite/PostgreSQL workload baseline, schema registry/backup-restore, shared adapter conformance and PostgreSQL adapter harness. |
+| #25, #21, #20, #19 | `project/greenfield-reset`: outbox contract, bounded retry/dedup, reliability CI and narrow integration of message-reliability work. |
 | #18, #17, #16, #15, #14 | Stacked research/engineering branches: architecture research correction, reliability contracts, reference model, SQLite experiment and consolidation. |
-| #6, #5, #3 | \`main\`: earlier KLINCH workflow/secret-name/manual-dispatch changes. These do not validate the current greenfield workflow copies. |
-| #2 | \`project/foundation-and-juggleim-poc\`: guarded AI-engineer foundation on the historical PoC branch. |
+| #6, #5, #3 | `main`: earlier KLINCH workflow/secret-name/manual-dispatch changes. These do not validate the current greenfield workflow copies. |
+| #2 | `project/foundation-and-juggleim-poc`: guarded AI-engineer foundation on the historical PoC branch. |
 
 ### 3.3 Closed, not merged PRs
 
@@ -74,13 +74,13 @@ Snapshot retrieved from GitHub on 2026-11-27. The recent-PR endpoint returned 38
 
 ### 3.4 Branch and automation hygiene
 
-The existing \`docs/governance/REPOSITORY_INVENTORY.md\` is a historical snapshot, not a current inventory: it lists only a small subset of branches and predates much of the #15–#38 engineering sequence. Refresh it before relying on its branch counts or ancestry statements.
+The existing `docs/governance/REPOSITORY_INVENTORY.md` is a historical snapshot, not a current inventory: it lists only a small subset of branches and predates much of the #15–#38 engineering sequence. Refresh it before relying on its branch counts or ancestry statements.
 
 The inventory documents workflow defaults that still require direct verification/fix:
-- copied KLINCH workflow defaults to obsolete \`feature/ai-engineer-foundation\`;
-- branch allowlist does not include the current \`research/*\` / \`work/*\` scheme;
-- manual workflow defaults to obsolete \`project/foundation-and-juggleim-poc\`;
-- workflow dispatch uses the workflow definition on the default branch, so editing only the greenfield copy does not change the active workflow on \`main\`;
+- copied KLINCH workflow defaults to obsolete `feature/ai-engineer-foundation`;
+- branch allowlist does not include the current `research/*` / `work/*` scheme;
+- manual workflow defaults to obsolete `project/foundation-and-juggleim-poc`;
+- workflow dispatch uses the workflow definition on the default branch, so editing only the greenfield copy does not change the active workflow on `main`;
 - existing automation has contents/PR write permissions and must be narrowly scoped.
 
 Before enabling autonomous coding again, verify the default-branch workflow, branch validation, token permissions, provider budget limits, secret naming, concurrency and artifact/report behavior. Never print secrets into logs.
@@ -117,7 +117,7 @@ These are historical, scoped test results from the commits/runs identified in th
 
 ### 4.3 Persistence benchmark evidence
 
-Five-trial serial workload results recorded in \`docs/testing/ENGINEERING_VALIDATION_LOG.md\` and \`docs/testing/PERSISTENCE_WORKLOAD_BASELINE.md\`:
+Five-trial serial workload results recorded in `docs/testing/ENGINEERING_VALIDATION_LOG.md` and `docs/testing/PERSISTENCE_WORKLOAD_BASELINE.md`:
 
 | Metric (median) | SQLite local file | PostgreSQL fresh connection | PostgreSQL pool 1–4 |
 |---|---:|---:|---:|
@@ -136,9 +136,9 @@ Interpretation:
 
 ### 4.4 Latest PR #38 verification gap
 
-PR #38 adds a multiprocessing contention test to \`tests/postgres_adapter\`. The fetched head SHA is \`49b6370b18a4c21f2ba3f6c5365c6c991c4b3037\`. The commit-status query returned no status checks. The workflow run associated by the available commit-workflow endpoint was run #45349515731, named "Message reliability and SQLite adapter tests", conclusion success. That name is not evidence that the new PostgreSQL multiprocessing test executed. Treat #38 as **not fully validated** until the PostgreSQL 16 workflow explicitly runs the new test and its job log/artifact is inspected.
+PR #38 adds a multiprocessing contention test to `tests/postgres_adapter`. The fetched head SHA is `49b6370b18a4c21f2ba3f6c5365c6c991c4b3037`. The commit-status query returned no status checks. The workflow run associated by the available commit-workflow endpoint was run #45349515731, named "Message reliability and SQLite adapter tests", conclusion success. That name is not evidence that the new PostgreSQL multiprocessing test executed. Treat #38 as **not fully validated** until the PostgreSQL 16 workflow explicitly runs the new test and its job log/artifact is inspected.
 
-PR #26 head SHA \`c5eaab55a8e4fe38bd48ea270133fa8beb99fc04\` also returned no commit status checks in the audit. Do not label its latest head green without a specific run.
+PR #26 head SHA `c5eaab55a8e4fe38bd48ea270133fa8beb99fc04` also returned no commit status checks in the audit. Do not label its latest head green without a specific run.
 
 ## 5. Material gaps before architecture selection
 
@@ -174,20 +174,20 @@ This audit does **not** approve:
 
 ## 8. Source documents reviewed
 
-- \`README.md\`
-- \`docs/product/BUSINESS_PLAN_BASELINE.md\`
-- \`docs/product/PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md\`
-- \`docs/product/USER_JOURNEYS.md\`
-- \`docs/governance/MASTER_PROMPT.md\`
-- \`docs/governance/BRANCHING_STRATEGY.md\`
-- \`docs/governance/REPOSITORY_INVENTORY.md\` (identified as stale snapshot)
-- \`docs/testing/MESSAGE_RELIABILITY_TEST_PLAN.md\`
-- \`docs/testing/MESSAGE_STATE_MACHINE_CONTRACT.md\`
-- \`docs/testing/OUTBOX_DISPATCH_CONTRACT.md\`
-- \`docs/testing/ENGINEERING_VALIDATION_LOG.md\`
-- \`docs/testing/PERSISTENCE_WORKLOAD_BASELINE.md\`
-- \`tests/reference_model/README.md\`
-- \`tests/sqlite_adapter/README.md\`
+- `README.md`
+- `docs/product/BUSINESS_PLAN_BASELINE.md`
+- `docs/product/PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md`
+- `docs/product/USER_JOURNEYS.md`
+- `docs/governance/MASTER_PROMPT.md`
+- `docs/governance/BRANCHING_STRATEGY.md`
+- `docs/governance/REPOSITORY_INVENTORY.md` (identified as stale snapshot)
+- `docs/testing/MESSAGE_RELIABILITY_TEST_PLAN.md`
+- `docs/testing/MESSAGE_STATE_MACHINE_CONTRACT.md`
+- `docs/testing/OUTBOX_DISPATCH_CONTRACT.md`
+- `docs/testing/ENGINEERING_VALIDATION_LOG.md`
+- `docs/testing/PERSISTENCE_WORKLOAD_BASELINE.md`
+- `tests/reference_model/README.md`
+- `tests/sqlite_adapter/README.md`
 - PR metadata/diffs for #1–#38 as returned by the repository PR listing, with detailed review of #1, #8, #9, #13, #26 and #38.
 
 This is a repository-state audit, not a complete source-code security review or an exhaustive re-review of every historical PR diff.
