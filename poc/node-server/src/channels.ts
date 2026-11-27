@@ -102,7 +102,7 @@ export class ChannelsStore {
     if(channel.visibility==="private" && (!inviteCodeInput || !channel.invite_code_hash ||
        digest(inviteCodeInput)!==channel.invite_code_hash)) throw new ChannelError("not_found");
     await this.pool.query(
-      "INSERT INTO conversation_members(conversation_id,account_id,role) VALUES($1,$2,'subscriber') ON CONFLICT(conversation_id,account_id) DO NOTHING",
+      "INSERT INTO conversation_members(conversation_id,account_id,role) VALUES($1,$2,'subscriber') ON CONFLICT(conversation_id,account_id) DO UPDATE SET role=CASE WHEN conversation_members.role='member' THEN 'subscriber' ELSE conversation_members.role END",
       [channel.conversation_id,accountId]
     );
     const membership=await this.pool.query<{role:string}>(
