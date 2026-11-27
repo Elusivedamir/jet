@@ -31,7 +31,15 @@ CREATE TABLE IF NOT EXISTS conversation_members (
 ALTER TABLE conversation_members ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner','admin','member','subscriber'));
 CREATE TABLE IF NOT EXISTS channel_metadata (
   conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
-  slug TEXT NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9_]{3,32}
+  slug TEXT NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9_]{3,32}$'),
+  visibility TEXT NOT NULL CHECK (visibility IN ('public','private')),
+  description TEXT NOT NULL DEFAULT '' CHECK (char_length(description) <= 300),
+  invite_code_hash TEXT UNIQUE,
+  CHECK ((visibility='public' AND invite_code_hash IS NULL) OR (visibility='private' AND invite_code_hash IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS channel_metadata_public_search_idx
+  ON channel_metadata(slug) WHERE visibility='public';
+CREATE TABLE IF NOT EXISTS conversation_counters (
   conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
   last_position BIGINT NOT NULL DEFAULT 0 CHECK (last_position >= 0)
 );
