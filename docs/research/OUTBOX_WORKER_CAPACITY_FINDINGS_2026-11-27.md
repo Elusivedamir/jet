@@ -67,3 +67,37 @@ The comparison branch now has configurable, bounded outbox dispatch in all three
 - CI uses a normalized PostgreSQL client pool maximum of 40 for each candidate.
 - Each worker-concurrency matrix cell (1, 4, 8, 16) runs the shared crash/contract harness, three sequential 30-second producer-soak repetitions, and a queue-drain window up to 60 seconds with 5-second samples.
 - The 12-cell matrix is pending. No new performance claim is made until every relevant run and artifact has been inspected. The three crash-recovery cases remain mandatory at each setting.
+
+
+## First full matrix — pre-fix diagnostic, not final comparison
+
+Run head: `a890811e6b26b597f3d4e556d98d667b05df6cea`  
+Runs: Node [46040365281](https://github.com/Elusivedamir/jet/actions/runs/46040365281), Go [46040365209](https://github.com/Elusivedamir/jet/actions/runs/46040365209), Kotlin [46040365411](https://github.com/Elusivedamir/jet/actions/runs/46040365411).
+
+All 12 concurrency cells passed the three crash-recovery cases, including the lost-acceptance-response scenario. All producer-soak repetitions had zero HTTP request errors. Kotlin's functional and crash tests passed at all four settings; its workflow failed only the conservative dependency-license gate, as expected from the three review-required artifacts. Node and Go workflows passed their complete candidate gates.
+
+The measured median producer-acceptance rates and 60-second queue-drain rates were:
+
+| Candidate | Workers | Median producer writes/s | Drain deliveries/s | Peak RSS MiB | CPU seconds | Pending after drain | Terminal failures |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Go | 1 | 640 | 79.9 | 19.3 | 61.6 | 47,751 | 0 |
+| Go | 4 | 580 | 79.9 | 19.8 | 56.3 | 42,367 | 0 |
+| Go | 8 | 624 | 79.9 | 20.6 | 59.0 | 45,664 | 0 |
+| Go | 16 | 692 | 79.9 | 21.9 | 64.6 | 51,516 | 0 |
+| Node | 1 | 443 | 67.3 | 99.5 | 36.1 | 31,092 | 1 |
+| Node | 4 | 1,010 | 76.9 | 97.9 | 55.1 | 80,097 | 1 |
+| Node | 8 | 553 | 75.3 | 102.0 | 60.5 | 39,289 | 1 |
+| Node | 16 | 531 | 75.3 | 97.4 | 59.3 | 37,125 | 1 |
+| Kotlin | 1 | 721 | 73.6 | 389.9 | 71.8 | 53,384 | 0 |
+| Kotlin | 4 | 819 | 76.6 | 267.6 | 73.6 | 61,293 | 0 |
+| Kotlin | 8 | 1,294 | 76.9 | 382.9 | 61.2 | 106,071 | 0 |
+| Kotlin | 16 | 1,428 | 77.3 | 286.2 | 74.7 | 115,644 | 0 |
+
+**Interpretation and limitations**
+- GitHub-hosted runners were separate and noisy: API acceptance rate varied substantially between cells, so these numbers are diagnostic only and must not be used to select a language/runtime winner.
+- Delivery throughput clustered tightly at roughly 67–80 deliveries/s for every candidate and concurrency level. This is not a meaningful response to raising worker concurrency.
+- Code inspection identified a shared structural throttle: each implementation waited 250ms after every claimed batch, even when the batch contained all 20 rows and the queue was still backlogged. That limits the claim loop to approximately 20 / 0.25 = 80 rows/s, explaining the observed delivery plateau.
+- The worker loops have now been changed so a full 20-row batch is followed by an immediate next claim; the 250ms delay applies only after an empty/partial batch or a transient DB error. Bounded dispatch concurrency, batch size, lease duration and DB pool size are unchanged.
+- The complete matrix above is **superseded** for final stack selection. A corrected-head matrix must be run and all artifacts inspected.
+- Node emitted one terminal-failure row in each concurrency cell. The cause has not yet been classified; this remains an open investigation, not an accepted baseline.
+- Queue did not drain to zero in any 60-second window. This confirms the worker bottleneck but is not a production SLO or capacity claim.
