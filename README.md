@@ -17,6 +17,7 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Stack candidate screen and PoC gate](docs/research/STACK_CANDIDATE_SCREEN_AND_POC_GATE_2026-11-27.md)
 - [Agent task 05 — comparable server-stack PoC](docs/agent/tasks/AGENT_TASK_05_STACK_POC.md)
 - [Go durable-message core PoC report](docs/research/GO_DURABLE_MESSAGE_POC_REPORT_2026-11-27.md)
+- [Three-stack delivery PoC status and preliminary benchmark](docs/research/POLYGLOT_MESSAGE_POC_STATUS_2026-11-27.md)
 - [Agent task 01 — message reliability](docs/agent/tasks/AGENT_TASK_01_MESSAGE_RELIABILITY.md)
 - [Agent task 02 — CRM and campaigns](docs/agent/tasks/AGENT_TASK_02_CRM_CAMPAIGNS.md)
 - [Agent task 03 — security, licenses and operations](docs/agent/tasks/AGENT_TASK_03_SECURITY_LICENSES_OPERATIONS.md)
@@ -31,7 +32,7 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 
 ## Current status
 
-**Requirements and discovery.** The owner's full business-plan text has been structured into staged requirements and user journeys. Repository landscape research continues; no backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. Detailed UI remains iterative.
+**Requirements and discovery.** The owner's full business-plan text has been structured into staged requirements and user journeys. Repository landscape research continues. Isolated Go, Node.js/TypeScript and Kotlin/Spring message-core prototypes now pass the same PostgreSQL-backed delivery/reconnect contract and preliminary CI latency probe. These are comparison experiments only: no backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. Detailed UI remains iterative.
 
 Research up to 1,000 relevant public repositories in transparent tiers. No repository is adopted wholesale. Existing projects are learning sources only; choices require evidence and comparison against the business plan.
 
