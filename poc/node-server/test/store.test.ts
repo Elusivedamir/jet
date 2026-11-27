@@ -57,3 +57,15 @@ test("expired outbox lease is reclaimed and stale worker is fenced",async()=>{
  assert.equal(inboxCount.rows[0]!.n,0);
  await store.dispatch(second[0]);
 });
+
+
+test("expired lease cannot dispatch or retry before another worker reclaims",async()=>{
+ const sent=await store.send("alice","room-a","lease-expired","expired");
+ const [item]=await store.claim(1,1000);
+ assert.ok(item);
+ await pool.query("UPDATE delivery_outbox SET lease_until=now()-interval '1 second' WHERE id=$1",[item.id]);
+ await assert.rejects(()=>store.dispatch(item),/lease lost/);
+ await assert.rejects(()=>store.retry(item,new Error("late failure")),/lease lost/);
+ const inbox=await pool.query("SELECT count(*)::int AS n FROM recipient_inbox WHERE message_id=$1",[sent.message_id]);
+ assert.equal(inbox.rows[0]!.n,0);
+});
