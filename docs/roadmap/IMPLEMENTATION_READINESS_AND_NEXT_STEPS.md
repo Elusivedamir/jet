@@ -26,8 +26,8 @@ Move from research-only persistence experiments to a defensible architecture dec
 ## Workstream 1 — close persistence evidence gaps
 
 **Deliverables**
-- Run reproducible sender/dispatcher concurrency at 1, 4 and 16 workers for SQLite, PostgreSQL fresh-connection and PostgreSQL pooled variants.
-- Use identical logical workloads, dataset sizes and correctness assertions.
+- Extend the existing 1/4/16-worker smoke benchmark (40 messages per scenario) into repeated, larger controlled runs for SQLite, PostgreSQL fresh-connection and PostgreSQL pooled variants.
+- Preserve the existing hot-conversation and four-independent-conversation scenarios; use identical logical workloads, dataset sizes and correctness assertions.
 - Record throughput, p50/p95/p99 latency, CPU, memory, DB connections, pool wait, lock wait, retries and error rate.
 - Include contention across one hot conversation and many independent conversations.
 - Test lease expiry, stale-worker fencing, process termination and recovery under concurrent load.
@@ -126,7 +126,7 @@ Do not implement external email/SMS channels or developer API ahead of the appro
 |---:|---|---|---|
 | 1 | Record verified #38 PostgreSQL CI and rerun current test baseline | #38's 33-test PostgreSQL job is now confirmed; branch-tip suites still need a fresh run | Evidence update in validation log |
 | 2 | Refresh repository/branch/PR inventory | Current inventory is stale | Updated inventory |
-| 3 | Run 1/4/16-worker persistence tests | Closes major database/outbox evidence gap | Benchmark report + raw artifacts |
+| 3 | Expand existing 1/4/16-worker persistence smoke into repeated larger trials with instrumentation | Initial correctness smoke already passes; tail latency and 16-worker contention need investigation | Benchmark report + raw artifacts |
 | 4 | Complete migration/restore and failure testing | Operational readiness gap | Migration/restore report |
 | 5 | Complete architecture comparison and ADR | Stops endless unstructured research | Owner-reviewable decision |
 | 6 | Build first real two-client message slice | Turns research into product | Running end-to-end core |
