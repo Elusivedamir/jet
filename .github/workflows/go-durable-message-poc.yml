@@ -44,7 +44,8 @@ jobs:
         run: go mod tidy
       - name: Format check
         run: |
-          test -z "$(gofmt -l *.go)"
+          files="$(gofmt -l *.go)"
+          if [ -n "$files" ]; then printf "%s\\n" "$files"; exit 1; fi
       - name: Static analysis
         run: go vet ./...
       - name: PostgreSQL integration and race tests
