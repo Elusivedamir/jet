@@ -80,9 +80,12 @@ class MessageService:
             previous = self.store.idempotency.get(key)
             if previous:
                 old_payload, old_id = previous
+                old_message = self.store.messages[old_id]
                 if old_payload != payload:
                     raise IdempotencyConflict("operation key reused with different payload")
-                return self.store.messages[old_id]
+                if old_message.conversation_id != conversation_id:
+                    raise IdempotencyConflict("operation key reused in a different conversation")
+                return old_message
             if fail_before_commit:
                 raise Rejected("simulated durable transaction failure")
 
