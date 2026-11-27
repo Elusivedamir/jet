@@ -170,6 +170,13 @@ const server=createServer(async(req,res)=>{
       const conversation_id=await contacts.directConversation(user,requiredString(input,"username",24));
       json(res,200,{conversation_id});return;
     }
+    const messageSearch=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/search$/);
+    if(req.method==="GET" && messageSearch) {
+      const query=url.searchParams.get("q")??"";
+      const limit=Number(url.searchParams.get("limit")??20);
+      if(!Number.isSafeInteger(limit)||limit<1||limit>50) throw new InvalidRequestError();
+      json(res,200,await store.searchMessages(user,decodeURIComponent(messageSearch[1]!),query,limit));return;
+    }
     const match=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/messages$/);
     if(req.method==="POST" && match) {
       const input=await body(req);
