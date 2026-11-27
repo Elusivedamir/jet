@@ -37,7 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("read embedded schema: %v", err)
 	}
-	if _, err := pool.Exec(ctx, string(schema)); err != nil {
+	if err := applySchema(ctx, pool, string(schema)); err != nil {
 		log.Fatalf("apply PoC schema: %v", err)
 	}
 
