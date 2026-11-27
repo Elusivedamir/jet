@@ -1,6 +1,6 @@
 # Node.js / TypeScript durable-message PoC
 
-**Status:** isolated research prototype; not production code and not a production-stack selection.
+**Status:** isolated research PoC for the owner-approved Node.js + TypeScript backend direction; not production code or production-ready.
 
 ## Contract
 
@@ -30,4 +30,4 @@ The service applies the PoC schema at startup. Test identity is supplied with X-
 - GET /v1/conversations/{id}/events?after=0 — SSE stream.
 - POST /v1/messages/{id}/ack — recipient acknowledgement.
 
-Exactly one recipient besides the sender is supported. No production auth, migrations, E2EE, abuse controls, load benchmark or release readiness is claimed. Committed npm v3 `package-lock.json`; CI installs with `npm ci` and checks that package manifests remain unchanged. Dependency vulnerability/license review is generated in CI and must still be reviewed.
+Direct and multi-recipient conversation fan-out are supported by this PoC. The current identity header remains trivially spoofable. No production auth, versioned migrations, E2EE, abuse controls, sustained-load evidence or release readiness is claimed. Committed npm v3 `package-lock.json`; CI installs with `npm ci` and checks that package manifests remain unchanged. Dependency vulnerability/license review is generated in CI and must still be reviewed.
