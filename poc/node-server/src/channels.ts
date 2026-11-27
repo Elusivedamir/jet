@@ -7,7 +7,7 @@ export type ChannelSearchResult = {
   visibility:ChannelVisibility; subscribers:number;
 };
 export class ChannelError extends Error {
-  constructor(readonly code:"invalid"|"not_found"|"exists") { super(code); }
+  constructor(readonly code:"invalid"|"not_found"|"exists"|"forbidden") { super(code); }
 }
 const digest = (value:string) => createHash("sha256").update(value).digest("hex");
 
@@ -58,6 +58,32 @@ export class ChannelsStore {
       [q]
     );
     return result.rows;
+  }
+
+  async addAdmin(accountId:string,slugInput:string,usernameInput:string):Promise<void> {
+    const slug=slugInput.trim().toLowerCase();
+    const username=usernameInput.trim().toLowerCase();
+    if(!/^[a-z0-9_]{3,32}$/.test(slug) || !/^[a-z0-9_]{3,24}$/.test(username)) throw new ChannelError("invalid");
+    const channel=await this.pool.query<{conversation_id:string;created_by:string}>(
+      "SELECT d.conversation_id,d.created_by FROM channel_metadata m JOIN conversation_details d ON d.conversation_id=m.conversation_id WHERE m.slug=$1",
+      [slug]
+    );
+    const row=channel.rows[0];
+    if(!row) throw new ChannelError("not_found");
+    if(row.created_by!==accountId) throw new ChannelError("forbidden");
+    const target=await this.pool.query<{id:string}>("SELECT id FROM accounts WHERE username=$1",[username]);
+    if(!target.rowCount) throw new ChannelError("not_found");
+    const membership=await this.pool.query<{role:string}>(
+      "SELECT role FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",
+      [row.conversation_id,target.rows[0]!.id]
+    );
+    if(!membership.rowCount) throw new ChannelError("not_found");
+    if(membership.rows[0]!.role==="owner") throw new ChannelError("forbidden");
+    if(membership.rows[0]!.role==="admin") return;
+    await this.pool.query(
+      "UPDATE conversation_members SET role='admin' WHERE conversation_id=$1 AND account_id=$2",
+      [row.conversation_id,target.rows[0]!.id]
+    );
   }
 
   async join(accountId:string,slugInput:string,inviteCodeInput=""):
