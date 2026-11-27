@@ -178,8 +178,8 @@ test("replies stay within one conversation and preserve idempotent reply metadat
  assert.equal(reply.reply_to_message_id,target.message_id);
  const retry=await store.send("bob","room-a","reply-op","answer",target.message_id);
  assert.equal(retry.message_id,reply.message_id);
- await assert.rejects(()=>store.send("bob","room-a","reply-cross","invalid",
-   (await store.send("alice","room-b","reply-other-room","other conversation")).message_id),InvalidRequestError);
+ const otherRoom=await store.send("alice","room-b","reply-other-room","other conversation");
+ await assert.rejects(()=>store.send("bob","room-a","reply-cross","invalid",otherRoom.message_id),InvalidRequestError);
  await assert.rejects(()=>store.send("bob","room-a","reply-op","different answer",target.message_id),ConflictError);
  const history=await store.history("bob","room-a",0);
  assert.equal(history.find(row=>row.message_id===reply.message_id)?.reply_to_message_id,target.message_id);
