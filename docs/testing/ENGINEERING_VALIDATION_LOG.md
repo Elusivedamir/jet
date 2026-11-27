@@ -313,3 +313,16 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - CodeQL Go PASS: manual `go test ./...` build/test step and CodeQL analysis succeeded. JavaScript/TypeScript PASS. Java/Kotlin PASS after Maven build.
 - The full-repository zizmor check is blocking for future workflow changes; no separate advisory-only baseline job remains.
 - Documentation sync is verified against the exact-head run. No product code or business-plan content changed in this follow-up.
+
+
+## 2026-11-27 — corrected shared crash harness and refreshed three-candidate CI
+
+- Exact candidate source commit: `7a7301310cb6757cfe17046158c6da185138deea`.
+- Found and fixed a Python name-shadowing defect: `def http` shadowed the imported `http.client` package, causing all shared health probes to fail while their exceptions were swallowed. Renamed it to `http_request`, added last-probe diagnostics and added real HTTP regression tests for 204 health responses and JSON request/response.
+- Found and fixed a lost-acceptance test race: the client closed immediately after sending, before the server transaction was known to have committed. The helper now leaves the socket open without reading the response until PostgreSQL confirms the commit, then closes it. Added a regression test for this behavior.
+- Security workflow [run 46036340870](https://github.com/Elusivedamir/jet/actions/runs/46036340870): PASS — Gitleaks, Semgrep (including new harness tests), CodeQL Go/TypeScript/Kotlin, changed-workflow zizmor and blocking full-repository zizmor all passed.
+- Go PoC [run 46036340867](https://github.com/Elusivedamir/jet/actions/runs/46036340867): PASS — PostgreSQL integration/race tests, all three crash cases, contract, 30-second soak, govulncheck, go-licenses and Trivy.
+- Node PoC [run 46036340934](https://github.com/Elusivedamir/jet/actions/runs/46036340934): PASS — clean install, PostgreSQL integration tests, all three crash cases, contract, 30-second soak, npm audit, license inventory and Trivy.
+- Kotlin PoC [run 46036340835](https://github.com/Elusivedamir/jet/actions/runs/46036340835): overall FAIL at conservative license policy gate. PostgreSQL integration tests, all three crash cases, contract, 30-second soak and Trivy passed; three SBOM declarations remain REVIEW_REQUIRED: logback-classic 1.5.18, logback-core 1.5.18, jakarta.annotation-api 2.1.1. No automatic exception was added.
+- The latest 30-second soak revealed a shared delivery bottleneck: Go accepted 1,260.92 writes/s but had 36,488 pending outbox rows; Node 807.32 writes/s / 23,852 pending; Kotlin 816.98 writes/s / 23,480 pending. Oldest open age was 29–30 seconds and p95 completed-delivery latency 27–28 seconds. All workers currently claim 20 rows and dispatch serially. Detailed results and the next matched bounded-concurrency experiment are documented in `docs/research/OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md`.
+- Manual self-review (not independent) of the harness changes: round 1 found the module-shadowing defect and incorrect lost-response timing; round 2 verified the rename, HTTP regression coverage, commit-before-close ordering, exact test workflow inclusion and documentation. No further material findings identified. Score: self-assessed 9/10 for this bounded test-harness task.
