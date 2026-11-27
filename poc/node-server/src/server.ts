@@ -46,6 +46,7 @@ const server=createServer(async(req,res)=>{
       const initial=await store.inbox(user,conversation,0,1);
       void initial;
       let cursor=Number(req.headers["last-event-id"]??url.searchParams.get("after")??0);
+      if(!Number.isSafeInteger(cursor)||cursor<0){json(res,400,{error:"invalid cursor"});return;}
       res.writeHead(200,{"content-type":"text/event-stream","cache-control":"no-cache","connection":"keep-alive","x-accel-buffering":"no"});
       const timer=setInterval(async()=>{
         try {
