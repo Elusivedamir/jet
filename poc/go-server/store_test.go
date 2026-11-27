@@ -146,3 +146,21 @@ func TestConcurrentRetriesCreateOneLogicalMessage(t *testing.T) {
 		t.Fatalf("want one message after concurrent retry, got %d", count)
 	}
 }
+
+func TestHistoryIsConversationMemberScoped(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	if _, err := store.Send(ctx, "alice", "room-a", "history-op", "private"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.History(ctx, "mallory", "room-a", 0, 50); err != ErrNotMember {
+		t.Fatalf("want ErrNotMember for unrelated account, got %v", err)
+	}
+	messages, err := store.History(ctx, "bob", "room-a", 0, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(messages) != 1 || messages[0].Payload != "private" {
+		t.Fatalf("authorized member did not receive expected history: %+v", messages)
+	}
+}
