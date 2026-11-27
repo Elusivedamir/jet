@@ -58,3 +58,13 @@ class MessageStoreTest @Autowired constructor(private val store:MessageStore,pri
         store.dispatch(second)
     }
 }
+
+
+    @Test fun expiredLeaseCannotDispatchOrRetryBeforeReclaim() {
+        val message=store.send("alice","room-a","lease-expired","expired")
+        val item=store.claim(1,1000).single()
+        jdbc.update("UPDATE delivery_outbox SET lease_until=now()-interval '1 second' WHERE id=?",item.id)
+        assertThrows(IllegalStateException::class.java) { store.dispatch(item) }
+        assertThrows(IllegalStateException::class.java) { store.retry(item,RuntimeException("late failure")) }
+        assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM recipient_inbox WHERE message_id=?",Int::class.java,message.message_id))
+    }
