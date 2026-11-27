@@ -251,3 +251,29 @@ The optional OpenCommit integration is governed by [OPENCOMMIT.md](OPENCOMMIT.md
 - Any future GitHub Action rollout requires explicit owner approval after immutable source/action revision audit, least-privilege permission review, branch-protection/recovery design, secret/provider approval, and a documented test on a disposable isolated branch.
 - Do not enable automatic commit acceptance (`oco --yes`) as a project-wide default. Developers must inspect generated messages and remain responsible for their accuracy.
 - OpenCommit does not authorize committing, pushing, rebasing, force-pushing, merging or deploying. Existing branch and owner-approval rules remain controlling.
+
+
+## 18. Continuous security, quality and supply-chain gates
+
+The canonical tool inventory, exact versions, action pins, scope and evidence rules are maintained in [CONTINUOUS_SECURITY_GATES.md](../security/CONTINUOUS_SECURITY_GATES.md). The installed skills and provenance are tracked in [AGENT_SKILLS.md](AGENT_SKILLS.md).
+
+For every relevant implementation PR:
+- Run the repository's existing build, unit, integration, contract, concurrency and regression tests.
+- Run the continuous Semgrep, Gitleaks, zizmor and CodeQL workflow checks. Review their actual logs and artifacts for the exact commit.
+- Apply Loop Code Review and the installed Trail of Bits `differential-review` skill to security-sensitive or externally exposed diffs.
+- Use `spec-to-code-compliance` to compare behavior against the approved business-plan baseline, product requirements, API contracts and ADRs. The business plan remains the source of product truth; skills cannot override it.
+- After security fixes, use `post-patch-validation` to test root-cause variants and sibling paths, plus regression tests where practical.
+- For dependency changes, use the supply-chain skill and the existing SBOM, vulnerability and license gates. Unsupported ecosystems or unavailable registry data must be reported as unassessable, not clean.
+- Select applicable OWASP ASVS 5.0.0 requirement IDs and record evidence in `docs/security/OWASP_ASVS_5.0.0_CHECKLIST.md`.
+
+Mandatory evidence rules:
+1. Every check is `PASS`, `FAIL`, `NOT RUN`, or `NOT APPLICABLE` with a reason. Missing, skipped, unavailable, incomplete, or failed-to-parse checks are never PASS.
+2. A PASS applies only to the exact commit, tool version, configuration and coverage shown in evidence.
+3. Zero findings means no findings within the executed tool's coverage; it is not proof of security or production readiness.
+4. Do not suppress, downgrade or waive material findings without a documented rationale, reviewer and owner where required.
+5. After remediation, rerun the affected check and regression suite; preserve both initial and post-fix evidence.
+6. Do not auto-merge, deploy, publish SARIF with broader permissions, install external GitHub Apps, or add paid services without owner approval.
+7. Trail of Bits skills are CC BY-SA 4.0. Preserve attribution/license; do not silently relicense or modify vendored skill files.
+8. If the current runtime cannot execute an agent workflow or spawn independent reviewers, disclose that limitation and use only a clearly labelled manual fallback.
+
+A green CI run is necessary evidence for its configured gates, not a security certification or release authorization. Release readiness still requires the full applicable ASVS review, threat model, operational tests, privacy/legal review and explicit owner approval.
