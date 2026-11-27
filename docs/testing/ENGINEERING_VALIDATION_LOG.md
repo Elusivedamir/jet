@@ -259,3 +259,11 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - The initial full-repository zizmor scan reported 40 findings (14 ignored; 15 high and 11 medium active). Confirmed examples include workflow-wide write permissions and unpinned actions in `ai-engineer-klinch.yml` and `ai-engineer-manual.yml`, unpinned PostgreSQL 17.12 service images in three PoC workflows, and unpinned actions in `sqlite-adapter-tests.yml`. Details and limitations are in `docs/security/ZIZMOR_BASELINE_AUDIT_2026-11-27.md`.
 - This is existing repository baseline debt, not attributed to the new workflow. The new workflow is being changed to block on the two newly introduced workflow files while retaining a separate non-blocking full-repository baseline report until legacy findings are triaged.
 - CodeQL and Semgrep were still running when the job snapshot was inspected. No result is claimed for them here.
+
+
+## 2026-11-27 — first security-gate findings triage and configuration corrections
+
+- Semgrep's first run found two dynamic `urllib.request.urlopen` call sites in the shared HTTP test harnesses. Both harnesses now validate the base URL as a credential-free HTTP(S) origin and use `http.client` instead of `urlopen`. Added regression tests rejecting file/FTP/JavaScript schemes, credentials, paths, query strings and fragments. Rerun pending.
+- CodeQL Go analysis passed on the first run. Java/Kotlin autobuild failed because the Maven project is nested; JavaScript/TypeScript does not support CodeQL autobuild. Workflow corrected to Go autobuild, JS/TS no-build extraction, and explicit Maven build for Java/Kotlin. Rerun pending.
+- zizmor reported legacy workflow findings across the repository. New PR workflows now run a blocking scan on the two newly added workflow files and a separate advisory full-workflow baseline scan. No legacy findings were silently suppressed.
+- Gitleaks now runs with verbose redacted reporting so the single detected historical leak can be located without printing the secret value. The location remains unknown pending a fresh run.
