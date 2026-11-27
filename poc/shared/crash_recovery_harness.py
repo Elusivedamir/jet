@@ -7,6 +7,7 @@ rollback, waits for lease expiry, restarts the same executable and verifies
 one durable inbox row plus idempotent client retry.
 """
 import argparse
+import http.client
 import json
 import os
 import platform
@@ -16,6 +17,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 
@@ -78,6 +80,26 @@ def stop_server(process, log, hard=False):
             os.killpg(process.pid, signal.SIGKILL)
             process.wait(timeout=5)
     log.close()
+
+
+def post_without_reading_response(base, path, account, payload):
+    """Send a complete HTTP request, then close without reading its response."""
+    parsed = urllib.parse.urlsplit(base)
+    connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+    body = json.dumps(payload).encode()
+    connection.request("POST", path, body=body,
+                       headers={"Content-Type": "application/json", "X-Test-Account": account})
+    connection.close()
+
+
+def wait_for_sql_value(database_url, sql, timeout=20):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        value = psql(database_url, sql)
+        if value:
+            return value
+        time.sleep(0.2)
+    raise TimeoutError(f"database value did not appear: {sql}")
 
 
 def wait_for_sql(database_url, sql, expected, timeout=30):
@@ -344,19 +366,16 @@ def main():
           INSERT INTO conversation_members(conversation_id,account_id)
             VALUES ('{lost_conversation}','alice'),('{lost_conversation}','bob');
         """)
-        status, discarded_response = http(args.base_url, "POST",
+        post_without_reading_response(args.base_url,
             f"/v1/conversations/{lost_conversation}/messages", "alice",
             {"operation_key": lost_operation_key, "payload": lost_payload})
-        if status != 202:
-            raise AssertionError(f"lost-response scenario send did not commit: HTTP {status}, {discarded_response}")
-        # The test client deliberately does not retain or use the response body.
+        committed_message_id = wait_for_sql_value(args.database_url,
+            f"SELECT id FROM messages WHERE sender_id='alice' AND operation_key='{lost_operation_key}'",
+            timeout=20)
+        # The client closes without reading the server's acceptance response.
         stop_server(process, log, hard=True)
         process = None
         log = None
-        committed_message_id = psql(args.database_url,
-            f"SELECT id FROM messages WHERE sender_id='alice' AND operation_key='{lost_operation_key}'")
-        if not committed_message_id:
-            raise AssertionError("acceptance response was discarded but the message transaction was not durable")
         process, log = start_server(command, env, args.log)
         wait_health(args.base_url, process, args.log)
         wait_for_sql(args.database_url,
