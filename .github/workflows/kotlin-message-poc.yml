@@ -52,6 +52,8 @@ jobs:
         run: mvn -B -C verify
       - name: Capture resolved dependency graph
         run: mvn -B -C org.apache.maven.plugins:maven-dependency-plugin:3.8.1:tree -DoutputType=json -DoutputFile=/tmp/kotlin-dependency-tree.json
+      - name: Enforce committed Maven dependency graph
+        run: python3 ../../poc/shared/check_maven_dependency_lock.py --tree /tmp/kotlin-dependency-tree.json --lock dependency-versions.lock
       - name: Install PostgreSQL client
         run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
       - name: Hard crash/restart, shared contract and benchmark
