@@ -37,12 +37,12 @@ jobs:
         with:
           go-version: "1.24.x"
           cache: true
-          cache-dependency-path: poc/go-server/go.mod
-      - name: Resolve module checksums and verify dependency graph
+          cache-dependency-path: |\n            poc/go-server/go.mod\n            poc/go-server/go.sum
+      - name: Verify committed module checksums without mutating files
         run: |
-          go mod tidy
-          go mod verify
           test -s go.sum
+          go mod tidy -diff
+          go mod verify
       - name: Format and static analysis
         run: |
           files="$(gofmt -l *.go)"
