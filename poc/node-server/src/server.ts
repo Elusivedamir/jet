@@ -210,6 +210,26 @@ const server=createServer(async(req,res)=>{
       if(!Number.isSafeInteger(after)||after<0) throw new InvalidRequestError();
       json(res,200,await store.events(user,decodeURIComponent(messageEvents[1]!),after,100));return;
     }
+    const forwardRoute=url.pathname.match(/^\/v1\/messages\/([^/]+)\/forward$/);
+    if(req.method==="POST" && forwardRoute) {
+      const input=await body(req);
+      const target=requiredString(input,"target_conversation_id",128);
+      const operationKey=requiredString(input,"operation_key",200);
+      json(res,202,await store.forward(user,decodeURIComponent(forwardRoute[1]!),target,operationKey));return;
+    }
+    const pins=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/pins$/);
+    if(req.method==="GET" && pins) {
+      json(res,200,await store.pinnedMessages(user,decodeURIComponent(pins[1]!)));return;
+    }
+    if(req.method==="POST" && pins) {
+      const input=await body(req);
+      json(res,200,await store.pinMessage(user,decodeURIComponent(pins[1]!),requiredString(input,"message_id",128)));return;
+    }
+    const unpin=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/pins\/([^/]+)$/);
+    if(req.method==="DELETE" && unpin) {
+      await store.unpinMessage(user,decodeURIComponent(unpin[1]!),decodeURIComponent(unpin[2]!));
+      res.writeHead(204);res.end();return;
+    }
     const messageEdit=url.pathname.match(/^\/v1\/messages\/([^/]+)$/);
     if(req.method==="PATCH" && messageEdit) {
       const input=await body(req);
