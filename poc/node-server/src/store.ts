@@ -134,6 +134,78 @@ export class Store {
     }
   }
 
+  async editMessage(account:string,message:string,payload:string):Promise<Message> {
+    if(!account || !message || !payload || payload.length>32768) throw new InvalidRequestError();
+    const c=await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      const prior=await c.query<Message & {created_at:Date;deleted_at:Date|null}>(
+        "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,created_at,deleted_at FROM messages WHERE id=$1 FOR UPDATE",
+        [message]
+      );
+      if(prior.rowCount!==1) throw new NotMemberError();
+      const row=prior.rows[0]!;
+      if(row.sender_id!==account) throw new ForbiddenError("only the sender can edit a message");
+      if(row.deleted_at || Date.now()-new Date(row.created_at).getTime()>15*60*1000) throw new InvalidRequestError("message edit window expired");
+      if(row.payload===payload) { await c.query("COMMIT"); return row; }
+      await c.query("INSERT INTO message_versions(message_id,editor_id,previous_payload) VALUES($1,$2,$3)",[message,account,row.payload]);
+      const updated=await c.query<Message>(
+        "UPDATE messages SET payload=$2,edited_at=now() WHERE id=$1 RETURNING id AS message_id,conversation_id,sender_id,operation_key,payload,position,edited_at,deleted_at",
+        [message,payload]
+      );
+      await c.query(
+        `INSERT INTO conversation_event_log(conversation_id,recipient_id,message_id,event_type,payload)
+         SELECT $1,account_id,$2,'message.edited',$3::jsonb FROM conversation_members WHERE conversation_id=$1`,
+        [row.conversation_id,message,JSON.stringify(updated.rows[0])]
+      );
+      await c.query("COMMIT");
+      return updated.rows[0]!;
+    } catch(e) { await c.query("ROLLBACK"); throw e; }
+    finally { c.release(); }
+  }
+
+  async deleteMessage(account:string,message:string):Promise<void> {
+    if(!account || !message) throw new InvalidRequestError();
+    const c=await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      const prior=await c.query<Message & {created_at:Date;deleted_at:Date|null}>(
+        "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,created_at,deleted_at FROM messages WHERE id=$1 FOR UPDATE",
+        [message]
+      );
+      if(prior.rowCount!==1) throw new NotMemberError();
+      const row=prior.rows[0]!;
+      if(row.sender_id!==account) throw new ForbiddenError("only the sender can delete a message");
+      if(row.deleted_at || Date.now()-new Date(row.created_at).getTime()>15*60*1000) throw new InvalidRequestError("message delete window expired");
+      await c.query("INSERT INTO message_versions(message_id,editor_id,previous_payload) VALUES($1,$2,$3)",[message,account,row.payload]);
+      const updated=await c.query(
+        "UPDATE messages SET payload='',deleted_at=now(),edited_at=now() WHERE id=$1 RETURNING id AS message_id,conversation_id,sender_id,position,edited_at,deleted_at",
+        [message]
+      );
+      await c.query(
+        `INSERT INTO conversation_event_log(conversation_id,recipient_id,message_id,event_type,payload)
+         SELECT $1,account_id,$2,'message.deleted',$3::jsonb FROM conversation_members WHERE conversation_id=$1`,
+        [row.conversation_id,message,JSON.stringify(updated.rows[0])]
+      );
+      await c.query("DELETE FROM message_reactions WHERE message_id=$1",[message]);
+      await c.query("COMMIT");
+    } catch(e) { await c.query("ROLLBACK"); throw e; }
+    finally { c.release(); }
+  }
+
+  async events(account:string,conversation:string,after:number,limit=100) {
+    if(!account || !conversation || !Number.isSafeInteger(after) || after<0 || limit<1 || limit>200) throw new InvalidRequestError();
+    const member=await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
+    if(member.rowCount!==1) throw new NotMemberError();
+    const result=await this.pool.query(
+      `SELECT id AS event_id,event_type,message_id,payload,created_at
+       FROM conversation_event_log WHERE recipient_id=$1 AND conversation_id=$2 AND id>$3
+       ORDER BY id LIMIT $4`,
+      [account,conversation,after,limit]
+    );
+    return result.rows;
+  }
+
   async addReaction(account:string,message:string,emojiInput:string):Promise<void> {
     const emoji=emojiInput.trim();
     const length=Array.from(emoji).length;
