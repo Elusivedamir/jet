@@ -421,6 +421,30 @@ def main():
           ON CONFLICT DO NOTHING;
         """)
         evidence["performance"] = run_contract_and_sample(args, process)
+        outbox_snapshot = psql(args.database_url, """
+          SELECT json_build_object(
+            'total', count(*),
+            'completed', count(*) FILTER (WHERE state='completed'),
+            'pending', count(*) FILTER (WHERE state='pending'),
+            'processing', count(*) FILTER (WHERE state='processing'),
+            'retry_wait', count(*) FILTER (WHERE state='retry_wait'),
+            'terminal_failure', count(*) FILTER (WHERE state='terminal_failure'),
+            'p95_completed_delivery_ms', COALESCE(
+              percentile_cont(0.95) WITHIN GROUP (
+                ORDER BY EXTRACT(EPOCH FROM (completed_at-created_at))*1000
+              ) FILTER (WHERE state='completed'), 0
+            ),
+            'oldest_open_delivery_age_seconds', COALESCE(
+              CEIL(EXTRACT(EPOCH FROM (
+                clock_timestamp() - MIN(created_at) FILTER (
+                  WHERE state IN ('pending','processing','retry_wait')
+                )
+              ))), 0
+            )
+          )::text
+          FROM delivery_outbox
+        """)
+        evidence["outbox_state_after_soak"] = json.loads(outbox_snapshot)
         with open(args.output, "w", encoding="utf-8") as handle:
             json.dump(evidence, handle, indent=2)
         print(json.dumps(evidence, indent=2))
