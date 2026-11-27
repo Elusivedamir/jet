@@ -52,3 +52,15 @@ Five report-cited raw source files were independently retrieved at their pinned 
 The extended delivery source trace identifies high-priority, unconfirmed failure hypotheses in OpenIM's MQ/batcher/cache/Mongo-publish path and a potential sequence-gap window in Tinode's mapper sequence-update/message-save calls. Exact evidence and required fault-injection tests are in `MESSAGE_DELIVERY_FAILURE_RISK_REGISTER.md`. These are not confirmed upstream defects; the outcomes depend on unverified batcher/MQ offset and adapter transaction semantics.
 
 Before Jetson accepts a message, the initial implementation must prove one atomic durable boundary for message identity, conversation position, sender-scoped idempotency and recoverable outbox intent. Fault tests must include enqueue failure, cache/store failure, downstream publish failure, partial batch processing, process death around source acknowledgement, and sequence-allocation/message-insert failure. The safe design remains a proposal until a real adapter passes those tests.
+
+
+## ADR-012 — Application-server stack shortlist and PoC gate
+
+- **Status:** Proposed research gate; no stack selected.
+- **Decision under consideration:** compare Go, TypeScript/Node.js LTS and Kotlin/Spring Boot through an identical durable direct-message PoC; keep Rust as a reserve candidate.
+- **Evidence:** official language/runtime/framework documentation supports relevant capabilities, but no candidate has passed Jetson's end-to-end reliability, security, operations or owner-maintenance tests. The evidence and limits are in `STACK_CANDIDATE_SCREEN_AND_POC_GATE_2026-11-27.md`.
+- **Alternatives:** select a language from popularity or agent familiarity; adopt a full upstream messenger; choose a framework before the durable message contract is tested. Rejected for now because they do not prove Jetson-specific correctness or reduce integration risk.
+- **Owner question:** none required to run a reversible, isolated PoC; owner approval remains required before a production stack decision or irreversible adoption.
+- **Validation experiment:** identical server contract, PostgreSQL dependency, transport harness, fault-injection matrix, resource measurements, dependency/license scan and timed maintenance task across finalists.
+- **Selection gate:** every candidate must pass P0 correctness and all non-compensable license/security/reproducibility/data-portability gates. Only evidence-backed dimensions receive weighted scores; unknowns remain Unknown.
+- **Reversal cost:** low while PoCs remain isolated and no production data/schema/API is committed; high after clients, persistent schema and production operations depend on a chosen stack.
