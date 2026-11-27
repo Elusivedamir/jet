@@ -2,7 +2,7 @@
 
 ## Decision status
 
-**Provisional v1 recommendation: Go + PostgreSQL**, documented in [ADR-0002](../architecture/ADR-0002-backend-stack-go.md). This supersedes the earlier Node.js proposal in ADR-0001. It is not production-release authorization: the latest fail-closed security/license CI and 30-second soak are still pending.
+**Provisional v1 recommendation: Go + PostgreSQL**, documented in [ADR-0002](../architecture/ADR-0002-backend-stack-go.md). This supersedes the earlier Node.js proposal in ADR-0001. It is not production-release authorization: the latest security workflow and three-case crash/soak runs are complete, but the serial outbox worker creates a severe queue backlog and requires a matched concurrency experiment before final stack selection.
 
 ## Decision criteria and weights
 
@@ -43,7 +43,7 @@ All three candidates passed the shared contract and two hard process-kill scenar
 1. SIGKILL during recipient-inbox dispatch transaction; verify rollback, lease expiry and recovery.
 2. SIGKILL after the outbox claim commits while the worker is blocked before inbox insertion; verify claim recovery and one durable inbox row.
 
-The third scenario—client closes without reading the committed acceptance response, server restarts, then the client retries the same idempotency key—has been added to the shared harness and awaits its first CI result. A further post-dispatch-commit and lost-ack scenario remains open.
+The third scenario—client keeps the socket open without reading the acceptance response until PostgreSQL confirms commit, then closes; server restarts and the client retries the same idempotency key—passed on all three candidates. A further post-dispatch-commit and lost-ack scenario remains open.
 
 ## Dependency and security gates
 
@@ -73,9 +73,18 @@ Use a **Go modular monolith + PostgreSQL** for the backend. Keep PostgreSQL as t
 - Go: patched toolchain and dependency graph are committed; govulncheck clean on the current candidate run; license-check allow-list and Trivy rerun pending after excluding the first-party module.
 - Node: npm audit clean in the previous run; corrected license allow-list and fresh Trivy gate pending.
 - Kotlin: SBOM and vulnerability scan clean; license review gate identifies three components; dependency version lock check newly added.
-- All candidates: three-case crash harness and 30-second soak are awaiting fresh CI evidence on the latest commit.
+- All candidates: three-case crash harness and 30-second soak passed on the latest candidate run; serial worker backlog is a shared open issue.
 - Product velocity, long soak, deployment cost, operational comparison and production security remain open.
 
 ## Decision caveats
 
 This recommendation is evidence-led but provisional. Do not claim production readiness, capacity or SLOs. Revisit ADR-0002 if the soak or matched maintenance-task comparison materially changes the trade-off.
+
+
+## Latest end-to-end delivery signal — 2026-11-27
+
+All candidates completed the three crash scenarios and 30-second producer soak with zero request errors. However, the worker design claims 20 rows and dispatches them serially. Pending outbox after the soak: Go 36,488; Node 23,852; Kotlin 23,480. Oldest open delivery: 29–30 seconds; p95 completed-delivery latency: approximately 27–28 seconds. API acceptance throughput was 1,261/s Go, 807/s Node and 817/s Kotlin. These are not end-to-end delivery rates.
+
+This common architecture bottleneck makes the earlier stack ranking provisional. Before final selection, compare bounded worker concurrency 1/4/8/16 and queue-drain latency on equivalent runner/database configurations. See [OUTBOX_WORKER_CAPACITY_FINDINGS](OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md).
+
+Kotlin's crash-recovery and vulnerability checks passed, but the candidate CI remains blocked by three conservative SBOM license review findings. Human/legal review is required; the policy was not weakened.
