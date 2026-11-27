@@ -124,7 +124,7 @@ Do not implement external email/SMS channels or developer API ahead of the appro
 
 | Order | Task | Why now | Output |
 |---:|---|---|---|
-| 1 | Verify #38 PostgreSQL CI and current test baseline | Avoid treating unrelated CI as proof | Evidence update in validation log |
+| 1 | Record verified #38 PostgreSQL CI and rerun current test baseline | #38's 33-test PostgreSQL job is now confirmed; branch-tip suites still need a fresh run | Evidence update in validation log |
 | 2 | Refresh repository/branch/PR inventory | Current inventory is stale | Updated inventory |
 | 3 | Run 1/4/16-worker persistence tests | Closes major database/outbox evidence gap | Benchmark report + raw artifacts |
 | 4 | Complete migration/restore and failure testing | Operational readiness gap | Migration/restore report |
