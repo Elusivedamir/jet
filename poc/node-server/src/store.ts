@@ -227,7 +227,7 @@ export class Store {
       await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",[ "pins:"+conversation ]);
       const member=await c.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
       if(member.rowCount!==1) throw new NotMemberError();
-      const target=await c.query("SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND deleted_at IS NULL",[message,conversation]);
+      const target=await c.query("SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND deleted_at IS NULL FOR UPDATE",[message,conversation]);
       if(target.rowCount!==1) throw new InvalidRequestError("only active messages in this conversation can be pinned");
       const count=await c.query<{n:number}>("SELECT count(*)::int AS n FROM conversation_pins WHERE conversation_id=$1",[conversation]);
       const exists=await c.query("SELECT 1 FROM conversation_pins WHERE conversation_id=$1 AND message_id=$2",[conversation,message]);
