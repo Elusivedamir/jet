@@ -146,3 +146,11 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - The proposed test uses a disposable PostgreSQL trigger/marker to hold dispatch inside an uncommitted recipient-inbox transaction, verifies the server reached that point, kills the actual application process, restarts against the same database, and asserts lease-based recovery plus exactly-one durable inbox delivery.
 - This is a test specification only. No process-kill harness or CI workflow changes have been committed; no crash/restart test is claimed as passing.
 - Existing three-stack CI results remain the prior baseline only. Production-stack decision remains Open.
+
+
+## 2026-11-27 — parallel engineering workstream setup
+
+- Added `docs/agent/PARALLEL_ENGINEERING_WORKSTREAMS_2026-11-27.md` to coordinate independent work across crash recovery, the three candidate stacks, supply-chain, performance and product/security architecture.
+- Confirmed PR #44 remains open Draft and unmerged. Latest head `cf503ae61849b6c751d055d46a72b896ab381dba` is documentation-only; no CI status checks are reported for that head because existing workflows are path-filtered to code/workflow changes.
+- Existing passing implementation checks remain attached to `f86d25e755b17fcc7509b90288ae5c55f05f14e0`; they are not represented as a new run on the current docs head.
+- No direct Copilot/Codex agent launch/assignment capability is exposed in the connected toolset; this limitation is recorded rather than claiming nonexistent agents. Separate CI candidate workflows are the available parallel execution mechanism.
