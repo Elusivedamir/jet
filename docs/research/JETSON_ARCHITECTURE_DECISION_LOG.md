@@ -45,3 +45,10 @@ A related source-document discrepancy remains open: the canonical business-plan 
 ### ADR-011 — Partial source-path verification update (2026-11-27)
 
 Five report-cited raw source files were independently retrieved at their pinned upstream revisions (Tinode, Synapse, OpenIM, ejabberd and Listmonk). See `INDEPENDENT_SOURCE_CHECK_2026-11-27.md` for exact paths, observed behavior and limits. This improves confidence in those five narrow source observations only. The source manifest and shallow snapshot directory are still absent from both Jet research branches; remaining citations, complete dependency trees, nested licenses/assets, current advisories and legal reuse clearance are not verified. **ADR-011 remains Blocked.** No upstream code reuse is approved.
+
+
+### ADR-004/005 — Upstream failure-path validation update (2026-11-27)
+
+The extended delivery source trace identifies high-priority, unconfirmed failure hypotheses in OpenIM's MQ/batcher/cache/Mongo-publish path and a potential sequence-gap window in Tinode's mapper sequence-update/message-save calls. Exact evidence and required fault-injection tests are in `MESSAGE_DELIVERY_FAILURE_RISK_REGISTER.md`. These are not confirmed upstream defects; the outcomes depend on unverified batcher/MQ offset and adapter transaction semantics.
+
+Before Jetson accepts a message, the initial implementation must prove one atomic durable boundary for message identity, conversation position, sender-scoped idempotency and recoverable outbox intent. Fault tests must include enqueue failure, cache/store failure, downstream publish failure, partial batch processing, process death around source acknowledgement, and sequence-allocation/message-insert failure. The safe design remains a proposal until a real adapter passes those tests.
