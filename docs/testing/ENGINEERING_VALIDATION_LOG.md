@@ -154,3 +154,11 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - Confirmed PR #44 remains open Draft and unmerged. Latest head `cf503ae61849b6c751d055d46a72b896ab381dba` is documentation-only; no CI status checks are reported for that head because existing workflows are path-filtered to code/workflow changes.
 - Existing passing implementation checks remain attached to `f86d25e755b17fcc7509b90288ae5c55f05f14e0`; they are not represented as a new run on the current docs head.
 - No direct Copilot/Codex agent launch/assignment capability is exposed in the connected toolset; this limitation is recorded rather than claiming nonexistent agents. Separate CI candidate workflows are the available parallel execution mechanism.
+
+
+## 2026-11-27 — dependency reproducibility manifest audit
+
+- Added `docs/research/DEPENDENCY_REPRODUCIBILITY_AUDIT_2026-11-27.md` after inspecting committed Go, Node and Maven dependency manifests and current CI install commands.
+- Go: `go.sum` absent; workflow resolves with `go mod tidy` in CI. Node: `package-lock.json` absent; workflow uses `npm install`. Kotlin: Maven parent and Kotlin/plugin versions are declared, but full transitive lock/checksum enforcement is not committed.
+- Result: reproducibility gate remains OPEN for all candidates. No vulnerability scan, SBOM generation, or license review was performed or claimed in this pass.
+- Required next work: create committed dependency metadata, switch Node CI to `npm ci`, make Go CI non-mutating, choose Maven transitive pinning/checksum strategy, then attach SBOM and security/license reports to exact tested SHAs.
