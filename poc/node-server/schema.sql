@@ -56,3 +56,32 @@ CREATE TABLE IF NOT EXISTS delivery_receipts (
 CREATE INDEX IF NOT EXISTS recipient_inbox_cursor_idx ON recipient_inbox(recipient_id, conversation_id, position);
 CREATE INDEX IF NOT EXISTS delivery_outbox_pending_idx ON delivery_outbox(state, available_at, lease_until, id);
 CREATE INDEX IF NOT EXISTS messages_conversation_position_idx ON messages(conversation_id, position);
+
+CREATE TABLE IF NOT EXISTS contact_requests (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  requester_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  recipient_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','declined')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  responded_at TIMESTAMPTZ,
+  CHECK (requester_id <> recipient_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS contact_requests_pending_pair_idx
+  ON contact_requests(requester_id,recipient_id) WHERE status='pending';
+CREATE INDEX IF NOT EXISTS contact_requests_recipient_idx
+  ON contact_requests(recipient_id,status,created_at DESC);
+CREATE TABLE IF NOT EXISTS contacts (
+  account_low TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  account_high TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_low,account_high),
+  CHECK (account_low < account_high)
+);
+CREATE TABLE IF NOT EXISTS direct_conversations (
+  account_low TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  account_high TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  conversation_id TEXT NOT NULL UNIQUE REFERENCES conversations(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_low,account_high),
+  CHECK (account_low < account_high)
+);
