@@ -15,7 +15,7 @@
 ## What it deliberately does not implement
 
 - Real authentication, password/session management or authorization policy beyond test membership.
-- WebSocket/SSE delivery, outbox worker/lease fencing, device acknowledgement or reconnect client.
+- Real authentication, password/session management, production authorization policy or device-level push.
 - Production migrations, schema versioning, encryption/E2EE, rate limiting, abuse controls, observability or deployment.
 - Group conversations; a send is rejected unless there is exactly one recipient besides the sender.
 
@@ -55,12 +55,12 @@ Test fixtures must create the conversation and membership rows first. The integr
 
 An HTTP 202 is emitted only after the transaction commits message + sequence + outbox rows. If the connection drops after commit but before the response, retrying the same sender/key/payload/conversation returns the original message. Reusing the same sender/key with another payload or conversation conflicts. Different senders have independent key scopes.
 
-The outbox is durable but not yet consumed. This prototype therefore proves persistence and recoverable delivery intent, **not recipient delivery**.
+The worker consumes the durable outbox into a PostgreSQL recipient inbox. This proves durable server-side inbox creation and resumable SSE retrieval, **not device display or push notification delivery**.
 
 
 ## Recipient delivery extension
 
-The worker claims pending/expired items with SKIP LOCKED, assigns an expiring lease and fencing token, and writes a durable recipient_inbox row in the same transaction that marks the outbox item completed. A stale worker whose token was replaced cannot complete the item. Failures are rescheduled with bounded exponential delay; after eight attempts the item enters terminal_failure.
+The worker claims pending/expired items with SKIP LOCKED, assigns an expiring lease and fencing token, and writes a durable recipient_inbox row in the same transaction that marks the outbox item completed. A worker can write only while its fencing token is current and its lease has not expired; an expired or replaced lease cannot complete or reschedule the item. Failures are rescheduled with bounded exponential delay; after eight attempts the item enters terminal_failure.
 
 - GET /v1/conversations/{id}/events?after=0 — polling-backed SSE stream, resumable by cursor (Last-Event-ID is also accepted).
 - POST /v1/messages/{id}/ack — idempotent recipient acknowledgement.
