@@ -59,6 +59,8 @@ Stage 1 is not complete merely because screens exist. Registration, sending, rec
 | CAM-007 | Duplicate suppression | Retry/replay must not unintentionally send duplicate campaign messages. | §5, p.3 |
 | CAM-008 | Abuse controls | Anomalies, complaints and abuse attempts are monitored; legitimate senders have transparent rules. | §5, p.3 |
 | PROFILE-001 | Premium business profile | Business subscriber can use enhanced profile presentation, colors/themes and company card. Exact customization options are OPEN. | §4.2, §8, p.2–4 |
+| AI-001 | Included AI assistant | AI assistant is accessible within Business for writing, customer replies, campaign ideas, result analysis and routine business tasks. | §4.2, p.2–3 |
+| AI-002 | AI cost controls | Usage limits are determined from measured costs and real usage; the AI feature remains included in base Business, not a mandatory separate tariff. | §1, §4.2, p.1–3 |
 
 ### Stage 3 — analytics and AI
 
@@ -70,8 +72,6 @@ Stage 1 is not complete merely because screens exist. Registration, sending, rec
 | KPI-004 | Link transitions | Link clicks are measured where applicable and permitted. | §4.2, p.2–3 |
 | KPI-005 | Conversion | Conversion definition and attribution window are documented before a conversion metric is advertised. | §4.2, p.2–3 |
 | KPI-006 | Trends and reports | Business user can compare campaign performance over time. | §4.2, p.2–3 |
-| AI-001 | Included AI assistant | AI assistant is accessible within Business for writing, customer replies, campaign ideas, result analysis and routine business tasks. | §4.2, p.2–3 |
-| AI-002 | AI cost controls | Usage limits are determined from measured costs and real usage; the AI feature remains included in base Business, not a mandatory separate tariff. | §1, §4.2, p.1–3 |
 | AI-003 | AI analysis | AI assistant can help interpret campaign results within its disclosed capabilities and data permissions. | §4.2, p.2–3 |
 
 ### Stage 4 — scale and post-launch expansion
@@ -172,8 +172,3 @@ Do not silently fill these gaps:
 ## 8. Change control
 
 Any change to product scope, pricing, trial, free/paid split, campaign consent principles, launch sequence, external channels or developer API timing requires explicit owner approval. Technical proposals may be researched independently but cannot redefine these requirements.
-
-
-## Change log
-
-- **2026-11-27:** Moved AI-001 and AI-002 from Stage 2 to Stage 3 to align the requirements framework with the canonical business-plan rollout in §11 (Stage 3 — analytics and AI) and the Stage 3 AI user journey. The AI feature remains included in the base Jetson Business subscription; this corrects rollout sequencing only and does not remove or add product scope.
