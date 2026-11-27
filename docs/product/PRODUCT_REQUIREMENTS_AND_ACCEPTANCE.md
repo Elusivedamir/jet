@@ -172,3 +172,53 @@ Do not silently fill these gaps:
 ## 8. Change control
 
 Any change to product scope, pricing, trial, free/paid split, campaign consent principles, launch sequence, external channels or developer API timing requires explicit owner approval. Technical proposals may be researched independently but cannot redefine these requirements.
+
+
+## 9. Owner-approved additions — Business Offers, interests and Mutuality (2026-11-27)
+
+The following product directions are owner-approved. Their detailed policy and open questions are in [BUSINESS_OFFERS_INTERESTS_MUTUALITY.md](BUSINESS_OFFERS_INTERESTS_MUTUALITY.md). They supplement the canonical plan; the source PDF is not changed.
+
+### Stage 2 candidate requirements — Business Offers and consent
+
+| ID | Requirement | Acceptance condition | Status |
+|---|---|---|---|
+| OFF-001 | Recipient opt-in | Setting "Разрешить предложения от бизнеса" exists and is OFF by default; promotional offer dispatch is impossible while OFF. | Approved direction |
+| OFF-002 | Separate offers folder | Consented business offers appear in "Предложения", separate from personal chats, with sender/category labels and recipient controls. | Approved direction |
+| OFF-003 | Withdrawal and suppression | Withdrawal takes effect for future dispatch; eligibility is rechecked immediately before send, including after campaign scheduling. | Mandatory safety behavior |
+| OFF-004 | Useful opportunity positioning | Offers may cover employment, education, useful services and practical opportunities; no guaranteed outcome or deceptive claim. | Approved direction |
+| OFF-005 | Message classification | Promotional offers cannot be disguised as service/security notices; service notices remain separately governed. | Mandatory safety behavior |
+
+### Interest selection and privacy-safe matching
+
+| ID | Requirement | Acceptance condition | Status |
+|---|---|---|---|
+| INT-001 | User-selected interests | User can select, remove and reset explicit topic interests. | Approved direction |
+| INT-002 | Personalization controls | User can pause personalized recommendations and control use of interests for Business matching. | Approved direction |
+| INT-003 | Business audience matching | Business can select permitted interest categories and receive privacy-protected audience estimates, not a named-user list or raw interest profiles. | Approved direction |
+| INT-004 | Consent intersection | A user is eligible for interest-based Business Offers only when both Business Offers consent and interest-matching permission are active. | Mandatory safety behavior |
+| INT-005 | Sensitive-trait protection | No sensitive-trait inference, targeting, raw-profile export or small-cohort re-identification. | Mandatory safety behavior |
+| INT-006 | Recommendation transparency | User can understand why an offer was recommended and can hide, report or mark it "not interested". | Approved direction |
+
+### Mutuality
+
+| ID | Requirement | Acceptance condition | Status |
+|---|---|---|---|
+| MUT-001 | Default Base mode | Every account/pair begins under "Базовый" policy. | Approved direction |
+| MUT-002 | Bilateral Maximum | "Максимум" activates only after both specific accounts explicitly accept; one-sided invitation does not change permissions. | Mandatory safety behavior |
+| MUT-003 | Pair-scoped expanded messaging | Maximum removes ordinary pairwise frequency/repeated-contact limits only for that pair while active. | Approved direction |
+| MUT-004 | Revocation | Either party can revoke; future sends revert to Base/default permissions immediately. | Mandatory safety behavior |
+| MUT-005 | Safety precedence | Blocks, reports, security locks, legal restrictions and platform-wide abuse controls override Maximum. | Mandatory safety behavior |
+| MUT-006 | Voluntary participation | Mutuality cannot be silently enabled by an employer or required for wages/essential services. | Mandatory safety behavior |
+| MUT-007 | No campaign bypass | Mutuality is not a substitute for recipient consent to promotional campaigns or Business Offers. | Mandatory safety behavior |
+
+### High-throughput campaign policy
+
+| ID | Requirement | Acceptance condition | Status |
+|---|---|---|---|
+| COM-001 | Consent-based scale | Campaign throughput can scale for eligible, consenting recipients; high rate alone does not classify a campaign as spam. | Approved direction; capacity unverified |
+| COM-002 | Safety enforcement | Business subscription and Mutuality never grant immunity from blocks, reports, fraud, malware, compromised-account or abuse controls. | Mandatory safety behavior |
+| COM-003 | Fair scheduling | Durable queues, backpressure, idempotency and fairness protect personal messaging from campaign overload. | Architecture requirement; implementation OPEN |
+| COM-004 | No unlimited guarantee | "Unlimited", "never blocked" and fixed throughput claims are prohibited until supported by measured evidence and still cannot override safety rules. | Mandatory safety behavior |
+
+**Stage placement:** Offers consent/folder is a Stage 2 planning candidate because it complements Business campaigns. Interest matching and Mutuality require separate UX, privacy, legal and abuse validation; exact stage placement remains OPEN. This section does not silently move existing AI/KPI requirements between stages.
+
