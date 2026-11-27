@@ -9,6 +9,8 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
@@ -125,6 +127,7 @@ class MessageStore(private val jdbc:JdbcTemplate, manager:PlatformTransactionMan
 }
 
 @Service
+@ConditionalOnProperty(name=["jet.worker.enabled"], havingValue="true", matchIfMissing=true)
 class OutboxScheduler(private val store:MessageStore) {
     @Scheduled(fixedDelay=250)
     fun poll() {
@@ -135,6 +138,7 @@ class OutboxScheduler(private val store:MessageStore) {
 
 @RestController
 class MessageController(private val store:MessageStore) {
+    private val mapper=ObjectMapper()
     @PostMapping("/v1/conversations/{conversation}/messages")
     fun send(@RequestHeader("X-Test-Account") account:String,@PathVariable conversation:String,@RequestBody request:SendRequest):ResponseEntity<Message> =
         ResponseEntity.accepted().body(store.send(account,conversation,request.operation_key,request.payload))
@@ -151,7 +155,7 @@ class MessageController(private val store:MessageStore) {
             while(!Thread.currentThread().isInterrupted) {
                 val messages=store.inbox(account,conversation,cursor)
                 for(message in messages) {
-                    val json="""{"message_id":"${message.message_id}","conversation_id":"${message.conversation_id}","sender_id":"${message.sender_id}","operation_key":"${message.operation_key}","payload":"${message.payload.replace("\\","\\\\").replace("\"","\\\"")}","position":${message.position}}"""
+                    val json=mapper.writeValueAsString(message)
                     output.write("id: ${message.position}\nevent: message\ndata: $json\n\n".toByteArray())
                     output.flush(); cursor=message.position
                 }
