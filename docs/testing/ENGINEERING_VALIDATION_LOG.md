@@ -249,4 +249,4 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Manual self-review only; no independent sub-agent review was available in this environment.
 
 
-- Follow-up completion: added `.github/workflows/scorecard.yml` with a pinned OpenSSF Scorecard action, default-branch/weekly/manual triggers and result publication disabled; added conservative `renovate.json` with automerge disabled. Scorecard execution is not yet verified; Renovate remains inactive pending owner-authorized GitHub App installation.
+- Follow-up completion: added `.github/workflows/scorecard.yml` with a pinned OpenSSF Scorecard action, default-branch/weekly triggers and result publication disabled; added conservative `renovate.json` with automerge disabled. Scorecard execution is not yet verified; Renovate remains inactive pending owner-authorized GitHub App installation.
