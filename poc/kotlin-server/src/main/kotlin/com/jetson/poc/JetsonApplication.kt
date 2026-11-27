@@ -92,7 +92,7 @@ class MessageStore(private val jdbc:JdbcTemplate, manager:PlatformTransactionMan
                 SELECT id,?,conversation_id,position FROM messages WHERE id=?
                 ON CONFLICT(message_id,recipient_id) DO NOTHING""",item.recipientId,item.messageId)
             val count=jdbc.update("""UPDATE delivery_outbox SET state='completed',completed_at=now(),lease_until=NULL,lease_token=NULL
-                WHERE id=? AND state='processing' AND lease_token=?""",item.id,item.leaseToken)
+                WHERE id=? AND state='processing' AND lease_token=? AND lease_until>clock_timestamp()""",item.id,item.leaseToken)
             if(count!=1) error("outbox lease lost")
         }
     }
@@ -101,7 +101,7 @@ class MessageStore(private val jdbc:JdbcTemplate, manager:PlatformTransactionMan
         val terminal=item.attempts>=8
         val delay=if(terminal) 0L else minOf(1L shl item.attempts,256L)*1000
         val count=jdbc.update("""UPDATE delivery_outbox SET state=?,available_at=now()+(? * interval '1 millisecond'),
-            lease_until=NULL,lease_token=NULL,last_error=? WHERE id=? AND state='processing' AND lease_token=?""",
+            lease_until=NULL,lease_token=NULL,last_error=? WHERE id=? AND state='processing' AND lease_token=? AND lease_until>clock_timestamp()""",
             if(terminal)"terminal_failure" else "retry_wait",delay,error.message.orEmpty().take(500),item.id,item.leaseToken)
         if(count!=1) error("outbox lease lost while retrying")
     }
