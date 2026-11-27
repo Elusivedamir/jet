@@ -96,7 +96,7 @@ export class Store {
     const delay = terminal ? 0 : Math.min(2 ** item.attempt_count,256)*1000;
     const result = await this.pool.query(`UPDATE delivery_outbox SET state=$3,
       available_at=now()+($4 * interval '1 millisecond'),lease_until=NULL,lease_token=NULL,last_error=$5
-      WHERE id=$1 AND state='processing' AND lease_token=$2`,
+      WHERE id=$1 AND state='processing' AND lease_token=$2 AND lease_until>clock_timestamp()`,
       [item.id,item.lease_token,terminal?'terminal_failure':'retry_wait',delay,String(cause).slice(0,500)]);
     if (result.rowCount !== 1) throw new Error("outbox lease lost while retrying");
   }
