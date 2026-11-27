@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "poc/node-server/**"
+      - "poc/shared/**"
       - ".github/workflows/node-message-poc.yml"
   workflow_dispatch:
 permissions:
@@ -10,7 +11,7 @@ permissions:
 jobs:
   integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17
@@ -35,31 +36,46 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: npm install --no-audit --no-fund
-      - run: npm test
-
-      - name: Install PostgreSQL client and seed black-box fixtures
+      - name: Bootstrap lockfile and install from it
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y postgresql-client
-          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          TRUNCATE delivery_receipts, recipient_inbox, delivery_outbox, messages, conversation_counters, conversation_members, conversations CASCADE;
-          INSERT INTO conversations(id) VALUES ('room-a'), ('room-b');
-          INSERT INTO conversation_members(conversation_id, account_id) VALUES
-           ('room-a','alice'), ('room-a','bob'), ('room-b','alice'), ('room-b','carol');
-          SQL
-      - name: Start Node server
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          test -s package-lock.json
+          npm ci --no-audit --no-fund
+      - name: Build and PostgreSQL integration tests
+        run: npm test
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Build direct server executable
+        run: npm run build
+      - name: Hard crash/restart, shared contract and benchmark
+        env:
+          PORT: "8081"
         run: |
-          nohup env DATABASE_URL="$TEST_DATABASE_URL" PORT=8081 npm start >/tmp/jet-node.log 2>&1 &
-          echo $! >/tmp/jet-node.pid
-          for i in {1..60}; do
-            if curl -sf http://127.0.0.1:8081/healthz >/dev/null; then exit 0; fi
-            sleep 1
-          done
-          cat /tmp/jet-node.log
-          exit 1
-      - name: Shared HTTP/SSE contract and five-round latency probe
-        run: set -o pipefail; python3 ../../poc/shared/contract_harness.py --base-url http://127.0.0.1:8081 --rounds 5 --per-round 100 | tee /tmp/node-results.json
+          python3 ../../poc/shared/crash_recovery_harness.py \
+            --database-url "$TEST_DATABASE_URL" \
+            --base-url http://127.0.0.1:8081 \
+            --contract-harness ../../poc/shared/contract_harness.py \
+            --output /tmp/node-crash-recovery.json \
+            --log /tmp/jet-node-server.log \
+            --rounds 5 --per-round 100 \
+            --server-command node dist/src/server.js
+      - name: Dependency audit and license inventory
+        run: |
+          npm audit --json > /tmp/node-npm-audit.json || true
+          npx --yes license-checker@25.0.1 --json --out /tmp/node-license-report.json
+          npx --yes @cyclonedx/cyclonedx-npm@1.19.0 --output-file /tmp/node-sbom.json
+      - uses: aquasecurity/setup-trivy@v0.2.3
+      - name: Trivy filesystem vulnerability and license report
+        run: trivy fs --scanners vuln,license --format json --output /tmp/node-trivy-report.json .
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: node-message-poc-results
-          path: /tmp/node-results.json
+          name: node-message-poc-evidence
+          path: |
+            /tmp/node-crash-recovery.json
+            /tmp/jet-node-server.log
+            /tmp/node-npm-audit.json
+            /tmp/node-license-report.json
+            /tmp/node-sbom.json
+            /tmp/node-trivy-report.json
+            poc/node-server/package-lock.json
