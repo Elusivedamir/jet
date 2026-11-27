@@ -1,6 +1,6 @@
 # Agent task 06 — bounded outbox worker concurrency comparison
 
-**Status:** implementation committed to the comparison branch; CI matrix and correctness validation pending. Blocks final backend stack selection.  
+**Status:** first matrix completed and exposed a shared 250ms-per-batch throttle; all three worker loops corrected to immediately claim the next full batch. Corrected-head CI matrix pending. Blocks final backend stack selection.  
 **Priority:** high.  
 **Scope:** comparative PoC only; no production-readiness claim.
 
@@ -69,3 +69,10 @@ Run a matched experiment on Go, Node.js/TypeScript and Kotlin/Spring to determin
 ## Acceptance
 
 The task is complete only when correctness/recovery tests pass for each candidate and the report shows the measured throughput/backlog/latency trade-off. Do not choose a final backend solely by accepted HTTP writes/s. If no configuration drains the queue within the 60-second window, record the remaining backlog and design the next experiment; do not relax the acceptance criteria to manufacture a pass.
+
+
+## First matrix finding and corrective change
+
+The first 12-cell matrix completed its crash-recovery and producer tests. Delivery throughput remained about 67–80 rows/s across all concurrency settings because each implementation waited 250ms after every batch, even when all 20 claimed rows were processed and backlog remained. This imposed an approximately 80 rows/s claim-loop ceiling.
+
+Corrected in Go, Node and Kotlin: after a full 20-row batch, claim again immediately; use the 250ms poll interval only after an empty/partial batch or a transient DB error. Concurrency bound, claim size, lease and DB pool remain unchanged. The first matrix is diagnostic only and is superseded for stack selection. A fresh exact-head 12-cell matrix is required.
