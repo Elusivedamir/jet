@@ -9,6 +9,8 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Product requirements and acceptance framework](docs/product/PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md) — staged requirements and release gates.
 - [User journeys](docs/product/USER_JOURNEYS.md) — personal user, business owner and recipient flows.
 - [Master prompt](docs/governance/MASTER_PROMPT.md)
+- [Installed agent skills and provenance](docs/governance/AGENT_SKILLS.md)
+- [Loop Code Review skill](.agents/skills/loop-code-review/SKILL.md) — iterative independent code-review workflow
 - [Branch strategy](docs/governance/BRANCHING_STRATEGY.md)
 - [Repository and branch inventory](docs/governance/REPOSITORY_INVENTORY.md)
 - [Repository landscape research method and progress](docs/research/REPOSITORY_LANDSCAPE_METHOD.md)
