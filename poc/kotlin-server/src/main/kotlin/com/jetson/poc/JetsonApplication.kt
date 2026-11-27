@@ -139,6 +139,7 @@ class OutboxScheduler(private val store:MessageStore) {
 @RestController
 class MessageController(private val store:MessageStore) {
     private val mapper=ObjectMapper()
+    @GetMapping("/healthz") fun health():ResponseEntity<Void> = ResponseEntity.noContent().build()
     @PostMapping("/v1/conversations/{conversation}/messages")
     fun send(@RequestHeader("X-Test-Account") account:String,@PathVariable conversation:String,@RequestBody request:SendRequest):ResponseEntity<Message> =
         ResponseEntity.accepted().body(store.send(account,conversation,request.operation_key,request.payload))
