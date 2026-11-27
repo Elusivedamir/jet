@@ -372,3 +372,18 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - The crash harness still measures queue state after the three producer periods and samples drain every 5 seconds for up to 60 seconds.
 - Previous matrix runs are superseded by this methodology correction and will not be used as evidence. Corrected-head CI is required.
 - Manual self-review (not independent), round 2: identified and removed the false-failure path caused by repeated SSE assertions behind a deliberately accumulated queue. No production protocol or lease semantics changed.
+
+
+## 2026-11-27 — first full outbox concurrency matrix and batch-throttle fix
+
+- Completed all 12 matrix cells at head `a890811e6b26b597f3d4e556d98d667b05df6cea`:
+  - Node run [#46040365281](https://github.com/Elusivedamir/jet/actions/runs/46040365281): all four concurrency cells passed.
+  - Go run [#46040365209](https://github.com/Elusivedamir/jet/actions/runs/46040365209): all four concurrency cells passed.
+  - Kotlin run [#46040365411](https://github.com/Elusivedamir/jet/actions/runs/46040365411): all four crash/contract/soak cells passed; overall candidate workflow failed only at conservative dependency-license policy, with previously identified EPL/LGPL/GPL-with-classpath-exception review-required components.
+- All 12 cells passed all three hard crash/restart cases; producer requests had zero HTTP errors.
+- Measured queue drain stayed at 67–80 deliveries/s across all concurrency settings. Code inspection traced this to a shared 250ms delay after every 20-row batch. That throttled claim rate to roughly 80/s regardless of dispatch concurrency.
+- Corrected Go, Node and Kotlin workers: full 20-row batches now trigger an immediate next claim; 250ms is the idle poll interval after an empty/partial batch or DB error. Bounded dispatch concurrency, batch size 20, lease 15s and pool maximum 40 are unchanged.
+- The initial 12-cell performance table is recorded in `docs/research/OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md`, but is diagnostic only and superseded for stack selection due the identified throttle and hosted-runner variability.
+- Open observation: Node had one terminal-failure row in every concurrency cell. Root cause not yet classified; investigate before final acceptance.
+- Corrected-head security and 12-cell worker matrix are required. No merge yet. User has explicitly authorized merging, but the PR is still a draft, its base is the separate PoC branch (not main), and the corrected code has not passed CI. Authorization does not waive these checks.
+- Manual self-review (not independent), round 3: found the batch cadence ceiling, corrected all three implementations, and documented the prior matrix as superseded. Reviewer round remains open pending corrected-head CI, Node terminal-failure classification and full diff review.
