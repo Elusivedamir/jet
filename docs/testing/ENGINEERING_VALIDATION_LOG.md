@@ -86,3 +86,10 @@ Five pinned raw files were retrieved and inspected directly: Tinode `server/topi
 ## 2026-11-27 — Critical-path source trace and risk register
 
 Independently retrieved three exact upstream Git blobs cited by the existing message-delivery deep dive: OpenIM consumer handler `8af585ce33b1ca9661bfda1abd00e5277d46e944`, OpenIM message-transfer controller `8a8d9e7d26cf51a117826e7728b9f92ff5d3861f`, and Tinode storage mapper `0a06b29288f92cd203b13d7573bf835a3e6cdda0`. Source observations include OpenIM MQ Mark/Commit callback, non-propagated enqueue/processing errors, sequence allocation before cache write, separate Mongo/push MQ methods, and Tinode's separate sequence-update/message-save adapter calls. These are high-priority failure hypotheses only; no actual upstream message loss or vulnerability is asserted. Exact evidence and required fault tests are in `docs/research/MESSAGE_DELIVERY_FAILURE_RISK_REGISTER.md`.
+
+
+## 2026-11-27 — Product-stage consistency correction
+
+- Cross-checked the canonical business-plan baseline, product requirements and user journeys.
+- Found AI-001/AI-002 listed under Stage 2 in the derivative requirements table, while the canonical business plan §11 and AI user journey place AI rollout in Stage 3.
+- Moved AI-001/AI-002 to Stage 3. AI remains included in the base Jetson Business subscription; this is a sequencing correction only. The canonical business plan was not edited and no product scope was added or removed.
