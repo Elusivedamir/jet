@@ -142,6 +142,25 @@ PR #26 head SHA `c5eaab55a8e4fe38bd48ea270133fa8beb99fc04` is covered by [run #4
 
 The commit-status endpoint returned no status objects for these SHAs, so this audit relies on the explicit workflow-run, job and log evidence above rather than the combined-status API.
 
+
+### 4.5 Existing concurrent persistence smoke evidence
+
+The PostgreSQL job in run [#45349515731](https://github.com/Elusivedamir/jet/actions/runs/45349515731) also ran the existing concurrent persistence smoke benchmark and uploaded [artifact #14900045788](https://github.com/Elusivedamir/jet/actions/runs/45349515731/artifacts/14900045788). It exercises 1, 4 and 16 workers, both one hot conversation and four independent conversations, across SQLite, PostgreSQL fresh connections and PostgreSQL pool 1–4. Each scenario accepts 40 messages and verifies 80 recipient outbox items; all scenarios reported all items dispatched and unique claims.
+
+Selected observations (ops/s; p95 in ms):
+
+| Adapter / scenario | Workers | Accept ops/s (p95) | Claim+ack ops/s (p95) |
+|---|---:|---:|---:|
+| SQLite, one conversation | 1 | 655.27 (1.552) | 364.16 (3.599) |
+| SQLite, one conversation | 16 | 169.98 (131.110) | 125.79 (10.933) |
+| PostgreSQL fresh, one conversation | 1 | 92.64 (11.475) | 51.28 (20.607) |
+| PostgreSQL fresh, one conversation | 16 | 145.82 (179.498) | 14.71 (272.555) |
+| PostgreSQL pool 1–4, four conversations | 4 | 677.44 (6.665) | 539.78 (9.347) |
+| PostgreSQL pool 1–4, four conversations | 16 | 657.92 (24.948) | 364.42 (27.950) |
+| PostgreSQL pool 1–4, one conversation | 16 | 380.33 (43.574) | 73.64 (56.066) |
+
+This closes the gap that no concurrent smoke test existed. It does **not** close the full load/scale evidence gap: only 40 messages per scenario, one CI runner, short duration, no CPU/memory/lock-wait/pool-wait instrumentation, no repeated statistical trials, and no transport/device traffic. The 16-worker hot-room tail latency and unpooled PostgreSQL outbox throughput are warning signals to investigate, not production capacity conclusions.
+
 ## 5. Material gaps before architecture selection
 
 1. **Current reproducibility:** rerun the documented suites on the current project branch tip and record exact commit SHA, workflow run, test counts and artifacts.
