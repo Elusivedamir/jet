@@ -289,3 +289,16 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - zizmor changed-workflow gate PASS; full-repository zizmor PASS, no findings to report (15 default-ignored rules).
 - CodeQL Go PASS: 6/7 Go files extracted (all six non-test Go source files; test file `store_test.go` not in the extracted set). JavaScript/TypeScript PASS: 3/3 TypeScript files. Java/Kotlin PASS: 2/2 Kotlin files. Results are static-analysis coverage, not a certification.
 - Manual self-review (not independent) of the changed workflows found and fixed the missing KLINCH `GH_TOKEN` environment. Full review remains open until the latest follow-up commit is revalidated by CI.
+
+
+## 2026-11-27 — blocking zizmor and expanded Go CodeQL coverage
+
+- Changed the full-repository zizmor job from advisory to blocking after the clean eight-workflow baseline was established. No `continue-on-error` remains on this audit.
+- Changed CodeQL Go build mode from autobuild to manual and added a pinned setup-go v5 action plus `go test ./...` before analysis. The compile/test step passed and included the Go test package; integration tests that require PostgreSQL skip when the CI job does not supply `TEST_DATABASE_URL`.
+- Exact-head security workflow run [#46034534649](https://github.com/Elusivedamir/jet/actions/runs/46034534649), commit `197f5a1c6270d2e41277077c36d3036a8525a73e`, run 76: overall SUCCESS.
+- Gitleaks PASS: 837 commits scanned, approximately 2.56 MB, no leaks.
+- Semgrep PASS: 131 rules across 100 files, zero findings; harness URL-validation tests passed.
+- zizmor changed-workflow audit PASS; full-repository blocking zizmor audit PASS across all eight workflows, no findings (15 default-ignored rules).
+- CodeQL Go PASS: manual `go test ./...` compile/test step and CodeQL analysis succeeded. JavaScript/TypeScript PASS and Java/Kotlin PASS; both language jobs uploaded their SARIF results.
+- Manual self-review (not independent), round 1 identified a missing `GH_TOKEN` in the KLINCH workflow's git-push step; corrected before this run. Round 2 re-reviewed the workflow permissions, immutable action pins, checkout credential handling, environment scoping, container digest, CodeQL build modes and documentation. No further material findings identified. Score: self-assessed 9/10 for this bounded workflow-governance task; not an independent reviewer score.
+- This is evidence for the governance/security workflow, not a production security certification. The separate supply-chain collector assets for the Trail of Bits skill are still not vendored and must not be claimed as executed.
