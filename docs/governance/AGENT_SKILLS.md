@@ -26,8 +26,8 @@ This ChatGPT session does not expose sub-agent spawning/orchestration. The requi
 - **Upstream:** https://github.com/trailofbits/skills
 - **Pinned upstream revision:** `149d7b21f4067765b82e67029730b42d228ef4b4`
 - **License:** Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0), preserved at `.agents/skills/trail-of-bits/LICENSE`.
-- **Installation:** exact upstream SKILL.md files copied without modification; Git blob SHAs recorded below.
-- **Scope:** these are agent instructions, not autonomous scanners. Their workflow commands and independent-agent features depend on the target coding-agent runtime. Do not claim that a skill ran unless its required runtime and artifacts are available.
+- **Installation:** exact upstream SKILL.md entrypoint files copied without modification; Git blob SHAs recorded below. The upstream helper scripts, reference directories and agent/workflow definitions were not copied in this pass.
+- **Scope:** this is a versioned set of skill instructions, not a complete upstream plugin bundle or autonomous scanner. Do not invoke referenced helper scripts as if they exist in this repository; use the instructions as review guidance until the required assets and compatible runtime are installed. Independent-agent features depend on the target coding-agent runtime. Do not claim that a skill ran unless its required runtime and artifacts are available.
 
 | Skill | Installed path | Upstream Git blob SHA | Jetson use |
 |---|---|---|---|
