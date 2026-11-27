@@ -1,6 +1,6 @@
 # Node.js / TypeScript durable-message PoC
 
-**Status:** isolated research prototype; not production code and not a production-stack selection.
+**Status:** selected primary backend direction by owner (ADR-0003); this directory remains an isolated research prototype, not production code or a production-ready implementation.
 
 ## Contract
 
