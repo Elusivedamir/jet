@@ -39,6 +39,15 @@ class MessageReliabilityReferenceTests(unittest.TestCase):
             self.service.send("A", "ab", "op-1", "changed")
         self.assertEqual(1, len(self.store.messages))
 
+    def test_same_sender_cannot_reuse_operation_key_in_another_conversation(self):
+        self.service.create_conversation("ac", ("A", "C"))
+        original = self.service.send("A", "ab", "global-op", "same payload")
+        with self.assertRaises(IdempotencyConflict):
+            self.service.send("A", "ac", "global-op", "same payload")
+        self.assertEqual("ab", original.conversation_id)
+        self.assertEqual(1, len(self.store.messages))
+        self.assertEqual(1, self.store.conversations["ac"].next_position)
+
     def test_concurrent_duplicate_requests_create_one_logical_message(self):
         barrier = threading.Barrier(12)
         results, errors = [], []
