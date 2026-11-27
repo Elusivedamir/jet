@@ -29,7 +29,7 @@ Runner: Ubuntu 26.04, Linux 7.0.0-1018-aws, 4 logical CPUs, PostgreSQL 17. Share
 
 Go's median throughput was about 25% higher than Node and 3% higher than Kotlin. Go had the best p95/p99 and used about 4.6× less memory than Node and 14.4× less than Kotlin. Node had the lowest p50. Kotlin was close in throughput but used significantly more memory and CPU.
 
-This is a short microbenchmark, not a capacity/SLO forecast. The shared harness now adds a 30-second concurrent write soak at concurrency 16; the soak result is pending.
+This is a short microbenchmark, not a capacity/SLO forecast. The shared harness now adds a 30-second concurrent write soak at concurrency 16 and records outbox backlog, p95 completed-delivery latency and oldest open-delivery age; results are pending.
 
 ## Dependencies, SBOM and security
 
