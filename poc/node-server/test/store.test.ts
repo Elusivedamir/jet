@@ -161,7 +161,7 @@ test("sender can edit and delete within the edit window; updates are durable for
  assert.equal(updatedEvents.length,1);
  assert.equal(updatedEvents[0]!.event_type,"message.deleted");
  const versions=await pool.query("SELECT previous_payload FROM message_versions WHERE message_id=$1 ORDER BY id",[sent.message_id]);
- assert.deepEqual(versions.rows.map(row=>row.previous_payload),["original","corrected"]);
+ assert.deepEqual(versions.rows,[],"deleted message text must not remain in version history");
 });
 
 test("message edit and delete windows are enforced using database time",async()=>{
