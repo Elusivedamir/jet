@@ -10,6 +10,7 @@ on:
     branches:
       - engineering/message-reference-model
       - research/architecture-synthesis-task
+      - research/repository-landscape
     paths:
       - "tests/reference_model/**"
       - "tests/sqlite_adapter/**"
