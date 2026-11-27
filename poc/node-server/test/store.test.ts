@@ -202,3 +202,37 @@ test("group message creates one durable delivery per other member",async()=>{
  assert.ok(bob.some((message)=>message.message_id===sent.message_id));
  assert.ok(carol.some((message)=>message.message_id===sent.message_id));
 });
+
+
+test("forwarding creates a new sender-owned message and is idempotent",async()=>{
+ const source=await store.send("bob","room-a","forward-source","source text");
+ const forwarded=await store.forward("alice",source.message_id,"room-b","forward-op");
+ assert.equal(forwarded.sender_id,"alice");
+ assert.equal(forwarded.payload,"source text");
+ assert.equal(forwarded.forwarded_from_message_id,source.message_id);
+ const retry=await store.forward("alice",source.message_id,"room-b","forward-op");
+ assert.equal(retry.message_id,forwarded.message_id);
+ await assert.rejects(()=>store.forward("alice",source.message_id,"room-a","forward-op"),ConflictError);
+ const other=await store.send("bob","room-a","forward-other","private to room-a");
+ await assert.rejects(()=>store.forward("carol",other.message_id,"room-b","forward-denied"),NotMemberError);
+ await assert.rejects(()=>store.forward("alice",source.message_id,"room-a","forward-not-member"),NotMemberError);
+ const history=await store.history("carol","room-b",0);
+ assert.equal(history.find(row=>row.message_id===forwarded.message_id)?.forwarded_from_message_id,source.message_id);
+});
+
+test("conversation pins are member-scoped, bounded and cleared on message deletion",async()=>{
+ const message=await store.send("alice","room-a","pin-target","important");
+ const pin=await store.pinMessage("bob","room-a",message.message_id);
+ assert.equal(pin.pinned_by,"bob");
+ await store.pinMessage("alice","room-a",message.message_id);
+ const pins=await store.pinnedMessages("alice","room-a");
+ assert.equal(pins.length,1);
+ assert.equal(pins[0]!.message_id,message.message_id);
+ await assert.rejects(()=>store.pinnedMessages("mallory","room-a"),NotMemberError);
+ await assert.rejects(()=>store.pinMessage("carol","room-a",message.message_id),NotMemberError);
+ const other=await store.send("alice","room-b","pin-other-room","wrong room");
+ await assert.rejects(()=>store.pinMessage("bob","room-a",other.message_id),InvalidRequestError);
+ await store.deleteMessage("alice",message.message_id);
+ assert.equal((await store.pinnedMessages("bob","room-a")).length,0);
+ await store.unpinMessage("bob","room-a",message.message_id);
+});
