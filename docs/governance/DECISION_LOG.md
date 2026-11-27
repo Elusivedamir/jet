@@ -46,6 +46,7 @@ This log separates approved product decisions from technical recommendations and
 | T-011 | OBSERVED | PR #38's independent-process claim test passed in PostgreSQL 16 CI. | Run #45349515731; PostgreSQL job passed 33 tests and log explicitly records `test_independent_processes_cannot_claim_same_item_twice ... ok`. PR remains open; no merge performed. |
 | T-012 | OPEN | Security/license diligence is incomplete. | PR #9 report explicitly says live upstream revisions, full license trees and current advisories were not verified. |
 | T-013 | OBSERVED | PR #26 PostgreSQL adapter experiment passed its PostgreSQL 16 integration workflow. | Run #45335827757; 10 tests, 0 failures. PR remains draft and does not select a production database. |
+| T-014 | OBSERVED | A first concurrent persistence smoke run covers 1/4/16 workers, hot-room and four-room cases across SQLite and both PostgreSQL variants. | Run #45349515731, artifact #14900045788; 40 messages and 80 outbox items per scenario; all integrity checks passed. Short CI smoke only; not a capacity test. |
 
 ## Superseded or non-binding work
 
