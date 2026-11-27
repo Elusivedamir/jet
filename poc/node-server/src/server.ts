@@ -117,7 +117,7 @@ const server=createServer(async(req,res)=>{
         typeof input.visibility==="string" ? input.visibility : "",description);
       json(res,201,channel);return;
     }
-    const joinChannel=url.pathname.match(/^\\/v1\\/channels\\/([^/]+)\\/join$/);
+    const joinChannel=url.pathname.match(/^\/v1\/channels\/([^/]+)\/join$/);
     if(req.method==="POST" && joinChannel) {
       const input=await body(req);
       const inviteCode=input.invite_code===undefined ? "" : typeof input.invite_code==="string" ? input.invite_code : (()=>{throw new InvalidRequestError();})();
@@ -194,7 +194,8 @@ const server=createServer(async(req,res)=>{
       else json(res,401,{error:"invalid credentials"});
     }
     else if(e instanceof ConflictError) json(res,409,{error:"operation key conflict"});
-    else if(e instanceof ForbiddenError) json(res,403,{error:"channel is read-only for subscribers"});\n    else if(e instanceof NotMemberError) json(res,403,{error:"not a conversation member"});
+    else if(e instanceof ForbiddenError) json(res,403,{error:"channel is read-only for subscribers"});
+    else if(e instanceof NotMemberError) json(res,403,{error:"not a conversation member"});
     else if(e instanceof InvalidRequestError || e instanceof URIError) json(res,400,{error:"invalid request"});
     else json(res,500,{error:"internal error"});
   }
