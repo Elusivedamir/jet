@@ -44,7 +44,7 @@ No technical finding in this audit changes product scope, price, roadmap, billin
 
 ## 3. Repository state and pull-request inventory
 
-Snapshot retrieved from GitHub on 2026-11-27. The recent-PR endpoint returned 38 PRs (#1–#38); the table below groups all returned PRs by current status. "Closed, not merged" is not equivalent to accepted work.
+Snapshot retrieved from GitHub on 2026-11-27. The recent-PR endpoint returned 34 records: #1–#9, #13, and #15–#38. PR #14 is documented as merged in the engineering validation log but was absent from that listing response; #10–#12 were not present in the snapshot. The table below groups all returned records and separately notes the documented #14 increment. "Closed, not merged" is not equivalent to accepted work.
 
 ### 3.1 Open PRs
 
