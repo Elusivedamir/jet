@@ -2,23 +2,31 @@ import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import pg from "pg";
 const { Pool } = pg;
 import { Store, ConflictError, NotMemberError, InvalidRequestError } from "./store.js";
+import { AuthStore, AuthError } from "./auth.js";
 
 const pool = new Pool({connectionString:process.env.DATABASE_URL});
 const store = new Store(pool);
+const auth = new AuthStore(pool);
 const schema = await (await import("node:fs/promises")).readFile(new URL("../schema.sql",import.meta.url),"utf8");
 for (const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
 const abort = new AbortController();
 void store.runWorker(abort.signal);
 
-// This identity shim exists solely for isolated PoC contract tests. It is
-// impossible to enable in production, even if an operator sets the flag by mistake.
-function account(req:IncomingMessage):string {
+function bearer(req:IncomingMessage):string {
+  const value=req.headers.authorization;
+  const match=typeof value==="string"?value.match(/^Bearer ([A-Za-z0-9_-]{40,64})$/):null;
+  return match?.[1]??"";
+}
+// Test-only identity shim. It is disabled by default and cannot run in production.
+async function account(req:IncomingMessage):Promise<string> {
+  const token=bearer(req);
+  if(token) return (await auth.authenticate(token))?.id??"";
   if(process.env.NODE_ENV==="production" || process.env.JETSON_ALLOW_TEST_IDENTITY!=="true") return "";
   const value=req.headers["x-test-account"];
   return typeof value==="string"?value.trim():"";
 }
 function json(res:ServerResponse,status:number,value:unknown) {
-  res.writeHead(status,{"content-type":"application/json","cache-control":"no-store"});
+  res.writeHead(status,{"content-type":"application/json","cache-control":"no-store","pragma":"no-cache"});
   res.end(JSON.stringify(value));
 }
 async function body(req:IncomingMessage):Promise<Record<string,unknown>> {
@@ -37,12 +45,39 @@ async function body(req:IncomingMessage):Promise<Record<string,unknown>> {
   if(!parsed || typeof parsed!=="object" || Array.isArray(parsed)) throw new InvalidRequestError();
   return parsed as Record<string,unknown>;
 }
+function requiredString(input:Record<string,unknown>,key:string,max:number):string {
+  const value=input[key];
+  if(typeof value!=="string"||value.length<1||value.length>max)throw new InvalidRequestError();
+  return value;
+}
 const server=createServer(async(req,res)=>{
   try {
-    if(req.method==="GET" && req.url==="/healthz"){res.writeHead(204);res.end();return;}
-    const user=account(req);
-    if(!user){json(res,401,{error:"authentication required"});return;}
     const url=new URL(req.url??"/","http://localhost");
+    if(req.method==="GET" && url.pathname==="/healthz"){res.writeHead(204);res.end();return;}
+
+    if(req.method==="POST" && url.pathname==="/v1/auth/register") {
+      const input=await body(req);
+      const result=await auth.register(requiredString(input,"username",24),requiredString(input,"password",128),requiredString(input,"display_name",48));
+      json(res,201,{account:result.account,access_token:result.token,token_type:"Bearer",expires_at:result.expires_at});return;
+    }
+    if(req.method==="POST" && url.pathname==="/v1/auth/login") {
+      const input=await body(req);
+      const result=await auth.login(requiredString(input,"username",24),requiredString(input,"password",128));
+      json(res,200,{account:result.account,access_token:result.token,token_type:"Bearer",expires_at:result.expires_at});return;
+    }
+
+    const user=await account(req);
+    if(!user){json(res,401,{error:"authentication required"});return;}
+    if(req.method==="GET" && url.pathname==="/v1/me") {
+      const me=await auth.me(user);
+      if(!me){json(res,401,{error:"authentication required"});return;}
+      json(res,200,{account:me});return;
+    }
+    if(req.method==="POST" && url.pathname==="/v1/auth/logout") {
+      const token=bearer(req);
+      if(token)await auth.logout(token);
+      res.writeHead(204,{"cache-control":"no-store"});res.end();return;
+    }
     const match=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/messages$/);
     if(req.method==="POST" && match) {
       const input=await body(req);
@@ -61,10 +96,10 @@ const server=createServer(async(req,res)=>{
     const events=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/events$/);
     if(req.method==="GET" && events) {
       const conversation=decodeURIComponent(events[1]!);
-      const initial=await store.inbox(user,conversation,0,1);
-      void initial;
       let cursor=Number(req.headers["last-event-id"]??url.searchParams.get("after")??0);
-      if(!Number.isSafeInteger(cursor)||cursor<0){json(res,400,{error:"invalid cursor"});return;}
+      if(!Number.isSafeInteger(cursor)||cursor<0)throw new InvalidRequestError();
+      // Verify membership before opening a long-lived stream.
+      await store.inbox(user,conversation,cursor,1);
       res.writeHead(200,{"content-type":"text/event-stream","cache-control":"no-cache","connection":"keep-alive","x-accel-buffering":"no"});
       const timer=setInterval(async()=>{
         try {
@@ -82,7 +117,12 @@ const server=createServer(async(req,res)=>{
     }
     json(res,404,{error:"not found"});
   } catch(e) {
-    if(e instanceof ConflictError) json(res,409,{error:"operation key conflict"});
+    if(e instanceof AuthError) {
+      if(e.code==="exists")json(res,409,{error:"username unavailable"});
+      else if(e.code==="invalid")json(res,400,{error:"invalid registration data"});
+      else json(res,401,{error:"invalid credentials"});
+    }
+    else if(e instanceof ConflictError) json(res,409,{error:"operation key conflict"});
     else if(e instanceof NotMemberError) json(res,403,{error:"not a conversation member"});
     else if(e instanceof InvalidRequestError || e instanceof URIError) json(res,400,{error:"invalid request"});
     else json(res,500,{error:"internal error"});
