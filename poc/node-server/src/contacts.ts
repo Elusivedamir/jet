@@ -125,6 +125,34 @@ export class ContactsStore {
     } finally { c.release(); }
   }
 
+  async decline(accountId: string, requestId: string): Promise<void> {
+    const c = await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      const preview = await c.query<{requester_id:string;recipient_id:string}>(
+        "SELECT requester_id,recipient_id FROM contact_requests WHERE id=$1",
+        [requestId]
+      );
+      const candidate = preview.rows[0];
+      if (!candidate) throw new ContactError("not_found");
+      if (candidate.recipient_id !== accountId) throw new ContactError("not_recipient");
+      const [low, high] = pair(candidate.requester_id, candidate.recipient_id);
+      await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`contact:${low}:${high}`]);
+      const found = await c.query<ContactRequest>(
+        "SELECT id,requester_id,recipient_id,status,created_at,responded_at FROM contact_requests WHERE id=$1 FOR UPDATE",
+        [requestId]
+      );
+      const request = found.rows[0];
+      if (!request || request.status !== "pending") throw new ContactError("not_found");
+      if (request.recipient_id !== accountId) throw new ContactError("not_recipient");
+      await c.query("UPDATE contact_requests SET status='declined',responded_at=now() WHERE id=$1", [requestId]);
+      await c.query("COMMIT");
+    } catch (error) {
+      await c.query("ROLLBACK");
+      throw error;
+    } finally { c.release(); }
+  }
+
   async list(accountId: string): Promise<UserPreview[]> {
     const result = await this.pool.query<UserPreview>(
       `SELECT a.id,a.username,a.display_name FROM contacts c
