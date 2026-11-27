@@ -52,7 +52,7 @@ The service applies the PoC schema at startup. The legacy `X-Test-Account` ident
 - POST /v1/conversations/{id}/pins with `{"message_id":"..."}` — pin an active message in that conversation. Any current member may pin; the PoC caps a conversation at 50 pins and repeated pin requests are idempotent.
 - GET /v1/conversations/{id}/pins — list pinned messages and pin metadata for members.
 - DELETE /v1/conversations/{id}/pins/{message_id} — unpin a message; repeated removal is harmless. Deleting a message also clears its pin.
-- Every edit/delete stores the previous payload in message_versions and appends an event for each current conversation member in the same PostgreSQL transaction. Edit/delete events are not conflated with delivery acknowledgements or new message positions.
+- Edits store prior payload versions in message_versions. Delete-for-everyone purges all stored versions for that message, clears reactions and pins, and appends a tombstone event for each current conversation member in the same PostgreSQL transaction. Edit/delete events are not conflated with delivery acknowledgements or new message positions.
 
 Direct and multi-recipient conversation fan-out are supported by this PoC. Request bodies are JSON-only, size-limited and validated; malformed JSON and invalid cursors return 400. No production rate limiting, versioned migrations, E2EE, sustained-load evidence or release readiness is claimed. Committed npm v3 `package-lock.json`; CI installs with `npm ci` and checks that package manifests remain unchanged. Dependency vulnerability/license review is generated in CI and must still be reviewed.
 
