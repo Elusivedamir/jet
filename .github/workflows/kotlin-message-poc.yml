@@ -65,7 +65,7 @@ jobs:
           cat /tmp/jet-kotlin.log
           exit 1
       - name: Shared HTTP/SSE contract and five-round latency probe
-        run: python3 ../../poc/shared/contract_harness.py --base-url http://127.0.0.1:8082 --rounds 5 --per-round 100 | tee /tmp/kotlin-results.json
+        run: set -o pipefail; python3 ../../poc/shared/contract_harness.py --base-url http://127.0.0.1:8082 --rounds 5 --per-round 100 | tee /tmp/kotlin-results.json
       - uses: actions/upload-artifact@v4
         with:
           name: kotlin-message-poc-results
