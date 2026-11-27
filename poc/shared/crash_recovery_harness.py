@@ -7,7 +7,7 @@ rollback, waits for lease expiry, restarts the same executable and verifies
 one durable inbox row plus idempotent client retry.
 """
 import argparse
-import http.client
+from http.client import HTTPConnection
 import json
 import os
 import platform
@@ -85,7 +85,7 @@ def stop_server(process, log, hard=False):
 def post_without_reading_response(base, path, account, payload):
     """Send a complete HTTP request, then close without reading its response."""
     parsed = urllib.parse.urlsplit(base)
-    connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+    connection = HTTPConnection(parsed.hostname, parsed.port, timeout=5)
     body = json.dumps(payload).encode()
     connection.request("POST", path, body=body,
                        headers={"Content-Type": "application/json", "X-Test-Account": account})
