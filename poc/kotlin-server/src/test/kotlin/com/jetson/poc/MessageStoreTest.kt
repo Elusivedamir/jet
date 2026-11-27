@@ -8,7 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
 import java.util.concurrent.Executors
 
-@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.NONE, properties=["jet.worker.enabled=false"])
 class MessageStoreTest @Autowired constructor(private val store:MessageStore,private val jdbc:JdbcTemplate) {
     @BeforeEach fun reset() {
         jdbc.execute("TRUNCATE delivery_receipts,recipient_inbox,delivery_outbox,messages,conversation_counters,conversation_members,conversations CASCADE")
