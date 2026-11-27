@@ -40,7 +40,7 @@ def sse_event(base, conversation, after, timeout=12, use_last_event_id=False):
     path = f"/v1/conversations/{conversation}/events?after={after}"
     headers = {"X-Test-Account": "bob", "Accept": "text/event-stream"}
     if use_last_event_id:
-        path = f"/v1/conversations/{conversation}/events"
+        path = f"/v1/conversations/{conversation}/events?after=0"
         headers["Last-Event-ID"] = str(after)
     conn.request("GET", path, headers=headers)
     response = conn.getresponse()
