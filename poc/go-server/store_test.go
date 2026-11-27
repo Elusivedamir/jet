@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -279,5 +280,73 @@ func TestExpiredLeaseCannotDispatchBeforeAnotherWorkerReclaims(t *testing.T) {
 	}
 	if inboxCount != 0 {
 		t.Fatalf("expired worker created inbox item: %d", inboxCount)
+	}
+}
+
+
+func TestParallelWorkersNeverClaimSameOutboxRow(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	for i := 0; i < 10; i++ {
+		if _, err := store.Send(ctx, "alice", "room-a", fmt.Sprintf("claim-%d", i), "parallel claim"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const workers = 5
+	var wg sync.WaitGroup
+	claimed := make(chan ClaimedDelivery, 10)
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			items, err := store.ClaimOutbox(ctx, 2, 5*time.Second)
+			if err != nil {
+				errs <- err
+				return
+			}
+			for _, item := range items {
+				claimed <- item
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	close(claimed)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	seen := map[int64]bool{}
+	for item := range claimed {
+		if seen[item.ID] {
+			t.Fatalf("outbox row %d was claimed twice", item.ID)
+		}
+		seen[item.ID] = true
+	}
+	if len(seen) != 10 {
+		t.Fatalf("want 10 uniquely claimed rows, got %d", len(seen))
+	}
+}
+
+func TestOutboxStopsAfterMaximumAttempts(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	if _, err := store.Send(ctx, "alice", "room-a", "terminal-op", "terminal"); err != nil {
+		t.Fatal(err)
+	}
+	items, err := store.ClaimOutbox(ctx, 1, 5*time.Second)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("claim: items=%d err=%v", len(items), err)
+	}
+	items[0].AttemptCount = 8
+	if err := store.RetryOutbox(ctx, items[0], errors.New("injected final failure")); err != nil {
+		t.Fatal(err)
+	}
+	var state string
+	if err := store.pool.QueryRow(ctx, "SELECT state FROM delivery_outbox WHERE id=$1", items[0].ID).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state != "terminal_failure" {
+		t.Fatalf("want terminal_failure after maximum attempts, got %s", state)
 	}
 }
