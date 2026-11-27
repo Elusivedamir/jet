@@ -55,3 +55,15 @@ Kotlin's crash-recovery and contract checks passed, but the workflow remains fai
 - `jakarta.annotation-api 2.1.1`: EPL-2.0 / GPL-2.0-with-classpath-exception.
 
 These entries were not auto-allowed. The Kotlin candidate is not fully supply-chain-cleared until an owner-approved legal decision or a dependency change resolves the gate.
+
+
+## Bounded concurrency implementation — awaiting CI evidence
+
+The comparison branch now has configurable, bounded outbox dispatch in all three PoCs:
+- Go: semaphore-limited goroutines; configuration `OUTBOX_WORKER_CONCURRENCY`.
+- Node.js/TypeScript: bounded async worker loops; configuration `OUTBOX_WORKER_CONCURRENCY`.
+- Kotlin/Spring: fixed-size executor and fixed-delay batch poller; configuration `JET_WORKER_CONCURRENCY`.
+- Valid range is 1..16; default remains 1. Each poll claims at most 20 rows and does not claim another batch until the current batch finishes.
+- CI uses a normalized PostgreSQL client pool maximum of 40 for each candidate.
+- Each worker-concurrency matrix cell (1, 4, 8, 16) runs the shared crash/contract harness, three sequential 30-second producer-soak repetitions, and a queue-drain window up to 60 seconds with 5-second samples.
+- The 12-cell matrix is pending. No new performance claim is made until every relevant run and artifact has been inspected. The three crash-recovery cases remain mandatory at each setting.
