@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 )
 
 func (s *Store) InboxAfter(ctx context.Context, accountID, conversationID string, after int64, limit int) ([]Message, error) {
@@ -83,4 +82,3 @@ func (s *Store) IsAcknowledged(ctx context.Context, accountID, messageID string)
 	return acknowledged, nil
 }
 
-var _ = pgx.ErrNoRows
