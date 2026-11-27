@@ -1,12 +1,5 @@
 name: Kotlin Spring message PoC
 on:
-  push:
-    branches:
-      - "poc/realtime-delivery-and-polyglot-2026-11-27"
-    paths:
-      - "poc/kotlin-server/**"
-      - "poc/shared/**"
-      - ".github/workflows/kotlin-message-poc.yml"
   pull_request:
     paths:
       - "poc/kotlin-server/**"
@@ -66,11 +59,13 @@ jobs:
             --log /tmp/jet-kotlin-server.log \
             --rounds 5 --per-round 100 \
             --server-command java -jar target/kotlin-message-server-0.1.0.jar
+      - name: Generate third-party license inventory
+        run: mvn -B -C org.codehaus.mojo:license-maven-plugin:2.5.0:aggregate-third-party-report -Dlicense.outputDirectory=/tmp/kotlin-licenses
       - name: Generate CycloneDX SBOM
         run: mvn -B -C org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeBom -DoutputFormat=json -DoutputName=kotlin-sbom -DoutputDirectory=/tmp
       - name: Trivy filesystem vulnerability and license report
         run: |
-          docker run --rm -v "$PWD:/workspace" -v /tmp:/reports aquasec/trivy:0.58.2 fs --scanners vuln,license --format json --output /reports/kotlin-trivy-report.json /workspace
+          docker run --rm -v "$PWD:/workspace" -v /tmp:/reports aquasec/trivy:0.58.2 fs --scanners vuln,license --exit-code 1 --severity HIGH,CRITICAL --format json --output /reports/kotlin-trivy-report.json /workspace
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -80,4 +75,5 @@ jobs:
             /tmp/jet-kotlin-server.log
             /tmp/kotlin-dependency-tree.json
             /tmp/kotlin-sbom.json
+            /tmp/kotlin-licenses/**
             /tmp/kotlin-trivy-report.json
