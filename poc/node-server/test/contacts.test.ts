@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import pg from "pg";
 const { Pool } = pg;
 import { ContactsStore, ContactError } from "../src/contacts.js";
+import { Store } from "../src/store.js";
 
 const pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
 const contacts = new ContactsStore(pool);
@@ -51,6 +52,13 @@ test("user search, contact request, acceptance and direct conversation lifecycle
     [accepted.conversation_id]
   );
   assert.deepEqual(members.rows.map(row => row.account_id), [alice,bob].sort());
+  await new Store(pool).send(alice, accepted.conversation_id, "inbox-preview-1", "Hello from Alice");
+  const inbox = await contacts.conversations(bob);
+  assert.equal(inbox.length, 1);
+  assert.equal(inbox[0]!.conversation_id, accepted.conversation_id);
+  assert.equal(inbox[0]!.peer.username, "alice");
+  assert.equal(inbox[0]!.last_message, "Hello from Alice");
+  assert.equal(inbox[0]!.last_position, "1");
   await assert.rejects(() => contacts.request(alice, "bob"), error => error instanceof ContactError && error.code === "already_contact");
   await assert.rejects(() => contacts.directConversation(carol, "alice"), error => error instanceof ContactError && error.code === "not_found");
 
