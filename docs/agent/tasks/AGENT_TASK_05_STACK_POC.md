@@ -86,3 +86,12 @@ No production adoption, merge to `main`, deployment or release. A final producti
 - Shared harness ran five 100-message sequential latency rounds per candidate and uploaded JSON artifacts. Median-of-round metrics and caveats are in `docs/research/POLYGLOT_MESSAGE_POC_STATUS_2026-11-27.md`. This is not a capacity/SLO test and no CPU/RSS metrics were gathered.
 - Stack decision remains **Open**. No production selection, scorecard, deployment or merge authorization. Hard process-kill fault injection, real auth/session, security/privacy review, lockfiles/checksums/SBOM/license inventory and sustained-load/resource benchmarks remain open.
 - PR #44 remains Draft and stacked on Draft PR #43. `main`, business-plan PDF and product requirements unchanged.
+
+
+## Progress update — 2026-11-27 (lease correctness hardening)
+
+- Reviewed the lease expiry boundary across all three candidates. A stale fencing token check alone was not enough: an expired lease must be rejected even before another worker reclaims it.
+- Go, Node and Kotlin dispatch-completion and retry updates now require `lease_until > clock_timestamp()`; this avoids PostgreSQL `now()` retaining the transaction-start timestamp during a long transaction.
+- Added matching tests in all three candidates for expired-lease rejection. Added parallel multi-worker claim uniqueness and terminal retry-limit tests across all candidates.
+- Intermediate CI failures were found and corrected: Go formatting check reported `store_test.go`; Kotlin compilation found tests appended outside the test class. Final verification is pending on the current head; do not cite earlier passing runs as validation of these changes.
+- Remaining Task 05 blockers: hard process-kill fault injection at commit/acceptance/claim/dispatch/ack boundaries; complete committed lockfiles/checksums; dependency SBOM/license review; controlled resource and sustained-load tests; timed maintenance-task comparison. Keep all scores Unknown where evidence is absent and keep stack decision Open.
