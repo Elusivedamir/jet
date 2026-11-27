@@ -1,5 +1,12 @@
 name: Kotlin Spring message PoC
 on:
+  push:
+    branches:
+      - "poc/realtime-delivery-and-polyglot-2026-11-27"
+    paths:
+      - "poc/kotlin-server/**"
+      - "poc/shared/**"
+      - ".github/workflows/kotlin-message-poc.yml"
   pull_request:
     paths:
       - "poc/kotlin-server/**"
