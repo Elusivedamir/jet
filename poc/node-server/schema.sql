@@ -49,8 +49,10 @@ CREATE TABLE IF NOT EXISTS messages (
   sender_id TEXT NOT NULL, operation_key TEXT NOT NULL, payload TEXT NOT NULL,
   position BIGINT NOT NULL CHECK (position > 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  reply_to_message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
   UNIQUE (sender_id, operation_key), UNIQUE (conversation_id, position)
 );
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_message_id TEXT REFERENCES messages(id) ON DELETE SET NULL;
 CREATE TABLE IF NOT EXISTS delivery_outbox (
   id BIGSERIAL PRIMARY KEY,
   message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
