@@ -7,7 +7,7 @@ export type ContactRequest = {
   created_at: Date; responded_at: Date | null;
 };
 export class ContactError extends Error {
-  constructor(readonly code: "invalid" | "not_found" | "not_recipient" | "already_contact" | "reverse_pending") { super(code); }
+  constructor(readonly code: "invalid" | "not_found" | "not_recipient" | "already_contact" | "reverse_pending" | "forbidden") { super(code); }
 }
 
 function pair(a: string, b: string): [string, string] {
@@ -234,6 +234,113 @@ export class ContactsStore {
       await c.query("COMMIT");
       return {conversation_id:conversationId,title,members_count:memberIds.length+1};
     } catch (error) {
+      await c.query("ROLLBACK");
+      throw error;
+    } finally { c.release(); }
+  }
+
+  async renameGroup(accountId:string,conversationId:string,titleInput:string):Promise<void> {
+    const title=titleInput.trim();
+    if(!conversationId || title.length<1 || title.length>80) throw new ContactError("invalid");
+    const result=await this.pool.query<{created_by:string}>(
+      "SELECT created_by FROM conversation_details WHERE conversation_id=$1 AND kind='group'",
+      [conversationId]
+    );
+    if(!result.rowCount) throw new ContactError("not_found");
+    if(result.rows[0]!.created_by!==accountId) throw new ContactError("forbidden");
+    await this.pool.query("UPDATE conversation_details SET title=$2 WHERE conversation_id=$1",[conversationId,title]);
+  }
+
+  async addGroupMembers(accountId:string,conversationId:string,usernamesInput:string[]):
+    Promise<{added:number;members_count:number}> {
+    if(!conversationId || !Array.isArray(usernamesInput) || usernamesInput.length<1 || usernamesInput.length>50) {
+      throw new ContactError("invalid");
+    }
+    const usernames=usernamesInput.map(value=>typeof value==="string"?value.trim().toLowerCase():"");
+    if(usernames.some(value=>!/^[a-z0-9_]{3,24}$/.test(value)) || new Set(usernames).size!==usernames.length) {
+      throw new ContactError("invalid");
+    }
+    const c=await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",[`group:${conversationId}`]);
+      const group=await c.query<{created_by:string}>(
+        "SELECT created_by FROM conversation_details WHERE conversation_id=$1 AND kind='group' FOR UPDATE",
+        [conversationId]
+      );
+      if(!group.rowCount) throw new ContactError("not_found");
+      if(group.rows[0]!.created_by!==accountId) throw new ContactError("forbidden");
+      const targets=await c.query<{id:string}>("SELECT id FROM accounts WHERE username=ANY($1::text[])",[usernames]);
+      if(targets.rowCount!==usernames.length || targets.rows.some(row=>row.id===accountId)) throw new ContactError("not_found");
+      const memberIds=targets.rows.map(row=>row.id);
+      const accepted=await c.query<{n:number}>(
+        "SELECT count(*)::int AS n FROM contacts WHERE (account_low=$1 AND account_high=ANY($2::text[])) OR (account_high=$1 AND account_low=ANY($2::text[]))",
+        [accountId,memberIds]
+      );
+      if(accepted.rows[0]!.n!==memberIds.length) throw new ContactError("not_found");
+      const current=await c.query<{n:number}>(
+        "SELECT count(*)::int AS n FROM conversation_members WHERE conversation_id=$1",[conversationId]
+      );
+      if(current.rows[0]!.n+memberIds.length>51) throw new ContactError("invalid");
+      const inserted=await c.query(
+        "INSERT INTO conversation_members(conversation_id,account_id,role) SELECT $1,member_id,'member' FROM unnest($2::text[]) AS members(member_id) ON CONFLICT DO NOTHING",
+        [conversationId,memberIds]
+      );
+      const count=await c.query<{n:number}>(
+        "SELECT count(*)::int AS n FROM conversation_members WHERE conversation_id=$1",[conversationId]
+      );
+      await c.query("COMMIT");
+      return {added:inserted.rowCount??0,members_count:count.rows[0]!.n};
+    } catch(error) {
+      await c.query("ROLLBACK");
+      throw error;
+    } finally { c.release(); }
+  }
+
+  async removeGroupMember(accountId:string,conversationId:string,usernameInput:string):Promise<void> {
+    const username=usernameInput.trim().toLowerCase();
+    if(!conversationId || !/^[a-z0-9_]{3,24}$/.test(username)) throw new ContactError("invalid");
+    const c=await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",[`group:${conversationId}`]);
+      const group=await c.query<{created_by:string}>(
+        "SELECT created_by FROM conversation_details WHERE conversation_id=$1 AND kind='group' FOR UPDATE",
+        [conversationId]
+      );
+      if(!group.rowCount) throw new ContactError("not_found");
+      if(group.rows[0]!.created_by!==accountId) throw new ContactError("forbidden");
+      const target=await c.query<{id:string}>("SELECT id FROM accounts WHERE username=$1",[username]);
+      if(!target.rowCount || target.rows[0]!.id===accountId) throw new ContactError("not_found");
+      const removed=await c.query(
+        "DELETE FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",
+        [conversationId,target.rows[0]!.id]
+      );
+      if(!removed.rowCount) throw new ContactError("not_found");
+      await c.query("COMMIT");
+    } catch(error) {
+      await c.query("ROLLBACK");
+      throw error;
+    } finally { c.release(); }
+  }
+
+  async leaveGroup(accountId:string,conversationId:string):Promise<void> {
+    if(!conversationId) throw new ContactError("invalid");
+    const c=await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",[`group:${conversationId}`]);
+      const group=await c.query<{created_by:string}>(
+        "SELECT created_by FROM conversation_details WHERE conversation_id=$1 AND kind='group' FOR UPDATE",
+        [conversationId]
+      );
+      if(!group.rowCount) throw new ContactError("not_found");
+      if(group.rows[0]!.created_by===accountId) throw new ContactError("forbidden");
+      const removed=await c.query("DELETE FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",
+        [conversationId,accountId]);
+      if(!removed.rowCount) throw new ContactError("not_found");
+      await c.query("COMMIT");
+    } catch(error) {
       await c.query("ROLLBACK");
       throw error;
     } finally { c.release(); }
