@@ -63,7 +63,7 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   assert.equal(inbox[0]!.last_position, "1");
 
   const carolRequest = await contacts.request(alice, "carol");
-  await contacts.accept(carol, carolRequest.id);
+  const carolAccepted = await contacts.accept(carol, carolRequest.id);
   const group = await contacts.createGroup(alice, "Project team", ["bob","carol"]);
   assert.equal(group.title, "Project team");
   assert.equal(group.members_count, 3);
@@ -88,7 +88,7 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   assert.ok((await new Store(pool).inbox(bob,group.conversation_id,0)).some(row => row.message_id === groupMessage.message_id));
   assert.ok((await new Store(pool).inbox(carol,group.conversation_id,0)).some(row => row.message_id === groupMessage.message_id));
   await assert.rejects(() => contacts.request(alice, "bob"), error => error instanceof ContactError && error.code === "already_contact");
-  await assert.rejects(() => contacts.directConversation(carol, "alice"), error => error instanceof ContactError && error.code === "not_found");
+  assert.equal(await contacts.directConversation(carol, "alice"), carolAccepted.conversation_id);
 
   const reciprocal = await Promise.allSettled([
     contacts.request(carol, "dave"),
