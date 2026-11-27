@@ -165,3 +165,16 @@ The repository audit inspected the exact PostgreSQL workflow jobs and logs for t
 - PR #38 head `49b6370b18a4c21f2ba3f6c5365c6c991c4b3037`: GitHub Actions run [#45349515731](https://github.com/Elusivedamir/jet/actions/runs/45349515731), both workflow jobs completed successfully. The PostgreSQL 16 job explicitly ran `test_independent_processes_cannot_claim_same_item_twice` successfully and reported **33 tests passed, 0 failures**. The job also completed the disposable backup/restore check, serial benchmark and concurrent persistence correctness smoke test.
 
 These runs close the specific CI-verification gap previously noted for PRs #26 and #38. Both PRs remain open (PR #26 draft); no merge was performed. These results validate the test code at those PR head commits only. A fresh full test run on the current `project/greenfield-reset` tip is still required before architecture selection.
+
+
+## Concurrent persistence smoke — 2026-11-24, reviewed 2026-11-27
+
+Run [#45349515731](https://github.com/Elusivedamir/jet/actions/runs/45349515731) uploaded [artifact #14900045788](https://github.com/Elusivedamir/jet/actions/runs/45349515731/artifacts/14900045788). The existing smoke script exercised 1, 4 and 16 workers, both one hot conversation and four independent conversations, across SQLite, PostgreSQL fresh connections and PostgreSQL pool 1–4. Each scenario accepted 40 messages and checked 80 recipient outbox items. All scenarios reported all items dispatched and unique claims.
+
+Selected results:
+- PostgreSQL pool 1–4, four conversations, 4 workers: acceptance 677.44 ops/s (p95 6.665 ms); claim+ack 539.78 ops/s (p95 9.347 ms).
+- PostgreSQL pool 1–4, four conversations, 16 workers: acceptance 657.92 ops/s (p95 24.948 ms); claim+ack 364.42 ops/s (p95 27.950 ms).
+- PostgreSQL pool 1–4, one hot conversation, 16 workers: acceptance 380.33 ops/s (p95 43.574 ms); claim+ack 73.64 ops/s (p95 56.066 ms).
+- PostgreSQL fresh connections, one hot conversation, 16 workers: claim+ack 14.71 ops/s (p95 272.555 ms).
+
+This is a short correctness/throughput smoke, not a capacity test: only 40 messages per scenario, no repeated statistical trials, no CPU/memory/lock/pool-wait instrumentation, and no transport/device traffic. Expand it with larger repeated workloads and resource metrics before using it for architecture/cost decisions.
