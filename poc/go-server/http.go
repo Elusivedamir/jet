@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -30,24 +31,16 @@ func testIdentityOnly(next http.Handler) http.Handler {
 			http.Error(w, "missing test identity", http.StatusUnauthorized)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(withAccount(r, account)))
+		ctx := context.WithValue(r.Context(), accountContextKey{}, account)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
 type accountContextKey struct{}
 
-func withAccount(r *http.Request, account string) contextRequest {
-	return contextRequest{request: r, account: account}
-}
-
-type contextRequest struct {
-	request *http.Request
-	account string
-}
-
-func (c contextRequest) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c.request = r
-	c.request = c.request.WithContext(contextWithAccount(c.request, c.account))
+func accountFromContext(r *http.Request) string {
+	account, _ := r.Context().Value(accountContextKey{}).(string)
+	return account
 }
 
 func (a *API) send(w http.ResponseWriter, r *http.Request) {
@@ -59,8 +52,7 @@ func (a *API) send(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid JSON body", http.StatusBadRequest)
 		return
 	}
-	account := accountFromContext(r)
-	message, err := a.store.Send(r.Context(), account, r.PathValue("conversationID"), body.OperationKey, body.Payload)
+	message, err := a.store.Send(r.Context(), accountFromContext(r), r.PathValue("conversationID"), body.OperationKey, body.Payload)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrInvalidRequest):
