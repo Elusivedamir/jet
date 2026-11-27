@@ -111,6 +111,6 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - Added isolated `poc/go-server` with PostgreSQL schema, sender-scoped idempotency, transactional message/position/outbox creation, post-commit HTTP acceptance, membership-scoped history and integration tests.
 - Added `.github/workflows/go-durable-message-poc.yml` for PostgreSQL-backed CI, formatting, vet, race detection and 100 repeated test runs.
 - Added `docs/research/GO_DURABLE_MESSAGE_POC_REPORT_2026-11-27.md` and PoC README documenting implemented behavior, security limitations and missing delivery stages.
-- **Not yet verified:** no CI result observed at log entry time; no local compile/test run claimed. Do not mark the Go candidate as passing.
+- **Verified on latest branch commit `683d988f7d7e54b8cdc52f7346fca47db48620d7`:** GitHub Actions [#46013315702](https://github.com/Elusivedamir/jet/actions/runs/46013315702) passed `go mod tidy`, gofmt, `go vet`, and PostgreSQL 17 integration/race tests with `-count=100`. Five integration test functions passed across 100 repetitions; concurrency case used 12 simultaneous submissions. A superseded intermediate commit failed vet because `schema_apply.go` was not yet present; the helper was added and the latest commit passed. No local test run claimed.
 - **Incomplete contract:** no realtime transport, outbox worker/lease recovery, recipient ack, reconnect client or hard-crash fault injection. No comparative scoring or production selection.
 - Business plan/product requirements unchanged; `main` untouched.
