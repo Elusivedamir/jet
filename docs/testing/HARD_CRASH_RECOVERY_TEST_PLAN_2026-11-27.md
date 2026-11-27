@@ -45,6 +45,24 @@ The first hard-crash scenario targets **after claim commit, during recipient-inb
 - Launch the compiled/runtime process directly so SIGKILL targets the server, not a wrapper. Confirm PID identity before killing.
 - Keep the existing ordinary integration and shared contract tests; this scenario supplements rather than replaces them.
 
+## Executed shared scenario — current result
+
+**Implemented and executed** in the Go, Node.js and Kotlin CI candidate workflows through `poc/shared/crash_recovery_harness.py`.
+
+The harness starts the direct server executable, creates an isolated PostgreSQL trigger that pauses recipient-inbox insertion for five seconds, confirms the worker lease still has about ten seconds remaining, sends SIGKILL to the server process, and verifies:
+- no recipient inbox row was committed;
+- the outbox row remains in processing state;
+- after lease expiry and server restart, the outbox reaches completed;
+- exactly one recipient inbox row exists;
+- retrying the original sender/operation key returns the original message ID.
+
+Observed PASS evidence:
+- Go baseline run 87: [46025003199](https://github.com/Elusivedamir/jet/actions/runs/46025003199) — crash recovery and shared contract passed. Its later vulnerability step failed on the old toolchain; this does not invalidate the crash-test result.
+- Node run 101: [46026586747](https://github.com/Elusivedamir/jet/actions/runs/46026586747) — crash recovery, shared contract, three-round benchmark, npm clean install and Trivy completed successfully.
+- Kotlin run 101: [46026586769](https://github.com/Elusivedamir/jet/actions/runs/46026586769) — crash recovery, shared contract, three-round benchmark, Maven verification, CycloneDX and Trivy completed successfully.
+
+This proves one crash boundary: process death during the recipient-inbox dispatch transaction. It does not prove every possible crash point or production-grade exactly-once device delivery.
+
 ## Additional crash boundaries still required
 
 The first scenario does not cover every failure point. Separate tests are still required for:
