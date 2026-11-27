@@ -373,14 +373,14 @@ func TestOutboxInsertFailureRollsBackMessageAndSequence(t *testing.T) {
 		t.Fatal("send unexpectedly succeeded despite injected outbox failure")
 	}
 	var messages, outbox, counters int
-	for query, dest := range map[string]*int{
-		"SELECT count(*) FROM messages": &messages,
-		"SELECT count(*) FROM delivery_outbox": &outbox,
-		"SELECT count(*) FROM conversation_counters": &counters,
-	} {
-		if err := store.pool.QueryRow(ctx, query).Scan(dest); err != nil {
-			t.Fatal(err)
-		}
+	if err := store.pool.QueryRow(ctx, "SELECT count(*) FROM messages").Scan(&messages); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.pool.QueryRow(ctx, "SELECT count(*) FROM delivery_outbox").Scan(&outbox); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.pool.QueryRow(ctx, "SELECT count(*) FROM conversation_counters").Scan(&counters); err != nil {
+		t.Fatal(err)
 	}
 	if messages != 0 || outbox != 0 || counters != 0 {
 		t.Fatalf("transaction was not atomic: messages=%d outbox=%d counters=%d", messages, outbox, counters)
