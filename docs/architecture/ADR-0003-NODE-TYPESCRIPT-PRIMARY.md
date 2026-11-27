@@ -25,7 +25,7 @@ The current Node/PostgreSQL message server remains a research PoC. Its test iden
 
 - The Node TypeScript PoC implements sender-scoped idempotency, transactional message/sequence/outbox creation, leased outbox claims with fencing, recipient inbox persistence, SSE cursor replay and recipient acknowledgement.
 - Exact earlier shared-head CI evidence is recorded in the engineering validation log, including TypeScript compilation, PostgreSQL integration tests and crash-recovery runs.
-- The latest candidate run, [#46031707670](https://github.com/Elusivedamir/jet/actions/runs/46031707670), passed clean `npm ci`, TypeScript build and PostgreSQL integration tests but failed in the shared Python crash harness due to a harness namespace collision. The harness was corrected in commit `3a59e4a8cb1ecda6a3501992691414eb876de68b`; corrected-run verification is pending.
+- Corrected verification completed in Node workflow [#46053079441](https://github.com/Elusivedamir/jet/actions/runs/46053079441), run #276: clean `npm ci`, TypeScript build, PostgreSQL integration, hard crash/restart recovery, dependency audit, license inventory and Trivy all passed. This is PoC-level evidence, not production readiness.
 - Earlier benchmark results are CI microbenchmarks, not capacity/SLO evidence. They must not be used as production performance promises.
 
 ## Required next gates
