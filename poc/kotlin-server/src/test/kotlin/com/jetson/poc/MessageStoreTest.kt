@@ -47,3 +47,14 @@ class MessageStoreTest @Autowired constructor(private val store:MessageStore,pri
         assertThrows(NotMemberException::class.java) { store.acknowledge("mallory",message.message_id) }
     }
 }
+
+    @Test fun expiredOutboxLeaseFencesStaleWorker() {
+        store.send("alice","room-a","lease","fenced")
+        val first=store.claim(1,1000).single()
+        jdbc.update("UPDATE delivery_outbox SET lease_until=now()-interval '1 second' WHERE id=?",first.id)
+        val second=store.claim(1,1000).single()
+        assertNotEquals(first.leaseToken,second.leaseToken)
+        assertThrows(IllegalStateException::class.java) { store.dispatch(first) }
+        assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM recipient_inbox",Int::class.java))
+        store.dispatch(second)
+    }
