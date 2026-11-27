@@ -62,3 +62,10 @@ New PostgreSQL integration tests cover:
 - Terminal failure after the configured maximum attempt count.
 
 The latest exact Go CI result must be taken from the workflow run associated with the current branch head; earlier three-candidate runs validate the prior implementation revision only. Hard process termination, device display/push, real identity and production controls remain unproven.
+
+
+## Final Go verification — 2026-11-27
+
+Exact shared candidate revision `f86d25e755b17fcc7509b90288ae5c55f05f14e0` passed [Go workflow #46021008920](https://github.com/Elusivedamir/jet/actions/runs/46021008920): gofmt, go vet, PostgreSQL 17 integration tests under the race detector with `-count=100`, shared HTTP/SSE contract and five-round benchmark. Twelve integration test functions were repeated 100 times. New coverage includes outbox insert fault injection with full message/sequence/outbox rollback, parallel claims, retry exhaustion, expired lease rejection before reclaim, and stale worker fencing after reclaim.
+
+The shared harness on this exact revision also passed negative cursor rejection and Last-Event-ID precedence over a stale query cursor. This verifies server-side durable inbox/reconnect behavior, not mobile device display, push delivery or hard process-kill recovery.
