@@ -79,6 +79,8 @@ Use isolated test data and a controllable clock. Every test records build/revisi
 | MSG-004 | P0 | Crash immediately after commit, before acceptance response | Client sees timeout/unknown outcome; retry/reconcile with same operation ID returns the already committed message; no second logical message. |
 | MSG-005 | P0 | Duplicate concurrent request with same operation ID and payload | Both callers resolve consistently to one message identity and one conversation position. |
 | MSG-006 | P0 | Same operation ID reused with a different payload | Deterministic conflict; original message unchanged; no second message. |
+| MSG-026 | P0 | Same sender reuses an operation ID and payload in a different conversation | Conflict; no cross-conversation message lookup, sequence allocation or outbox creation. |
+| MSG-027 | P0 | Different authenticated senders use the same operation ID | Independent idempotency scopes; each sender may create its own valid logical message. |
 | MSG-007 | P0 | Crash after commit but before delivery work is recorded | Recovery discovers pending delivery from durable state/outbox/equivalent; recipient eventually receives one logical message. |
 | MSG-008 | P0 | Delivery worker crashes after sending but before recording completion | Redelivery may occur internally; recipient/client deduplicates by stable identity; one visible message. |
 | MSG-009 | P0 | Recipient offline during send; server restarts; recipient reconnects | Accepted message remains durable and appears in history/sync; cursor advances without skipping it. |
