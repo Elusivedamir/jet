@@ -50,9 +50,11 @@ CREATE TABLE IF NOT EXISTS messages (
   position BIGINT NOT NULL CHECK (position > 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   reply_to_message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
+  forwarded_from_message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
   UNIQUE (sender_id, operation_key), UNIQUE (conversation_id, position)
 );
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_message_id TEXT REFERENCES messages(id) ON DELETE SET NULL;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS forwarded_from_message_id TEXT REFERENCES messages(id) ON DELETE SET NULL;
 CREATE TABLE IF NOT EXISTS delivery_outbox (
   id BIGSERIAL PRIMARY KEY,
   message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
@@ -101,6 +103,15 @@ CREATE TABLE IF NOT EXISTS conversation_event_log (
 );
 CREATE INDEX IF NOT EXISTS conversation_event_log_cursor_idx
   ON conversation_event_log(recipient_id,conversation_id,id);
+
+CREATE TABLE IF NOT EXISTS conversation_pins (
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  pinned_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (conversation_id,message_id)
+);
+CREATE INDEX IF NOT EXISTS conversation_pins_order_idx ON conversation_pins(conversation_id,created_at DESC);
 
 
 CREATE TABLE IF NOT EXISTS message_reactions (
