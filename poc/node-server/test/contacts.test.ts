@@ -62,4 +62,13 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   const rejected = reciprocal.find(result => result.status === "rejected");
   assert.ok(rejected && rejected.status === "rejected");
   assert.ok(rejected.reason instanceof ContactError && rejected.reason.code === "reverse_pending");
+  const pendingRequest = reciprocal.find(result => result.status === "fulfilled");
+  assert.ok(pendingRequest && pendingRequest.status === "fulfilled");
+  await assert.rejects(
+    () => contacts.decline(pendingRequest.value.requester_id, pendingRequest.value.id),
+    error => error instanceof ContactError && error.code === "not_recipient"
+  );
+  await contacts.decline(pendingRequest.value.recipient_id, pendingRequest.value.id);
+  assert.equal((await contacts.requests(pendingRequest.value.requester_id)).outgoing.length, 0);
+  assert.equal((await contacts.requests(pendingRequest.value.recipient_id)).incoming.length, 0);
 });
