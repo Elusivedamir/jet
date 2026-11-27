@@ -277,3 +277,15 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Workflow run [#46033361622](https://github.com/Elusivedamir/jet/actions/runs/46033361622): Gitleaks PASS (820 commits, approximately 2.55 MB, no leaks after the narrowly scoped RFC6455 fixture allowlist); Semgrep PASS (131 rules, 99 files, zero findings; URL validation unit tests PASS); blocking zizmor audit of both newly added workflow files PASS (zero findings).
 - The separate full-repository zizmor advisory job continues to report pre-existing workflow debt and remains open; it is not represented as a clean scan.
 - CodeQL Go, JavaScript/TypeScript and Java/Kotlin jobs were still in progress at the time of this entry. No PASS is claimed for CodeQL until all three exact-head jobs complete.
+
+
+## 2026-11-27 — legacy workflow remediation and complete security-gate run
+
+- Initial zizmor baseline was corrected to 41 total findings: 15 ignored, 15 high and 11 medium. Remediated all active findings across the eight workflow files: workflow-wide write permissions moved to job scope, third-party actions pinned to immutable SHAs, PostgreSQL 17.12 pinned to verified multi-platform index digest `sha256:cdbfb3de010ef603c29f10a5dfc79e023f66ad662ec6fddcda7130afe5d65e7b`, checkout credentials disabled, and secret-consuming AI workflow jobs scoped to the `ai-engineering` environment. Repository Environment protection rules remain an external GitHub settings task and are not claimed configured.
+- Added explicit `GH_TOKEN` to the KLINCH workflow's isolated branch push step after manual review found the credential was not passed to `gh auth setup-git`.
+- Exact-head workflow run [#46034027567](https://github.com/Elusivedamir/jet/actions/runs/46034027567), commit `bccb1135360245b77526e446bc575baea5b5aaa4`: overall SUCCESS.
+- Gitleaks PASS: 830 commits scanned; no findings after the path/value-specific RFC 6455 test nonce allowlist.
+- Semgrep PASS: 131 rules, 100 files, zero findings; URL validation tests passed.
+- zizmor changed-workflow gate PASS; full-repository zizmor PASS, no findings to report (15 default-ignored rules).
+- CodeQL Go PASS: 6/7 Go files extracted (all six non-test Go source files; test file `store_test.go` not in the extracted set). JavaScript/TypeScript PASS: 3/3 TypeScript files. Java/Kotlin PASS: 2/2 Kotlin files. Results are static-analysis coverage, not a certification.
+- Manual self-review (not independent) of the changed workflows found and fixed the missing KLINCH `GH_TOKEN` environment. Full review remains open until the latest follow-up commit is revalidated by CI.
