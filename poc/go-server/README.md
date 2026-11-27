@@ -56,3 +56,13 @@ Test fixtures must create the conversation and membership rows first. The integr
 An HTTP 202 is emitted only after the transaction commits message + sequence + outbox rows. If the connection drops after commit but before the response, retrying the same sender/key/payload/conversation returns the original message. Reusing the same sender/key with another payload or conversation conflicts. Different senders have independent key scopes.
 
 The outbox is durable but not yet consumed. This prototype therefore proves persistence and recoverable delivery intent, **not recipient delivery**.
+
+
+## Recipient delivery extension
+
+The worker claims pending/expired items with SKIP LOCKED, assigns an expiring lease and fencing token, and writes a durable recipient_inbox row in the same transaction that marks the outbox item completed. A stale worker whose token was replaced cannot complete the item. Failures are rescheduled with bounded exponential delay; after eight attempts the item enters terminal_failure.
+
+- GET /v1/conversations/{id}/events?after=0 — polling-backed SSE stream, resumable by cursor (Last-Event-ID is also accepted).
+- POST /v1/messages/{id}/ack — idempotent recipient acknowledgement.
+
+SSE delivery is at-least-once from a durable cursor and clients must de-duplicate by message_id/position. Outbox completion confirms durable inbox creation, not device display. The worker currently uses the recipient inbox as the dispatch destination; no external broker or mobile push is involved.
