@@ -3,10 +3,12 @@ import pg from "pg";
 const { Pool } = pg;
 import { Store, ConflictError, NotMemberError, InvalidRequestError } from "./store.js";
 import { AuthStore, AuthError } from "./auth.js";
+import { ContactsStore, ContactError } from "./contacts.js";
 
 const pool = new Pool({connectionString:process.env.DATABASE_URL});
 const store = new Store(pool);
 const auth = new AuthStore(pool);
+const contacts = new ContactsStore(pool);
 const schema = await (await import("node:fs/promises")).readFile(new URL("../schema.sql",import.meta.url),"utf8");
 for (const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
 const abort = new AbortController();
@@ -78,6 +80,31 @@ const server=createServer(async(req,res)=>{
       if(token)await auth.logout(token);
       res.writeHead(204,{"cache-control":"no-store"});res.end();return;
     }
+    if(req.method==="GET" && url.pathname==="/v1/users/search") {
+      const q=url.searchParams.get("q")??"";
+      json(res,200,await contacts.search(user,q));return;
+    }
+    if(req.method==="POST" && url.pathname==="/v1/contacts/requests") {
+      const input=await body(req);
+      const request=await contacts.request(user,requiredString(input,"username",24));
+      json(res,201,{request});return;
+    }
+    if(req.method==="GET" && url.pathname==="/v1/contacts/requests") {
+      json(res,200,await contacts.requests(user));return;
+    }
+    const accept=url.pathname.match(/^\\/v1\\/contacts\\/requests\\/([^/]+)\\/accept$/);
+    if(req.method==="POST" && accept) {
+      const result=await contacts.accept(user,decodeURIComponent(accept[1]!));
+      json(res,200,result);return;
+    }
+    if(req.method==="GET" && url.pathname==="/v1/contacts") {
+      json(res,200,await contacts.list(user));return;
+    }
+    if(req.method==="POST" && url.pathname==="/v1/conversations/direct") {
+      const input=await body(req);
+      const conversation_id=await contacts.directConversation(user,requiredString(input,"username",24));
+      json(res,200,{conversation_id});return;
+    }
     const match=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/messages$/);
     if(req.method==="POST" && match) {
       const input=await body(req);
@@ -117,7 +144,7 @@ const server=createServer(async(req,res)=>{
     }
     json(res,404,{error:"not found"});
   } catch(e) {
-    if(e instanceof AuthError) {
+    if(e instanceof ContactError) {\n      if(e.code==="invalid")json(res,400,{error:"invalid request"});\n      else if(e.code==="not_recipient")json(res,403,{error:"only the recipient can accept this request"});\n      else if(e.code==="already_contact")json(res,409,{error:"already a contact"});\n      else if(e.code==="reverse_pending")json(res,409,{error:"an incoming request already exists"});\n      else json(res,404,{error:"user or request not found"});\n    }\n    else if(e instanceof AuthError) {
       if(e.code==="exists")json(res,409,{error:"username unavailable"});
       else if(e.code==="invalid")json(res,400,{error:"invalid registration data"});
       else json(res,401,{error:"invalid credentials"});
