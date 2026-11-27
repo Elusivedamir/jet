@@ -28,7 +28,7 @@ The source reports contain direct GitHub permalinks and inspected paths. Evidenc
 - No decision in this log is an owner-approved technology or product decision. The modular-monolith direction remains a reversible proposal subject to the experiments listed in the synthesis.
 
 
-A related source-document discrepancy remains open: the canonical business-plan baseline places AI rollout in Stage 3 (while AI remains included in Business), but the derivative requirements table places AI-001/AI-002 under Stage 2. This synthesis follows the canonical baseline and does not silently edit the requirements document.
+The AI rollout stage discrepancy is **resolved on 2026-11-27**: AI-001 and AI-002 were moved from Stage 2 to Stage 3 in the derivative requirements framework to match the canonical business-plan baseline and user journeys. AI remains included in the base Business subscription. No scope or business-plan text changed.
 
 
 ## Independent verification update — 2026-11-27
