@@ -78,6 +78,25 @@ CREATE INDEX IF NOT EXISTS recipient_inbox_cursor_idx ON recipient_inbox(recipie
 CREATE INDEX IF NOT EXISTS delivery_outbox_pending_idx ON delivery_outbox(state, available_at, lease_until, id);
 CREATE INDEX IF NOT EXISTS messages_conversation_position_idx ON messages(conversation_id, position);
 
+CREATE TABLE IF NOT EXISTS message_reactions (
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL,
+  emoji TEXT NOT NULL CHECK (char_length(emoji) BETWEEN 1 AND 32),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (message_id,account_id,emoji)
+);
+CREATE INDEX IF NOT EXISTS message_reactions_message_idx ON message_reactions(message_id,emoji);
+CREATE TABLE IF NOT EXISTS message_read_receipts (
+  message_id TEXT NOT NULL,
+  recipient_id TEXT NOT NULL,
+  read_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (message_id,recipient_id),
+  FOREIGN KEY (message_id,recipient_id)
+    REFERENCES recipient_inbox(message_id,recipient_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS message_read_receipts_message_idx ON message_read_receipts(message_id,read_at);
+
+
 CREATE TABLE IF NOT EXISTS contact_requests (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   requester_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
