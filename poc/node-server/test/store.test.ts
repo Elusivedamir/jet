@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import pg from "pg";
 const { Pool } = pg;
-import { Store, ConflictError, NotMemberError } from "../src/store.js";
+import { Store, ConflictError, NotMemberError, ForbiddenError, InvalidRequestError } from "../src/store.js";
 
 const pool=new Pool({connectionString:process.env.TEST_DATABASE_URL});
 const store=new Store(pool);
@@ -134,6 +134,41 @@ test("reactions are member-scoped and read receipts distinguish delivery from re
  assert.equal(afterRead[0]!.read_at!==null,true);
  await assert.rejects(()=>store.readReceipts("bob",sent.message_id),NotMemberError);
  await assert.rejects(()=>store.markRead("mallory",sent.message_id),NotMemberError);
+});
+
+test("sender can edit and delete within the edit window; updates are durable for every member",async()=>{
+ const sent=await store.send("alice","room-a","edit-delete","original");
+ const edited=await store.editMessage("alice",sent.message_id,"corrected");
+ assert.equal(edited.payload,"corrected");
+ assert.ok(edited.edited_at);
+ await assert.rejects(()=>store.editMessage("bob",sent.message_id,"hijack"),ForbiddenError);
+ const aliceEvents=await store.events("alice","room-a",0);
+ const bobEvents=await store.events("bob","room-a",0);
+ assert.equal(aliceEvents.length,1);
+ assert.equal(bobEvents.length,1);
+ assert.equal(aliceEvents[0]!.event_type,"message.edited");
+ assert.equal(bobEvents[0]!.payload.payload,"corrected");
+ const history=await store.history("bob","room-a",0);
+ assert.equal(history.find(row=>row.message_id===sent.message_id)?.payload,"corrected");
+ await store.deleteMessage("alice",sent.message_id);
+ await assert.rejects(()=>store.editMessage("alice",sent.message_id,"after delete"),InvalidRequestError);
+ await assert.rejects(()=>store.deleteMessage("bob",sent.message_id),ForbiddenError);
+ const deleted=await store.history("bob","room-a",0);
+ const deletedMessage=deleted.find(row=>row.message_id===sent.message_id)!;
+ assert.equal(deletedMessage.payload,"");
+ assert.ok(deletedMessage.deleted_at);
+ const updatedEvents=await store.events("bob","room-a",Number(bobEvents[0]!.event_id));
+ assert.equal(updatedEvents.length,1);
+ assert.equal(updatedEvents[0]!.event_type,"message.deleted");
+ const versions=await pool.query("SELECT previous_payload FROM message_versions WHERE message_id=$1 ORDER BY id",[sent.message_id]);
+ assert.deepEqual(versions.rows.map(row=>row.previous_payload),["original","corrected"]);
+});
+
+test("message edit and delete windows are enforced using database time",async()=>{
+ const sent=await store.send("alice","room-a","edit-expired","old");
+ await pool.query("UPDATE messages SET created_at=now()-interval '16 minutes' WHERE id=$1",[sent.message_id]);
+ await assert.rejects(()=>store.editMessage("alice",sent.message_id,"too late"),InvalidRequestError);
+ await assert.rejects(()=>store.deleteMessage("alice",sent.message_id),InvalidRequestError);
 });
 
 test("group message creates one durable delivery per other member",async()=>{
