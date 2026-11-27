@@ -74,7 +74,10 @@ jobs:
           go-licenses report ./... > /tmp/go-license-report.csv
           go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.8.0
           cyclonedx-gomod mod -json -output /tmp/go-sbom.json
-      - uses: aquasecurity/setup-trivy@v0.2.3
+      - name: Install pinned Trivy scanner
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.58.2/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.58.2
+          trivy --version
       - name: Trivy filesystem vulnerability and license report
         run: trivy fs --scanners vuln,license --format json --output /tmp/go-trivy-report.json .
       - uses: actions/upload-artifact@v4
