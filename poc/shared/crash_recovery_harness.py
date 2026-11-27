@@ -31,7 +31,7 @@ def validate_base_url(base):
         or parsed.query
         or parsed.fragment
     ):
-        raise ValueError("base URL must be an http(s) origin without credentials, path, query or fragment")
+        raise ValueError("base URL must be an http_request(s) origin without credentials, path, query or fragment")
     try:
         _ = parsed.port
     except ValueError as error:
@@ -48,7 +48,7 @@ def psql(database_url, sql, capture=True):
     return result.stdout.strip() if capture else ""
 
 
-def http(base, method, path, account=None, payload=None, timeout=5):
+def http_request(base, method, path, account=None, payload=None, timeout=5):
     parsed = validate_base_url(base)
     data = None if payload is None else json.dumps(payload).encode()
     headers = {"Content-Type": "application/json"}
@@ -67,17 +67,21 @@ def http(base, method, path, account=None, payload=None, timeout=5):
 
 def wait_health(base, process, log_path, timeout=45):
     deadline = time.monotonic() + timeout
+    last_error = "no health response received"
     while time.monotonic() < deadline:
         if process.poll() is not None:
             raise RuntimeError(f"server exited with {process.returncode}; see {log_path}")
         try:
-            status, _ = http(base, "GET", "/healthz", account="alice", timeout=1)
+            status, _ = http_request(base, "GET", "/healthz", account="alice", timeout=1)
             if status in (200, 204):
                 return
-        except Exception:
-            pass
+            last_error = f"unexpected HTTP status {status}"
+        except Exception as error:
+            last_error = f"{type(error).__name__}: {error}"
         time.sleep(0.25)
-    raise TimeoutError(f"server did not become healthy; see {log_path}")
+    raise TimeoutError(
+        f"server did not become healthy; last probe: {last_error}; see {log_path}"
+    )
 
 
 def start_server(command, env, log_path):
@@ -239,7 +243,7 @@ def main():
           FOR EACH ROW WHEN (NEW.conversation_id = '{conversation}')
           EXECUTE FUNCTION jetson_crash_pause_dispatch();
         """)
-        status, message = http(args.base_url, "POST",
+        status, message = http_request(args.base_url, "POST",
             f"/v1/conversations/{conversation}/messages", "alice",
             {"operation_key": operation_key, "payload": payload})
         if status != 202:
@@ -290,7 +294,7 @@ def main():
             f"SELECT count(*) FROM recipient_inbox WHERE message_id='{message_id}' AND recipient_id='bob'")
         if recovered_inbox != "1":
             raise AssertionError(f"expected exactly one recovered inbox row, got {recovered_inbox}")
-        status, retry = http(args.base_url, "POST",
+        status, retry = http_request(args.base_url, "POST",
             f"/v1/conversations/{conversation}/messages", "alice",
             {"operation_key": operation_key, "payload": payload})
         if status != 202 or retry["message_id"] != message_id:
@@ -319,7 +323,7 @@ def main():
             wait_for_sql(args.database_url,
                 "SELECT count(*) FROM pg_locks WHERE relation='recipient_inbox'::regclass "
                 "AND mode='AccessExclusiveLock' AND granted", "1", timeout=15)
-            status, claim_message = http(args.base_url, "POST",
+            status, claim_message = http_request(args.base_url, "POST",
                 f"/v1/conversations/{claim_conversation}/messages", "alice",
                 {"operation_key": claim_operation_key, "payload": claim_payload})
             if status != 202:
@@ -374,7 +378,7 @@ def main():
             f"SELECT count(*) FROM recipient_inbox WHERE message_id='{claim_message_id}' AND recipient_id='bob'")
         if claim_recovered_inbox != "1":
             raise AssertionError(f"expected one inbox row after claim-boundary recovery, got {claim_recovered_inbox}")
-        status, claim_retry = http(args.base_url, "POST",
+        status, claim_retry = http_request(args.base_url, "POST",
             f"/v1/conversations/{claim_conversation}/messages", "alice",
             {"operation_key": claim_operation_key, "payload": claim_payload})
         if status != 202 or claim_retry["message_id"] != claim_message_id:
@@ -416,7 +420,7 @@ def main():
             f"SELECT count(*) FROM recipient_inbox WHERE message_id='{committed_message_id}' AND recipient_id='bob'")
         if lost_inbox_rows != "1":
             raise AssertionError(f"lost-response recovery expected one inbox row, got {lost_inbox_rows}")
-        status, lost_retry = http(args.base_url, "POST",
+        status, lost_retry = http_request(args.base_url, "POST",
             f"/v1/conversations/{lost_conversation}/messages", "alice",
             {"operation_key": lost_operation_key, "payload": lost_payload})
         if status != 202 or lost_retry["message_id"] != committed_message_id:
