@@ -67,7 +67,7 @@ export class Store {
     const member = await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
     if (member.rowCount !== 1) throw new NotMemberError();
     const result = await this.pool.query<Message>(
-      "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position FROM messages WHERE conversation_id=$1 AND position>$2 ORDER BY position LIMIT $3",
+      "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,edited_at,deleted_at FROM messages WHERE conversation_id=$1 AND position>$2 ORDER BY position LIMIT $3",
       [conversation,after,limit]);
     return result.rows;
   }
@@ -117,7 +117,7 @@ export class Store {
     if(!account || !conversation || !Number.isSafeInteger(after) || after<0 || limit<1 || limit>100) throw new InvalidRequestError();
     const member=await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
     if(member.rowCount!==1) throw new NotMemberError();
-    const result=await this.pool.query<Message>(`SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.operation_key,m.payload,m.position
+    const result=await this.pool.query<Message>(`SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.operation_key,m.payload,m.position,m.edited_at,m.deleted_at
       FROM recipient_inbox i JOIN messages m ON m.id=i.message_id
       WHERE i.recipient_id=$1 AND i.conversation_id=$2 AND i.position>$3
       ORDER BY i.position LIMIT $4`,[account,conversation,after,limit]);
@@ -139,14 +139,14 @@ export class Store {
     const c=await this.pool.connect();
     try {
       await c.query("BEGIN");
-      const prior=await c.query<Message & {created_at:Date;deleted_at:Date|null}>(
-        "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,created_at,deleted_at FROM messages WHERE id=$1 FOR UPDATE",
+      const prior=await c.query<Message & {created_at:Date;deleted_at:Date|null;within_window:boolean}>(
+        "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,created_at,deleted_at,created_at>now()-interval '15 minutes' AS within_window FROM messages WHERE id=$1 FOR UPDATE",
         [message]
       );
       if(prior.rowCount!==1) throw new NotMemberError();
       const row=prior.rows[0]!;
       if(row.sender_id!==account) throw new ForbiddenError("only the sender can edit a message");
-      if(row.deleted_at || Date.now()-new Date(row.created_at).getTime()>15*60*1000) throw new InvalidRequestError("message edit window expired");
+      if(row.deleted_at || !row.within_window) throw new InvalidRequestError("message edit window expired");
       if(row.payload===payload) { await c.query("COMMIT"); return row; }
       await c.query("INSERT INTO message_versions(message_id,editor_id,previous_payload) VALUES($1,$2,$3)",[message,account,row.payload]);
       const updated=await c.query<Message>(
