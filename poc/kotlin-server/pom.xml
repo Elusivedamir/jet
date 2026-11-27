@@ -14,7 +14,14 @@
     <plugin><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-maven-plugin</artifactId><version>${kotlin.version}</version>
       <configuration><jvmTarget>21</jvmTarget><compilerPlugins><plugin>spring</plugin></compilerPlugins></configuration>
       <dependencies><dependency><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-maven-allopen</artifactId><version>${kotlin.version}</version></dependency></dependencies>
-      <executions><execution><id>compile</id><phase>compile</phase><goals><goal>compile</goal></goals></execution><execution><id>test-compile</id><phase>test-compile</phase><goals><goal>test-compile</goal></goals></execution></executions>
+      <executions>
+        <execution><id>compile</id><phase>compile</phase><goals><goal>compile</goal></goals>
+          <configuration><sourceDirs><sourceDir>${project.basedir}/src/main/kotlin</sourceDir></sourceDirs></configuration>
+        </execution>
+        <execution><id>test-compile</id><phase>test-compile</phase><goals><goal>test-compile</goal></goals>
+          <configuration><sourceDirs><sourceDir>${project.basedir}/src/test/kotlin</sourceDir></sourceDirs></configuration>
+        </execution>
+      </executions>
     </plugin>
     <plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
   </plugins></build>
