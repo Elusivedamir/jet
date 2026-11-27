@@ -273,7 +273,7 @@ Mandatory evidence rules:
 4. Do not suppress, downgrade or waive material findings without a documented rationale, reviewer and owner where required.
 5. After remediation, rerun the affected check and regression suite; preserve both initial and post-fix evidence.
 6. Do not auto-merge, deploy, publish SARIF with broader permissions, install external GitHub Apps, or add paid services without owner approval.
-7. Trail of Bits skills are CC BY-SA 4.0. Preserve attribution/license; do not silently relicense or modify vendored skill files.
+7. Trail of Bits skill entrypoints are CC BY-SA 4.0. Only their SKILL.md files and license are vendored; helper scripts, references and agent/workflow assets are not present unless explicitly added. Do not invoke missing helper paths or claim a full upstream plugin installation. Preserve attribution/license; do not silently relicense or modify vendored skill files.
 8. If the current runtime cannot execute an agent workflow or spawn independent reviewers, disclose that limitation and use only a clearly labelled manual fallback.
 
 A green CI run is necessary evidence for its configured gates, not a security certification or release authorization. Release readiness still requires the full applicable ASVS review, threat model, operational tests, privacy/legal review and explicit owner approval.
