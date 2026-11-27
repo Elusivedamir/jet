@@ -254,7 +254,6 @@ func TestOutboxFailureSchedulesRetry(t *testing.T) {
 	}
 }
 
-
 func TestExpiredLeaseCannotDispatchBeforeAnotherWorkerReclaims(t *testing.T) {
 	store := testStore(t)
 	ctx := context.Background()
@@ -282,7 +281,6 @@ func TestExpiredLeaseCannotDispatchBeforeAnotherWorkerReclaims(t *testing.T) {
 		t.Fatalf("expired worker created inbox item: %d", inboxCount)
 	}
 }
-
 
 func TestParallelWorkersNeverClaimSameOutboxRow(t *testing.T) {
 	store := testStore(t)
