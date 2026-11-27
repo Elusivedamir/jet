@@ -28,6 +28,7 @@ func NewAPI(store *Store) http.Handler {
 
 // testIdentityOnly is intentionally unsuitable for production authentication.
 // It exists solely to isolate the persistence contract in the local PoC.
+// The health endpoint is also behind this wrapper; the shared harness sends the test identity.
 func testIdentityOnly(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		account := strings.TrimSpace(r.Header.Get("X-Test-Account"))
