@@ -82,13 +82,21 @@ class SQLiteDurabilityTests(unittest.TestCase):
         self.assertEqual("msg:room-1:1", first)
         self.assertEqual("msg:room-2:1", second)
 
-    def test_same_operation_key_can_be_reused_in_another_conversation(self):
+    def test_same_sender_cannot_reuse_operation_key_in_another_conversation(self):
         self.store.create_conversation("room-2", ("A", "D"))
-        first = self.store.send("A", "room-1", "same-key", "room one")
-        second = self.store.send("A", "room-2", "same-key", "room two")
-        self.assertNotEqual(first, second)
+        first = self.store.send("A", "room-1", "same-key", "same payload")
+        with self.assertRaises(IdempotencyConflict):
+            self.store.send("A", "room-2", "same-key", "same payload")
         self.assertEqual(1, len(self.store.snapshot("room-1")[0]))
-        self.assertEqual(1, len(self.store.snapshot("room-2")[0]))
+        self.assertEqual([], self.store.snapshot("room-2")[0])
+        self.assertEqual(first, "msg:room-1:1")
+        self.assertEqual(1, self.store.snapshot("room-2")[2])
+
+    def test_different_senders_have_separate_idempotency_scopes(self):
+        first = self.store.send("A", "room-1", "same-key", "A payload")
+        second = self.store.send("B", "room-1", "same-key", "B payload")
+        self.assertNotEqual(first, second)
+        self.assertEqual(2, len(self.store.snapshot("room-1")[0]))
 
     def test_concurrent_sends_allocate_unique_positions(self):
         import threading
