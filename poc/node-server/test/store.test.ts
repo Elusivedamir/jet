@@ -236,3 +236,18 @@ test("conversation pins are member-scoped, bounded and cleared on message deleti
  assert.equal((await store.pinnedMessages("bob","room-a")).length,0);
  await store.unpinMessage("bob","room-a",message.message_id);
 });
+
+
+test("full-text search is conversation-scoped, member-only and excludes deleted messages",async()=>{
+ const visible=await store.send("alice","room-a","search-visible","Launch plan for the next quarter");
+ await store.send("bob","room-a","search-no-match","A different project update");
+ await store.send("alice","room-b","search-private","Launch plan secret in another conversation");
+ const deleted=await store.send("alice","room-a","search-deleted","Launch plan obsolete draft");
+ await store.deleteMessage("alice",deleted.message_id);
+ const results=await store.searchMessages("bob","room-a","launch plan");
+ assert.deepEqual(results.map(row=>row.message_id),[visible.message_id]);
+ assert.equal(results[0]!.payload,"Launch plan for the next quarter");
+ await assert.rejects(()=>store.searchMessages("mallory","room-a","launch plan"),NotMemberError);
+ await assert.rejects(()=>store.searchMessages("bob","room-a","x"),InvalidRequestError);
+ await assert.rejects(()=>store.searchMessages("bob","room-a","launch plan",51),InvalidRequestError);
+});
