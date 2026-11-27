@@ -105,14 +105,24 @@ def stop_server(process, log, hard=False):
     log.close()
 
 
-def post_without_reading_response(base, path, account, payload):
-    """Send a complete HTTP request, then close without reading its response."""
-    parsed = urllib.parse.urlsplit(base)
-    connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+def post_without_reading_response(base, path, account, payload, database_url, commit_sql, timeout=20):
+    """Send a request, wait for its DB commit without reading the response, then close."""
+    parsed = validate_base_url(base)
+    connection_type = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+    connection = connection_type(parsed.hostname, parsed.port, timeout=5)
     body = json.dumps(payload).encode()
-    connection.request("POST", path, body=body,
-                       headers={"Content-Type": "application/json", "X-Test-Account": account})
-    connection.close()
+    try:
+        connection.request(
+            "POST",
+            path,
+            body=body,
+            headers={"Content-Type": "application/json", "X-Test-Account": account},
+        )
+        # Keep the socket open while a separate DB connection observes commit.
+        # The HTTP response is intentionally never read by this client.
+        return wait_for_sql_value(database_url, commit_sql, timeout=timeout)
+    finally:
+        connection.close()
 
 
 def wait_for_sql_value(database_url, sql, timeout=20):
@@ -401,12 +411,15 @@ def main():
           INSERT INTO conversation_members(conversation_id,account_id)
             VALUES ('{lost_conversation}','alice'),('{lost_conversation}','bob');
         """)
-        post_without_reading_response(args.base_url,
-            f"/v1/conversations/{lost_conversation}/messages", "alice",
-            {"operation_key": lost_operation_key, "payload": lost_payload})
-        committed_message_id = wait_for_sql_value(args.database_url,
+        committed_message_id = post_without_reading_response(
+            args.base_url,
+            f"/v1/conversations/{lost_conversation}/messages",
+            "alice",
+            {"operation_key": lost_operation_key, "payload": lost_payload},
+            args.database_url,
             f"SELECT id FROM messages WHERE sender_id='alice' AND operation_key='{lost_operation_key}'",
-            timeout=20)
+            timeout=20,
+        )
         # The client closes without reading the server's acceptance response.
         stop_server(process, log, hard=True)
         process = None
