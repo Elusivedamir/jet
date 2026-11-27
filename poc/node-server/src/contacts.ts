@@ -163,6 +163,38 @@ export class ContactsStore {
     return result.rows;
   }
 
+  async conversations(accountId: string): Promise<Array<{
+    conversation_id: string; peer: UserPreview; last_message: string | null;
+    last_message_at: Date | null; last_position: string;
+  }>> {
+    const result = await this.pool.query<{
+      conversation_id:string; peer_id:string; username:string; display_name:string;
+      last_message:string|null; last_message_at:Date|null; last_position:string;
+    }>(
+      `SELECT dc.conversation_id,a.id AS peer_id,a.username,a.display_name,
+              latest.payload AS last_message,latest.created_at AS last_message_at,
+              COALESCE(cc.last_position,0)::text AS last_position
+       FROM direct_conversations dc
+       JOIN accounts a ON a.id=CASE WHEN dc.account_low=$1 THEN dc.account_high ELSE dc.account_low END
+       LEFT JOIN conversation_counters cc ON cc.conversation_id=dc.conversation_id
+       LEFT JOIN LATERAL (
+         SELECT payload,created_at FROM messages
+         WHERE conversation_id=dc.conversation_id ORDER BY position DESC LIMIT 1
+       ) latest ON true
+       WHERE dc.account_low=$1 OR dc.account_high=$1
+       ORDER BY COALESCE(latest.created_at,dc.created_at) DESC
+       LIMIT 100`,
+      [accountId]
+    );
+    return result.rows.map(row => ({
+      conversation_id:row.conversation_id,
+      peer:{id:row.peer_id,username:row.username,display_name:row.display_name},
+      last_message:row.last_message,
+      last_message_at:row.last_message_at,
+      last_position:row.last_position
+    }));
+  }
+
   async directConversation(accountId: string, usernameInput: string): Promise<string> {
     const username = usernameInput.trim().toLowerCase();
     if (!/^[a-z0-9_]{3,24}$/.test(username)) throw new ContactError("invalid");
