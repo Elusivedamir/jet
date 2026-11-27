@@ -69,3 +69,17 @@ test("expired lease cannot dispatch or retry before another worker reclaims",asy
  const inbox=await pool.query("SELECT count(*)::int AS n FROM recipient_inbox WHERE message_id=$1",[sent.message_id]);
  assert.equal(inbox.rows[0]!.n,0);
 });
+
+
+test("parallel workers claim distinct outbox rows and max attempts terminate",async()=>{
+ for(let i=0;i<10;i++) await store.send("alice","room-a",`parallel-claim-${i}`,"payload");
+ const claims=await Promise.all(Array.from({length:5},()=>store.claim(2,5000)));
+ const items=claims.flat();
+ assert.equal(items.length,10);
+ assert.equal(new Set(items.map(x=>x.id)).size,10);
+ const terminal=items[0]!;
+ terminal.attempt_count=8;
+ await store.retry(terminal,new Error("final injected failure"));
+ const state=await pool.query("SELECT state FROM delivery_outbox WHERE id=$1",[terminal.id]);
+ assert.equal(state.rows[0]!.state,"terminal_failure");
+});
