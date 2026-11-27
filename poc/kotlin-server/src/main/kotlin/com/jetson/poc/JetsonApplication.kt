@@ -67,7 +67,7 @@ class MessageStore(private val jdbc:JdbcTemplate, manager:PlatformTransactionMan
     }
 
     fun history(account:String,conversation:String,after:Long,limit:Int=50):List<Message> {
-        if(after<0||limit !in 1..100) throw InvalidRequestException()
+        if(account.isBlank()||conversation.isBlank()||after<0||limit !in 1..100) throw InvalidRequestException()
         val member=jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM conversation_members WHERE conversation_id=? AND account_id=?)",Boolean::class.javaObjectType,conversation,account) ?: false
         if(!member) throw NotMemberException()
         return jdbc.query("SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position FROM messages WHERE conversation_id=? AND position>? ORDER BY position LIMIT ?",{rs,_->map(rs)},conversation,after,limit)
@@ -107,6 +107,7 @@ class MessageStore(private val jdbc:JdbcTemplate, manager:PlatformTransactionMan
     }
 
     fun inbox(account:String,conversation:String,after:Long):List<Message> {
+        if(account.isBlank()||conversation.isBlank()||after<0) throw InvalidRequestException()
         val member=jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM conversation_members WHERE conversation_id=? AND account_id=?)",Boolean::class.javaObjectType,conversation,account) ?: false
         if(!member) throw NotMemberException()
         return jdbc.query("""SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.operation_key,m.payload,m.position
