@@ -95,3 +95,12 @@ No production adoption, merge to `main`, deployment or release. A final producti
 - Added matching tests in all three candidates for expired-lease rejection. Added parallel multi-worker claim uniqueness and terminal retry-limit tests across all candidates.
 - Intermediate CI failures were found and corrected: Go formatting check reported `store_test.go`; Kotlin compilation found tests appended outside the test class. Final verification is pending on the current head; do not cite earlier passing runs as validation of these changes.
 - Remaining Task 05 blockers: hard process-kill fault injection at commit/acceptance/claim/dispatch/ack boundaries; complete committed lockfiles/checksums; dependency SBOM/license review; controlled resource and sustained-load tests; timed maintenance-task comparison. Keep all scores Unknown where evidence is absent and keep stack decision Open.
+
+
+## Verification update — 2026-11-27 (final lease/cursor hardening)
+
+- Exact shared head `f86d25e755b17fcc7509b90288ae5c55f05f14e0` passed all three workflows: [Go #46021008920](https://github.com/Elusivedamir/jet/actions/runs/46021008920), [Node #46021008197](https://github.com/Elusivedamir/jet/actions/runs/46021008197), [Kotlin #46021008199](https://github.com/Elusivedamir/jet/actions/runs/46021008199).
+- Go: 12 PostgreSQL integration test functions repeated 100 times with the race detector; gofmt and go vet passed. Node: 8 PostgreSQL integration tests and TypeScript build passed. Kotlin: 8 JUnit/PostgreSQL tests and actual Kotlin main/test compilation passed.
+- Shared harness passed negative cursor rejection and Last-Event-ID precedence over stale query cursor, in addition to the prior retry/concurrency/member/SSE/ack/reconnect checks.
+- Added deterministic outbox-insert fault injection and verified message, sequence counter and outbox all roll back together. Parallel worker claims and retry terminal state are covered in each candidate.
+- Candidate implementation remains a research PoC. Hard process-kill tests at commit/claim/dispatch/ack boundaries, production identity/security, complete committed lockfiles/checksums, SBOM/license inventory, sustained-load/resource benchmarking and owner/agent maintenance-task comparison remain open. No weighted score or stack choice is allowed yet; status remains Open.
