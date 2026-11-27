@@ -5,7 +5,8 @@ import { readFile } from "node:fs/promises";
 import pg from "pg";
 const { Pool } = pg;
 import { ContactsStore, ContactError } from "../src/contacts.js";
-import { Store } from "../src/store.js";
+import { Store, ForbiddenError } from "../src/store.js";
+import { ChannelsStore, ChannelError } from "../src/channels.js";
 
 const pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
 const contacts = new ContactsStore(pool);
@@ -87,6 +88,36 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   for (const item of pendingDeliveries) await new Store(pool).dispatch(item);
   assert.ok((await new Store(pool).inbox(bob,group.conversation_id,0)).some(row => row.message_id === groupMessage.message_id));
   assert.ok((await new Store(pool).inbox(carol,group.conversation_id,0)).some(row => row.message_id === groupMessage.message_id));
+
+  const channelStore = new ChannelsStore(pool);
+  const publicChannel = await channelStore.create(alice, "Jetson updates", "jetson_updates", "public", "Official project updates");
+  assert.equal(publicChannel.invite_code, null);
+  assert.ok((await channelStore.search("jet")).some(row => row.conversation_id === publicChannel.conversation_id));
+  const joined = await channelStore.join(bob, "jetson_updates");
+  assert.equal(joined.role, "subscriber");
+  await assert.rejects(
+    () => new Store(pool).send(bob, publicChannel.conversation_id, "subscriber-post", "I should not publish"),
+    error => error instanceof ForbiddenError
+  );
+  const channelMessage = await new Store(pool).send(alice, publicChannel.conversation_id, "channel-post-1", "Official announcement");
+  const channelDeliveries = await new Store(pool).claim(20,5000);
+  for (const item of channelDeliveries) await new Store(pool).dispatch(item);
+  assert.ok((await new Store(pool).inbox(bob,publicChannel.conversation_id,0)).some(row => row.message_id === channelMessage.message_id));
+  const channelInbox = await contacts.conversations(bob);
+  const channelEntry = channelInbox.find(row => row.conversation_id === publicChannel.conversation_id);
+  assert.equal(channelEntry?.kind, "channel");
+  assert.equal(channelEntry?.title, "Jetson updates");
+  assert.equal(channelEntry?.members_count, 2);
+
+  const privateChannel = await channelStore.create(alice, "Private notes", "private_notes", "private", "Invite only");
+  assert.ok(privateChannel.invite_code);
+  assert.ok(!(await channelStore.search("pri")).some(row => row.conversation_id === privateChannel.conversation_id));
+  await assert.rejects(
+    () => channelStore.join(carol, "private_notes"),
+    error => error instanceof ChannelError && error.code === "not_found"
+  );
+  const privateJoin = await channelStore.join(carol, "private_notes", privateChannel.invite_code!);
+  assert.equal(privateJoin.role, "subscriber");
   await assert.rejects(() => contacts.request(alice, "bob"), error => error instanceof ContactError && error.code === "already_contact");
   assert.equal(await contacts.directConversation(carol, "alice"), carolAccepted.conversation_id);
 
