@@ -93,6 +93,7 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   await contacts.accept(dave, daveRequest.id);
   const added = await contacts.addGroupMembers(alice, group.conversation_id, ["dave"]);
   assert.deepEqual(added, {added:1,members_count:4});
+  assert.deepEqual(await contacts.addGroupMembers(alice, group.conversation_id, ["dave"]), {added:0,members_count:4});
   await assert.rejects(
     () => contacts.addGroupMembers(bob, group.conversation_id, ["dave"]),
     error => error instanceof ContactError && error.code === "forbidden"
