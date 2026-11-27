@@ -4,8 +4,8 @@
 
 | Candidate | Committed dependency metadata | CI install / verification | Security inventory | Current result |
 |---|---|---|---|---|
-| Go | `go.mod` + `go.sum` committed; remediation changes Go 1.26.11, pgx/v5 5.9.2, x/text 0.41.0 | Current workflow runs `go mod tidy` to refresh graph and checksums; post-remediation result not yet confirmed | First govulncheck run found 24 reachable advisories on old baseline; refreshed scan pending | **OPEN** |
-| Node.js / TypeScript | `package.json` + npm v3 `package-lock.json` committed with integrity hashes | `npm ci` on committed lockfile passed; package files remain unchanged | npm audit: 0 advisories; Trivy: 0 vulnerabilities in scanned npm graph; license inventory generated | **PASS for dependency lock/install and current vulnerability scan** |
+| Go | `go.mod` + existing `go.sum`; remediation changes Go 1.26.11, pgx/v5 5.9.2, x/text 0.41.0 | Workflow runs `go mod tidy`, `go mod verify`, then preserves the metadata diff and refreshed sum as CI artifacts | govulncheck, go-licenses allow-list and Trivy HIGH/CRITICAL gate required; new run pending | **OPEN** |
+| Node.js / TypeScript | `package.json` + npm v3 `package-lock.json` committed with integrity hashes | Historical `npm ci` passed; latest workflow still runs `npm ci` and verifies no lockfile drift | Historical scans found zero, but current workflow now enforces npm audit (low+) and Trivy HIGH/CRITICAL; license-checker allow-list; fresh fail-closed run pending | **PARTIAL — reproducible install metadata present; fresh gates pending** |
 | Kotlin / Spring | Maven parent, Kotlin and plugins declared; no full transitive lockfile | `mvn -B -C verify` and JSON dependency tree succeeded | CycloneDX SBOM (42 components); Trivy: 0 vulnerabilities after PostgreSQL JDBC 42.7.12; license scan generated | **Partial** — clean scan, but no committed transitive lock |
 
 ## Node.js
@@ -46,3 +46,13 @@ The old scan's failure is retained as evidence. The updated Go workflow refreshe
 6. Repeat dependency scans periodically and after dependency changes.
 
 **Overall gate: PARTIALLY COMPLETE.** Node's lock/install and scan gates pass. Kotlin's scan passes but full transitive lock remains open. Go's patch is committed but its post-fix scan and refreshed checksums are not yet confirmed.
+
+
+## CI gate correction — 2026-11-27
+
+A review found that the earlier Node workflow used `npm audit ... || true` and the earlier Trivy commands did not set a nonzero exit code for findings. Their old zero-finding outputs are useful historical scan evidence, but those workflow steps were not fail-closed gates. The workflows have now been corrected:
+- Node: `npm audit --audit-level=low`, license-checker allow-list, Trivy `--exit-code 1 --severity HIGH,CRITICAL`.
+- Go: govulncheck, go-licenses allow-list, CycloneDX, Trivy `--exit-code 1 --severity HIGH,CRITICAL`.
+- Kotlin: CycloneDX, Maven third-party license inventory, Trivy `--exit-code 1 --severity HIGH,CRITICAL`.
+
+These corrected workflows need fresh successful CI runs before any clean-gate status is claimed. Go's refreshed `go.sum` is currently an artifact candidate and must be reviewed/committed before Go can be called reproducible. Maven still lacks a committed full transitive dependency lock. License allow-list/inventory output requires human review, and the product's own license remains undecided.
