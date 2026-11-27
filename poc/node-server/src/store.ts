@@ -40,7 +40,9 @@ export class Store {
       const recipients = await c.query<{account_id:string}>(
         "SELECT account_id FROM conversation_members WHERE conversation_id=$1 AND account_id<>$2 ORDER BY account_id",
         [conversation, sender]);
-      if (recipients.rowCount < 1) throw new InvalidRequestError("conversation requires at least one recipient besides the sender");
+      if ((recipients.rowCount ?? recipients.rows.length) < 1) {
+        throw new InvalidRequestError("conversation requires at least one recipient besides the sender");
+      }
       await c.query(
         "INSERT INTO delivery_outbox(message_id,recipient_id) SELECT $1, unnest($2::text[])",
         [id, recipients.rows.map((recipient) => recipient.account_id)]
