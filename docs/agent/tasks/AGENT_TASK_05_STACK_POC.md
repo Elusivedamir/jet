@@ -128,3 +128,21 @@ No production adoption, merge to `main`, deployment or release. A final producti
 - Findings: Go `go.sum` absent; Node `package-lock.json` absent and CI currently uses `npm install`; Kotlin versions are declared through Maven parent/properties/plugins but no full transitive lock/checksum enforcement is committed.
 - All three dependency-reproducibility gates remain OPEN. This was a manifest-level inspection only, not a vulnerability scan, SBOM or license audit.
 - Remediation is defined per candidate, including clean-checkout verification and exact-SHA SBOM/vulnerability/license reports.
+
+
+## Current execution status — 2026-11-27 (latest)
+
+Historical progress notes above describe earlier stages and are retained as a timeline. Current state:
+
+- Three comparable two-party delivery PoCs exist: Go, Node.js/TypeScript and Kotlin/Spring, all using PostgreSQL.
+- The shared hard-crash harness is executable and connected to all three candidate workflows. It kills the direct server process during a recipient-inbox transaction while the lease is still valid, verifies rollback, waits for lease expiry, restarts and checks one durable inbox row plus idempotent retry.
+- Hard-crash scenario passed for all three: Go baseline [46025003199](https://github.com/Elusivedamir/jet/actions/runs/46025003199), Node [46026586747](https://github.com/Elusivedamir/jet/actions/runs/46026586747), Kotlin [46026586769](https://github.com/Elusivedamir/jet/actions/runs/46026586769).
+- The shared performance probe now runs five sequential rounds and three concurrent rounds (200 writes each, concurrency 16), with server-process RSS and CPU sampling.
+- Node: committed npm lockfile; clean `npm ci`; npm audit and Trivy report zero vulnerabilities in the scanned dependency graph.
+- Kotlin: Maven strict-checksum verification, dependency tree and CycloneDX SBOM; PostgreSQL JDBC 42.7.12; latest Trivy report zero vulnerabilities in the scanned graph. Maven still has no full committed transitive lockfile.
+- Go: first govulncheck scan found 24 reachable advisories on Go 1.24.13, pgx 5.7.2 and x/text 0.21.0. Remediation committed to Go 1.26.11, pgx 5.9.2 and x/text 0.41.0. Post-remediation Go scan and refreshed checksums are not yet confirmed.
+- Latest repeated benchmark and recommendation are in `docs/research/STACK_SELECTION_SCORECARD_2026-11-27.md`. ADR-0001 proposes Node.js/TypeScript for v1; this is a provisional architecture recommendation, not release authorization.
+- The original STACK-001..012 plan is not fully complete. Only one hard-crash boundary is currently covered. Lost acceptance response, claim-before-dispatch, after-inbox-before-completion, after-dispatch and ack-response loss tests remain.
+- Maintenance-task/DX comparison, cold-start/build-time/image-size, open-socket/connection metrics, sustained load/soak and deployment cost are still outstanding.
+- Production auth/session, migrations, E2EE, rate limits/abuse controls, device model and observability are not implemented. Test identity remains spoofable; do not expose any PoC publicly.
+- PR #44 remains Draft; no merge to main, deployment or business-plan modification is authorized.
