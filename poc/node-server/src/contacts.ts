@@ -40,6 +40,7 @@ export class ContactsStore {
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
+      await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`contact:${low}:${high}`]);
       const existingContact = await c.query("SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2", [low, high]);
       if (existingContact.rowCount) throw new ContactError("already_contact");
       const reverse = await c.query<ContactRequest>(
@@ -76,6 +77,7 @@ export class ContactsStore {
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
+      await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`contact-request:${requestId}`]);
       const found = await c.query<ContactRequest>(
         "SELECT id,requester_id,recipient_id,status,created_at,responded_at FROM contact_requests WHERE id=$1 FOR UPDATE",
         [requestId]
