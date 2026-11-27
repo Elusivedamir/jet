@@ -116,3 +116,12 @@ No upstream code was executed during this second-pass review. No upstream build,
 A bounded independent check retrieved five exact raw source files at the revisions cited in the reports: Tinode `server/topic.go`, Synapse `synapse/handlers/message.py`, OpenIM `internal/msgtransfer/online_history_msg_handler.go`, ejabberd `src/mod_offline.erl`, and Listmonk `queries/campaigns.sql`. The observations and limits are documented in [INDEPENDENT_SOURCE_CHECK_2026-11-27.md](INDEPENDENT_SOURCE_CHECK_2026-11-27.md). This confirms those five pinned paths are retrievable and supports only the specific source-level behavior described there.
 
 The full `upstream-sources/MANIFEST.txt` and shallow source snapshot directory remain absent from both the task branch and its research base branch. This limited check does not restore full provenance, verify all report citations, run upstream tests, establish current maintainer/security posture, or provide license/legal clearance. ADR-011 remains Blocked for code reuse.
+
+
+### 8.5 Upstream failure-path findings that constrain the design
+
+The extended delivery deep dive identifies important failure hypotheses that were not visible from a high-level architecture diagram. They are documented in [MESSAGE_DELIVERY_FAILURE_RISK_REGISTER.md](MESSAGE_DELIVERY_FAILURE_RISK_REGISTER.md), with exact blob links and required fault tests.
+
+- OpenIM's inspected batcher callback marks/commits the last raw MQ message; the handler's enqueue and processing paths do not consistently propagate failures; sequence allocation precedes Redis cache insertion; Mongo-MQ publication is a separate step. This is a high-priority potential message-loss/inconsistency path, **not a confirmed defect**. The exact outcome depends on batcher, producer and consumer-offset semantics that remain unverified.
+- Tinode's mapper updates topic sequence and then calls message save through separate adapter calls. This is a potential sequence-gap window; whether an adapter transaction closes it remains unknown.
+- These findings strengthen the Jetson requirement that message identity, conversation position, idempotency and recoverable outbox intent commit atomically before acceptance. Downstream queue/push work must be independently durable and retryable; callback completion alone is not proof of durable effects.
