@@ -1,6 +1,6 @@
 # ADR-0002: Backend language for Jetson v1
 
-- **Status:** Proposed decision — Go + PostgreSQL; pending latest fail-closed CI and 30-second soak
+- **Status:** Provisional recommendation — Go + PostgreSQL; final stack decision pending bounded outbox-worker concurrency comparison, queue-drain soak and matched maintenance-task evidence
 - **Date:** 2026-11-27
 - **Supersedes:** ADR-0001 (Node.js/TypeScript proposal)
 - **Scope:** First backend implementation; does not select mobile/web UI frameworks or authorize production release.
@@ -9,7 +9,7 @@
 
 Jetson needs a maintainable messenger backend and product modules that can evolve: profiles, direct/group conversations, channels, business CRM, consent-based campaigns, analytics and AI integrations. Three independent PoCs implement the same durable-message contract on PostgreSQL: Go, Node.js/TypeScript and Kotlin/Spring.
 
-The comparison now includes two hard process-kill/restart scenarios, a shared black-box contract, a repeated concurrent write probe, process RSS/CPU sampling, SBOMs and dependency/security checks. A third crash scenario and a 30-second concurrent soak have been added to the harness and await the next CI execution.
+The comparison now includes three hard process-kill/restart scenarios, a shared black-box contract, repeated concurrent writes, a 30-second soak, process RSS/CPU sampling, SBOMs and dependency/security checks. All three crash boundaries pass on all candidates. The new soak exposes a common outbox delivery bottleneck: the API accepts 807–1,261 writes/s while serial workers complete only about 50–82 deliveries/s and leave a large queue backlog. See [OUTBOX_WORKER_CAPACITY_FINDINGS](../research/OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md).
 
 ## Decision
 
@@ -44,23 +44,32 @@ Interpretation:
 - Node had the lowest p50, but its tail latency and throughput were worse in this run.
 - Kotlin was close to Go in throughput but used materially more memory and CPU.
 
-This is a short CI microbenchmark, not a capacity/SLO claim. Hosted-runner noise remains possible; the new 30-second soak will provide another signal.
+This earlier short CI microbenchmark is not a capacity/SLO claim. The later 30-second soak confirms the Go API-acceptance advantage but also shows that end-to-end delivery is constrained by the shared serial worker design. Hosted-runner noise remains possible.
 
 ## Correctness and recovery
 
-All three candidates passed the shared contract and two hard process-kill scenarios in the same CI generation:
+All three candidates passed the shared contract and all three hard crash/restart boundaries on the latest comparable CI generation:
 1. SIGKILL during recipient-inbox dispatch transaction, proving rollback and recovery after lease expiry.
-2. SIGKILL after the outbox claim committed while the worker was blocked before recipient-inbox insertion, proving lease reclaim and recovery.
+2. SIGKILL after the outbox claim commits while dispatch is blocked before inbox insertion, proving lease reclaim and recovery.
+3. Lost acceptance response: the client keeps the socket open without reading the HTTP response until PostgreSQL confirms the message commit, then closes; the server is killed/restarted and an idempotent retry returns the original message ID.
 
-The third scenario—client closes without reading the committed acceptance response, server restarts, then the client retries the same idempotency key—has been implemented but is pending its first CI result.
+Latest candidate runs on source commit `7a7301310cb6757cfe17046158c6da185138deea`:
+- Go: [Actions run 46036340867](https://github.com/Elusivedamir/jet/actions/runs/46036340867) — PASS, including all three crash cases, contract, Go supply-chain checks and Trivy.
+- Node: [Actions run 46036340934](https://github.com/Elusivedamir/jet/actions/runs/46036340934) — PASS, including all three crash cases, contract, npm audit and Trivy.
+- Kotlin: [Actions run 46036340835](https://github.com/Elusivedamir/jet/actions/runs/46036340835) — crash cases, contract and Trivy passed; overall job remains FAIL because three dependency license declarations require human/legal review.
+
+## Latest 30-second soak and outbox delivery
+
+The latest same-runner comparison is recorded in [OUTBOX_WORKER_CAPACITY_FINDINGS](../research/OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md). Go led API acceptance at 1,260.92 writes/s, versus 807.32 for Node and 816.98 for Kotlin, with 0 request errors. However, each candidate's serial outbox worker left 23,480–36,488 pending rows, an oldest-open age of 29–30 seconds and p95 completed-delivery latency around 27–28 seconds.
+
+The worker bottleneck is shared by all three candidates and must be fixed/measured before choosing a final production stack. The current API write benchmark is not an end-to-end delivery benchmark.
 
 ## Supply chain and security
 
-- Go's patched run reported **“No vulnerabilities found”** from govulncheck. The job then failed at the third-party license check because the repository's own Go module has no declared open-source license. The workflow now excludes the first-party module from third-party dependency checking, while retaining the project's own license as an explicit owner decision.
-- The CI-generated Go module graph and checksum diff were reviewed. Updated `go.mod` and `go.sum` are now committed, including pgx 5.9.2 and x/text 0.41.0. The workflow now fails if `go mod tidy` changes the committed module metadata.
-- Node's npm audit reported zero advisories, but its first fail-closed license step correctly stopped on the root package's `UNLICENSED` declaration. The workflow now excludes the first-party package from the third-party allow-list check; a fresh run is pending.
-- Kotlin's Trivy scan reported zero vulnerabilities and CycloneDX generated 42 components. Three components have EPL/LGPL/GPL-with-classpath-exception license declarations and require human review. A conservative SBOM license gate now reports and blocks unreviewed licenses.
-- The Maven transitive graph is now recorded in `poc/kotlin-server/dependency-versions.lock` and checked against the resolved dependency tree in CI. This is a version-graph lock/fingerprint combined with Maven strict checksums, not a cryptographic lock of every artifact.
+- Go: govulncheck, go-licenses third-party allow-list and Trivy all passed in the latest candidate run.
+- Node: npm audit reported zero advisories; third-party license allow-list and Trivy passed.
+- Kotlin: Trivy vulnerability scan passed, but the conservative license gate remains blocked pending human/legal review of `logback-classic 1.5.18`, `logback-core 1.5.18` and `jakarta.annotation-api 2.1.1`. No automatic allow-list exception was added.
+- The separate continuous security workflow passed Gitleaks, Semgrep, CodeQL for Go/TypeScript/Kotlin, and both changed-workflow and full-repository zizmor audits on the same source generation.
 
 ## Alternatives considered
 
@@ -87,11 +96,11 @@ Trade-offs:
 ## Revisit conditions
 
 Reopen this ADR if:
-1. the 30-second soak shows unacceptable Go tail latency, memory growth, queue backlog or instability;
+1. a bounded-parallelism outbox-worker experiment does not resolve Go's queue backlog or shows unacceptable delivery tail latency, memory growth or instability;
 2. a matched product-development task demonstrates materially higher total delivery/maintenance cost in Go;
 3. a refreshed same-runner comparison materially changes the performance/resource ranking;
 4. a specific enterprise integration requirement justifies Kotlin/Spring.
 
 ## Release gates still required
 
-This decision does not authorize public deployment. Complete the latest fail-closed CI run, review third-party and first-party licensing, execute the three crash scenarios and soak on all candidates, implement production authentication/authorization, migrations, rate limiting, anti-abuse and consent enforcement, device/session handling, observability, backups, E2EE/security design and sustained load/soak testing.
+This decision does not authorize public deployment. Complete a matched bounded-worker-concurrency and queue-drain comparison; resolve Kotlin's open license review if Kotlin remains under consideration; run longer sustained load/soak; and implement production authentication/authorization, migrations, rate limiting, anti-abuse and consent enforcement, device/session handling, observability, backups and E2EE/security design.
