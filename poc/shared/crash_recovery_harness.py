@@ -50,7 +50,7 @@ def wait_health(base, process, log_path, timeout=45):
         if process.poll() is not None:
             raise RuntimeError(f"server exited with {process.returncode}; see {log_path}")
         try:
-            status, _ = http(base, "GET", "/healthz", timeout=1)
+            status, _ = http(base, "GET", "/healthz", account="alice", timeout=1)
             if status in (200, 204):
                 return
         except Exception:
