@@ -39,8 +39,8 @@ jobs:
     env:
       TEST_DATABASE_URL: postgres://jetson:jetson_test_only@localhost:5432/jetson_poc?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
       - name: Reproducible clean install from committed lockfile
@@ -74,7 +74,7 @@ jobs:
       - name: Trivy filesystem vulnerability and license report
         run: |
           docker run --rm -v "$PWD:/workspace" -v /tmp:/reports aquasec/trivy:0.58.2 fs --scanners vuln,license --exit-code 1 --severity HIGH,CRITICAL --format json --output /reports/node-trivy-report.json /workspace
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: node-message-poc-evidence
