@@ -1,19 +1,17 @@
 name: Go durable-message PoC
-
 on:
   pull_request:
     paths:
       - "poc/go-server/**"
+      - "poc/shared/**"
       - ".github/workflows/go-durable-message-poc.yml"
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
   integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17
@@ -40,39 +38,54 @@ jobs:
           go-version: "1.24.x"
           cache: true
           cache-dependency-path: poc/go-server/go.mod
-      - name: Resolve and verify module graph
-        run: go mod tidy
-      - name: Format check
+      - name: Resolve module checksums and verify dependency graph
+        run: |
+          go mod tidy
+          go mod verify
+          test -s go.sum
+      - name: Format and static analysis
         run: |
           files="$(gofmt -l *.go)"
           if [ -n "$files" ]; then printf "%s\\n" "$files"; exit 1; fi
-      - name: Static analysis
-        run: go vet ./...
+          go vet ./...
       - name: PostgreSQL integration and race tests
         run: go test -race -count=100 -v ./...
-
-      - name: Install PostgreSQL client and seed black-box fixtures
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Build direct server executable
+        run: go build -trimpath -ldflags="-buildid=" -o /tmp/jet-go-server .
+      - name: Hard crash/restart, shared contract and benchmark
+        env:
+          LISTEN_ADDR: ":8080"
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y postgresql-client
-          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          TRUNCATE delivery_receipts, recipient_inbox, delivery_outbox, messages, conversation_counters, conversation_members, conversations CASCADE;
-          INSERT INTO conversations(id) VALUES ('room-a'), ('room-b');
-          INSERT INTO conversation_members(conversation_id, account_id) VALUES
-           ('room-a','alice'), ('room-a','bob'), ('room-b','alice'), ('room-b','carol');
-          SQL
-      - name: Start Go server
+          python3 ../../poc/shared/crash_recovery_harness.py \
+            --database-url "$TEST_DATABASE_URL" \
+            --base-url http://127.0.0.1:8080 \
+            --contract-harness ../../poc/shared/contract_harness.py \
+            --output /tmp/go-crash-recovery.json \
+            --log /tmp/jet-go-server.log \
+            --rounds 5 --per-round 100 \
+            --server-command /tmp/jet-go-server
+      - name: Supply-chain vulnerability and license scan
         run: |
-          nohup env DATABASE_URL="$TEST_DATABASE_URL" LISTEN_ADDR=:8080 go run . >/tmp/jet-go.log 2>&1 &
-          echo $! >/tmp/jet-go.pid
-          for i in {1..60}; do
-            if curl -sf -H 'X-Test-Account: alice' http://127.0.0.1:8080/healthz >/dev/null; then exit 0; fi
-            sleep 1
-          done
-          cat /tmp/jet-go.log
-          exit 1
-      - name: Shared HTTP/SSE contract and five-round latency probe
-        run: set -o pipefail; python3 ../../poc/shared/contract_harness.py --base-url http://127.0.0.1:8080 --rounds 5 --per-round 100 | tee /tmp/go-results.json
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck ./... > /tmp/go-vulnerability-scan.txt
+          go install github.com/google/go-licenses@v1.6.0
+          go-licenses report ./... > /tmp/go-license-report.csv
+          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.8.0
+          cyclonedx-gomod mod -json -output /tmp/go-sbom.json
+      - uses: aquasecurity/setup-trivy@v0.2.3
+      - name: Trivy filesystem vulnerability and license report
+        run: trivy fs --scanners vuln,license --format json --output /tmp/go-trivy-report.json .
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: go-message-poc-results
-          path: /tmp/go-results.json
+          name: go-message-poc-evidence
+          path: |
+            /tmp/go-crash-recovery.json
+            /tmp/jet-go-server.log
+            /tmp/go-vulnerability-scan.txt
+            /tmp/go-license-report.csv
+            /tmp/go-sbom.json
+            /tmp/go-trivy-report.json
+            poc/go-server/go.sum
