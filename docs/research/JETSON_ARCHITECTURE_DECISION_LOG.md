@@ -29,3 +29,14 @@ The source reports contain direct GitHub permalinks and inspected paths. Evidenc
 
 
 A related source-document discrepancy remains open: the canonical business-plan baseline places AI rollout in Stage 3 (while AI remains included in Business), but the derivative requirements table places AI-001/AI-002 under Stage 2. This synthesis follows the canonical baseline and does not silently edit the requirements document.
+
+
+## Independent verification update — 2026-11-27
+
+- **ADR-011 remains Blocked.** The referenced `upstream-sources/MANIFEST.txt` could not be fetched from the staged task branch during the second-pass review (GitHub returned 404). This is an evidence-access limitation, not proof that the original local snapshots did not exist.
+- Until the manifest and snapshot files are restored and SHA-verified, report-level source citations remain report-attributed rather than independently reproduced in this branch.
+- Fluxer has a pinned-revision discrepancy: security report `1e9cd7c9b6ef5b39ac73ef5ce78c40531370b37d` vs synthesis/decision log `7bdee9e9cfc7f8321d1578f9e4e76691c073e4b0`. Keep Fluxer-specific reuse/security conclusions excluded until re-reviewed at one revision.
+- No new upstream tests, builds, load/fault tests, legal review, security audit or restore drill were run on 2026-11-27.
+- No technology decision is approved by this update; modular monolith remains a reversible proposal.
+
+**Required closure:** restore manifest/snapshot provenance, verify all pinned SHAs, reconcile Fluxer, then update ADR-011 with exact evidence and review results.
