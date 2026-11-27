@@ -403,3 +403,14 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Runner classes differ (Go/Node Azure 4-vCPU, Kotlin AWS 4-vCPU) and queue starting sizes vary, so these results validate the worker-loop fix but do not support a definitive language ranking or production SLO.
 - Kotlin license gate remains unresolved; no exception was introduced. PR #46 remains Draft and unmerged. User has authorized merges, but authorization does not override failing checks or license review.
 - Manual self-review (not independent), round 4: reviewed full corrected worker loop and matrix evidence. No data-loss/crash regression observed in the 12 cells; remaining review items are Node's deterministic terminal row, Kotlin dependency licensing, and controlled repeatability before backend selection.
+
+
+
+## Node backend selection and terminal-fixture investigation — 2026-11-27
+
+- Product owner selected Node.js / TypeScript as the primary backend direction; formal record: ADR-0003.
+- Manual source trace confirmed the deterministic Node terminal row originated in the unit test `parallel workers claim distinct outbox rows and max attempts terminate`. It intentionally called `store.retry` with an in-memory attempt count of 8 and `Error("final injected failure")`, but left the fixture in the shared PostgreSQL database. The subsequent live harness counted it.
+- Patch commit: `2e89e0155ab113e9b069894599222a79aabb8502`. Node test setup/teardown now share a fixture reset, and the terminal test asserts its exact expected error.
+- **Status:** source cause confirmed; CI regression verification pending. Required evidence: Node workflow passes on the exact new head and all four crash/soak artifacts report `terminal_failure=0`.
+- Manual self-review (not independent): verified test setup and teardown use the same TRUNCATE set, teardown runs before pool shutdown, and the unit test still explicitly checks the terminal transition and error. No separate reviewer/agent was launched.
+- Worker concurrency default remains 1. Controlled repeatability and production gates remain open.
