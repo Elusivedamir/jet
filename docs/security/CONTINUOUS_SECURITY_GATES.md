@@ -23,7 +23,7 @@ The old `semgrep/semgrep-action` repository is archived/deprecated and MUST NOT 
 
 ## CI triggers and permissions
 
-The continuous security workflow runs on pull requests, pushes to its dedicated governance branch, weekly schedule and manual dispatch. The Scorecard workflow runs on pushes to `main`, weekly schedule and manual dispatch. Scorecard's upstream documentation describes push/schedule as supported stable triggers and labels pull-request/workflow-dispatch triggers experimental; the repository uses the supported default-branch and schedule triggers.
+The continuous security workflow runs on pull requests, pushes to its dedicated governance branch, weekly schedule and manual dispatch. The Scorecard workflow runs on pushes to `main` and weekly schedule. Scorecard's upstream documentation describes push/schedule as supported stable triggers and labels pull-request/workflow-dispatch triggers experimental; the repository uses the supported default-branch and schedule triggers.
 
 Repository permissions are read-only by default. CodeQL receives `security-events: write` only in its dedicated job to publish code-scanning results. The zizmor job does not upload to GitHub Advanced Security and does not request write permissions. Scorecard result publication is disabled, so it does not request `id-token: write`.
 
