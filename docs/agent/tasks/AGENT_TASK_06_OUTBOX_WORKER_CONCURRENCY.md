@@ -1,6 +1,6 @@
 # Agent task 06 — bounded outbox worker concurrency comparison
 
-**Status:** ready for implementation; blocks final backend stack selection.  
+**Status:** implementation committed to the comparison branch; CI matrix and correctness validation pending. Blocks final backend stack selection.  
 **Priority:** high.  
 **Scope:** comparative PoC only; no production-readiness claim.
 
@@ -27,7 +27,16 @@ Run a matched experiment on Go, Node.js/TypeScript and Kotlin/Spring to determin
 - Normalize and document database pool capacity across candidates before testing. Pool capacity must be high enough for the tested worker concurrency plus producer requests; do not silently let one runtime default to a smaller pool.
 - Producer load: 16 concurrent clients, same message contract, 30-second write soak.
 - After producers stop, run a **60-second drain window** and sample queue state every 5 seconds.
-- At least **three runs per candidate/concurrency level** on the same runner class and PostgreSQL version.
+- Three independent 30-second producer/contract repetitions per candidate/concurrency level on the same runner class and PostgreSQL version, followed by a 60-second drain window sampled every 5 seconds.
+
+## Implementation progress — 2026-11-27
+
+- Added bounded, configurable dispatch concurrency (1..16; default 1) to Go, Node.js/TypeScript and Kotlin/Spring.
+- Each candidate claims at most 20 rows per batch and waits for that batch to finish before claiming again; no unbounded in-memory backlog is introduced.
+- Normalized CI database pool maximum to 40 connections for all three candidates.
+- CI workflows now use a 4-value matrix (1/4/8/16) with fail-fast disabled.
+- Shared crash harness now performs three 30-second contract/producer soak repetitions per matrix cell, records per-repetition results and process resource metrics, then samples outbox state every 5 seconds for up to 60 seconds.
+- The matrix has not yet completed; no concurrency winner or throughput improvement is claimed.
 
 ## Implementation constraints
 
