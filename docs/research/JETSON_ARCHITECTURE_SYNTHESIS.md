@@ -94,3 +94,18 @@ This revision withdraws unsupported architecture totals, restores the business-p
 ### Stage-boundary discrepancy to track
 
 The derivative `PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md` currently lists AI-001/AI-002 under Stage 2, while the canonical business-plan baseline places the AI assistant rollout in Stage 3 and states that AI is included in the Business subscription. For this synthesis, the canonical business plan controls: entitlement remains part of Business; rollout is Stage 3. The derivative requirements document was not changed in this research-only correction and should be reconciled in a separate owner-visible documentation change before implementation planning.
+
+
+## Independent verification update — 2026-11-27
+
+A second-pass repository check found one provenance limitation that must remain visible:
+
+- The security/operations report states that local shallow source snapshots were checked against `upstream-sources/MANIFEST.txt`.
+- Fetching that exact path from the staged architecture task branch returned GitHub 404. The manifest could not be independently retrieved from this branch in this review.
+- This does **not** prove the original local manifest or snapshots never existed. It means this synthesis cannot independently reproduce that verification from the repository branch currently available.
+- Consequently, treat the pinned SHAs and source-path citations in the reports as report-attributed evidence until the manifest/snapshot inventory is restored and checked. Do not claim a fresh independent SHA-to-snapshot validation.
+- The security report's Fluxer references use `1e9cd7c9b6ef5b39ac73ef5ce78c40531370b37d`, while the synthesis and decision log list `7bdee9e9cfc7f8321d1578f9e4e76691c073e4b0`. The synthesis already excludes Fluxer SHA-specific claims pending reconciliation; this review preserves that exclusion.
+
+No upstream code was executed during this second-pass review. No upstream build, test suite, load test, fault injection, security audit, legal review or restore drill is claimed. The architecture recommendation remains provisional and the technology stack remains open.
+
+**Next evidence action:** restore the exact manifest and pinned source snapshots (or provide a repository-accessible immutable archive with checksums), verify every SHA, then reconcile the Fluxer revision discrepancy before any source reuse decision.
