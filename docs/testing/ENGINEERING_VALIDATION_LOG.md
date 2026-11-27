@@ -41,3 +41,11 @@ It does **not** prove production message delivery, exactly-once network delivery
 ## Next engineering increment
 
 Specify and test the outbox dispatch boundary with a fake external transport: retry schedule/backoff, bounded attempts and dead-letter handling, receiver-side idempotency/deduplication, and the crash window where a transport side effect succeeds but the worker crashes before recording acknowledgement. Do not describe this as exactly-once delivery; prove the duplicate-handling contract and state its limits.
+
+
+## 2026-11-27 — Architecture research PR and workflow trigger audit
+
+- PR #13 latest head at the start of this check had no associated pull-request workflow runs; combined commit status was empty. This is recorded as **not run**, not as a pass.
+- The reliability workflow's `pull_request.branches` filter listed `research/architecture-synthesis-task` but omitted its actual PR target, `research/repository-landscape`. Added the actual target branch to the filter so future PRs targeting the research baseline can trigger the workflow once the workflow definition is present in that base branch.
+- This workflow correction does not retroactively execute CI for PR #13: a newly introduced workflow is not available from the base branch before it is merged, and no workflow run is associated with the current head in this check.
+- No test result is claimed for this documentation/configuration update. Existing SQLite/reference-model test evidence remains the earlier independently recorded run evidence only; it is not a new run for this commit.
