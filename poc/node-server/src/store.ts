@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { Pool, PoolClient } from "pg";
+import { Pool } from "pg";
 
-export type Message = {
+export type Message = { [key: string]: any;
   message_id: string; conversation_id: string; sender_id: string;
   operation_key: string; payload: string; position: string;
 };
