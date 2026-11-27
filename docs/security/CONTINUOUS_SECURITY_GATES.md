@@ -90,3 +90,15 @@ Configured in `.github/workflows/scorecard.yml` using a pinned upstream commit. 
 - CodeQL action: https://github.com/github/codeql-action/tree/776237d428f23fefc3d9e0fe1962921cbcd53e17
 - OpenSSF Scorecard: https://github.com/ossf/scorecard-action
 - Renovate: https://github.com/renovatebot/renovate
+
+
+## First-run findings and remediation tracking
+
+The first workflow execution is recorded in [ZIZMOR_BASELINE_AUDIT_2026-11-27.md](ZIZMOR_BASELINE_AUDIT_2026-11-27.md) and the engineering validation log.
+
+- The first Gitleaks run scanned 808 commits and reported one leak. The report did not expose a redacted file/line in the initial summary. Verbose redacted output is enabled for the next run; the finding remains unresolved until its location and context are inspected.
+- Semgrep reported two dynamic-URL findings in test-only HTTP harnesses. The harnesses were changed to use `http.client` after strict validation of HTTP(S) origins; regression tests now reject `file://`, FTP, JavaScript schemes, userinfo, paths, query strings and fragments. The updated Semgrep run is pending.
+- CodeQL Go analysis passed. The first Java/Kotlin autobuild failed because the Maven project is nested under `poc/kotlin-server`; the first JavaScript/TypeScript initialization used an unsupported autobuild mode. The workflow now uses Go autobuild, JavaScript/TypeScript `none`, and an explicit Maven build for Java/Kotlin. Rerun evidence is pending.
+- The initial full-repository zizmor scan found legacy workflow debt. The workflow now has a blocking audit scoped to the two new workflow files and a separate advisory full-repository baseline job. This avoids treating inherited findings as new changes while keeping them visible; the full baseline must still be remediated.
+
+These are real first-run results and corrections, not PASS claims. The current head must produce fresh evidence before any updated check is marked PASS.
