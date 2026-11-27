@@ -50,6 +50,7 @@ Direct and multi-recipient conversation fan-out are supported by this PoC. Reque
 - Accept an incoming request: `POST /v1/contacts/requests/{request_id}/accept`. Only its recipient may accept it.
 - Decline an incoming request: `POST /v1/contacts/requests/{request_id}/decline`. Only its recipient may decline it.
 - List accepted contacts: `GET /v1/contacts`.
+- List personal conversations for the inbox: `GET /v1/conversations`. Each row includes the other participant, latest message preview/time and current conversation position.
 - Get the existing personal conversation with an accepted contact: `POST /v1/conversations/direct` with `{"username":"bob"}`.
 - Accepting a request atomically creates the normalized contact pair and a single stable direct-conversation ID with both participants as members. Repeated direct-conversation lookup returns the same conversation.
 - Self-add, unknown users, duplicate accepted contacts and attempts to accept another person's request are rejected. A reverse pending request is surfaced instead of creating a confusing duplicate.
