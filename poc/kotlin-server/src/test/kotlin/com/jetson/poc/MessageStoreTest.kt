@@ -68,3 +68,17 @@ class MessageStoreTest @Autowired constructor(private val store:MessageStore,pri
         assertThrows(IllegalStateException::class.java) { store.retry(item,RuntimeException("late failure")) }
         assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM recipient_inbox WHERE message_id=?",Int::class.java,message.message_id))
     }
+
+
+    @Test fun parallelWorkersClaimDistinctRowsAndRetryLimitTerminates() {
+        (1..10).forEach { store.send("alice","room-a","parallel-claim-$it","payload") }
+        val pool=Executors.newFixedThreadPool(5)
+        val items=try {
+            (1..5).map { pool.submit<List<Claimed>> { store.claim(2,5000) } }.flatMap { it.get() }
+        } finally { pool.shutdownNow() }
+        assertEquals(10,items.size)
+        assertEquals(10,items.map { it.id }.toSet().size)
+        val terminal=items.first().copy(attempts=8)
+        store.retry(terminal,RuntimeException("final injected failure"))
+        assertEquals("terminal_failure",jdbc.queryForObject("SELECT state FROM delivery_outbox WHERE id=?",String::class.java,terminal.id))
+    }
