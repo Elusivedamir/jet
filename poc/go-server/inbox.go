@@ -80,4 +80,3 @@ func (s *Store) IsAcknowledged(ctx context.Context, accountID, messageID string)
 	}
 	return acknowledged, nil
 }
-
