@@ -103,3 +103,11 @@ Remaining work is now scoped to validating the selected Node implementation:
 - keep worker concurrency at 1 until those checks are reviewed.
 
 Go and Kotlin remain retained comparative PoCs. Kotlin's license review remains relevant to its own PoC but is no longer a blocker to the owner's Node language choice. PostgreSQL, production topology, hosting and production readiness remain separate decisions.
+
+
+
+## Node terminal-row investigation — source cause confirmed
+
+The repeated `Error: final injected failure` row came from the Node unit test `parallel workers claim distinct outbox rows and max attempts terminate`. That test deliberately mutates a claimed item's in-memory `attempt_count` to 8 and invokes `store.retry` to verify the terminal transition, but previously left the resulting DB fixture in the shared CI PostgreSQL database. The later crash/soak harness then counted that fixture. It was not a spontaneously failing live-worker delivery.
+
+A patch now resets test fixtures during suite teardown (and setup) and asserts the exact terminal error. Remaining acceptance check: the next exact-head Node CI must pass and all four live crash/soak artifacts must report zero terminal failures. Controlled repeatability remains open. Default worker concurrency stays 1.
