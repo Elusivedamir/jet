@@ -353,3 +353,13 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Prior exact-head CI before these worker changes: security run [#46038242308](https://github.com/Elusivedamir/jet/actions/runs/46038242308) passed all seven jobs; Go [#46038242410](https://github.com/Elusivedamir/jet/actions/runs/46038242410) passed; Node [#46038242669](https://github.com/Elusivedamir/jet/actions/runs/46038242669) passed; Kotlin [#46038242496](https://github.com/Elusivedamir/jet/actions/runs/46038242496) failed only at the unchanged conservative license gate (3 review-required components). All three prior crash/contract/soak portions passed.
 - New concurrency implementation and matrix have not yet been validated by CI. Do not infer correctness or performance improvement until current-head matrix jobs finish and artifacts are reviewed.
 - Manual self-review (not independent), first pass: checked lease fencing remains in the same transactional dispatch path; bounded batch processing; fixed pool limits; environment bounds; batch completion before subsequent claim; retry failure leaves reclaim to lease expiry; same 40-connection DB pool cap. Full reviewer pass and fixes pending CI.
+
+
+## 2026-11-27 — first matrix compile failures and immediate corrections
+
+- First compile/security matrix run exposed two implementation mistakes before any performance conclusion:
+  1. Kotlin Spring `@Value` placeholder was not escaped for Kotlin string interpolation. The compiler reported an annotation constant/unresolved reference error. Corrected source to `@Value("\\${jet.worker.concurrency:1}")`.
+  2. Node server startup contained a literal backslash-n separator, producing TypeScript TS1127/TS1435. Replaced it with a real newline.
+- Both fixes are committed on the comparison branch. The first matrix runs at the previous head are treated as failed and discarded; they are not performance evidence.
+- Current-head CI is being rerun after these corrections. Do not mark the matrix green until the new Go, Node, Kotlin and security runs complete.
+- Manual self-review finding: the CI compile gates caught two source-generation mistakes that were not visible from a superficial text inspection. Reviewer round 1 therefore remains OPEN until corrected-head CI and full diff review complete.
