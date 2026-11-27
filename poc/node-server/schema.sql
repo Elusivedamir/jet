@@ -24,8 +24,92 @@ CREATE TABLE IF NOT EXISTS conversation_details (
 );
 CREATE TABLE IF NOT EXISTS conversation_members (
   conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-  account_id TEXT NOT NULL, PRIMARY KEY (conversation_id, account_id)
+  account_id TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner','admin','member','subscriber')),
+  PRIMARY KEY (conversation_id, account_id)
 );
+ALTER TABLE conversation_members ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner','admin','member','subscriber'));
+CREATE TABLE IF NOT EXISTS channel_metadata (
+  conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+  slug TEXT NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9_]{3,32}
+  conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+  last_position BIGINT NOT NULL DEFAULT 0 CHECK (last_position >= 0)
+);
+CREATE TABLE IF NOT EXISTS messages (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id TEXT NOT NULL, operation_key TEXT NOT NULL, payload TEXT NOT NULL,
+  position BIGINT NOT NULL CHECK (position > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (sender_id, operation_key), UNIQUE (conversation_id, position)
+);
+CREATE TABLE IF NOT EXISTS delivery_outbox (
+  id BIGSERIAL PRIMARY KEY,
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  recipient_id TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'pending'
+    CHECK (state IN ('pending','processing','retry_wait','completed','terminal_failure')),
+  attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  lease_until TIMESTAMPTZ, lease_token TEXT, available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_error TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), completed_at TIMESTAMPTZ,
+  UNIQUE (message_id, recipient_id)
+);
+CREATE TABLE IF NOT EXISTS recipient_inbox (
+  message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  recipient_id TEXT NOT NULL, conversation_id TEXT NOT NULL, position BIGINT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (message_id, recipient_id),
+  UNIQUE (recipient_id, conversation_id, position)
+);
+CREATE TABLE IF NOT EXISTS delivery_receipts (
+  message_id TEXT NOT NULL, recipient_id TEXT NOT NULL, acknowledged_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (message_id, recipient_id),
+  FOREIGN KEY (message_id, recipient_id) REFERENCES recipient_inbox(message_id, recipient_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS recipient_inbox_cursor_idx ON recipient_inbox(recipient_id, conversation_id, position);
+CREATE INDEX IF NOT EXISTS delivery_outbox_pending_idx ON delivery_outbox(state, available_at, lease_until, id);
+CREATE INDEX IF NOT EXISTS messages_conversation_position_idx ON messages(conversation_id, position);
+
+CREATE TABLE IF NOT EXISTS contact_requests (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  requester_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  recipient_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','declined')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  responded_at TIMESTAMPTZ,
+  CHECK (requester_id <> recipient_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS contact_requests_pending_pair_idx
+  ON contact_requests(requester_id,recipient_id) WHERE status='pending';
+CREATE INDEX IF NOT EXISTS contact_requests_recipient_idx
+  ON contact_requests(recipient_id,status,created_at DESC);
+CREATE TABLE IF NOT EXISTS contacts (
+  account_low TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  account_high TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_low,account_high),
+  CHECK (account_low < account_high)
+);
+CREATE TABLE IF NOT EXISTS direct_conversations (
+  account_low TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  account_high TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  conversation_id TEXT NOT NULL UNIQUE REFERENCES conversations(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (account_low,account_high),
+  CHECK (account_low < account_high)
+);
+INSERT INTO conversation_details(conversation_id,kind,title,created_by)
+SELECT dc.conversation_id,'direct',NULL,dc.account_low
+FROM direct_conversations dc
+ON CONFLICT(conversation_id) DO NOTHING;
+),
+  visibility TEXT NOT NULL CHECK (visibility IN ('public','private')),
+  description TEXT NOT NULL DEFAULT '' CHECK (char_length(description) <= 300),
+  invite_code_hash TEXT UNIQUE,
+  CHECK ((visibility='public' AND invite_code_hash IS NULL) OR (visibility='private' AND invite_code_hash IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS channel_metadata_public_search_idx
+  ON channel_metadata(slug) WHERE visibility='public';
 CREATE TABLE IF NOT EXISTS conversation_counters (
   conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
   last_position BIGINT NOT NULL DEFAULT 0 CHECK (last_position >= 0)
