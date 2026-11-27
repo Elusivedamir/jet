@@ -37,3 +37,22 @@ These are logical parallel workstreams, not separate autonomous agents. A result
 - Keep the business-plan PDF unchanged; product requirements remain subordinate to that canonical plan.
 - Document failed runs and fixes; never delete failed evidence or relabel a design as a passing test.
 - CI test-only hooks must be inaccessible in production builds and operate only against disposable test databases.
+
+
+## Current workstream status — 2026-11-27
+
+| Workstream | Current result | Remaining |
+|---|---|---|
+| W1 Reliability | Shared SIGKILL/restart test implemented; PASS on Go baseline, Node and Kotlin | Other crash boundaries and soak/restart loops |
+| W2 Go | Crash recovery and shared contract PASS on baseline; remediation committed | Confirm Go 1.26.11 + pgx 5.9.2 + x/text 0.41.0 scan, refresh/commit go.sum, repeat benchmark |
+| W3 Node.js/TypeScript | Clean npm ci, contract/crash PASS, npm audit and Trivy clean | Sustained load, production auth, migrations, operations |
+| W4 Kotlin/Spring | Maven verify, contract/crash PASS, SBOM and Trivy clean after JDBC patch | Full transitive dependency lock; sustained load |
+| W5 Supply chain | Node lockfile and Go checksum file committed; SBOMs and reports generated | Go post-fix scan; Maven lock strategy; license owner review; pin actions by SHA |
+| W6 Performance | Three concurrent rounds measured for Node and Kotlin; Go has an earlier single-round baseline | Patched Go benchmark; repeated cross-run comparisons; sustained load/soak; cold start and deployment cost |
+| W7 Product/security architecture | ADR-0001 proposes Node/TypeScript v1; product/privacy constraints retained | Threat model, consent/abuse enforcement and production auth design |
+
+## Current decision posture
+
+Node.js/TypeScript is the provisional v1 recommendation in ADR-0001, not a release gate closure. Kotlin's small throughput advantage does not currently justify its much larger sampled RSS. Go remains a strong resource-efficiency candidate, but cannot be fairly ranked until its patched toolchain and dependencies pass security checks and the repeated benchmark.
+
+The logical workstreams remain coordination labels, not separate autonomous coding agents. The connected environment still does not expose a direct Copilot/Codex agent launch/assignment action.
