@@ -65,3 +65,12 @@ Stop and report immediately if any candidate loses an accepted message, creates 
 ## Governance
 
 No production adoption, merge to `main`, deployment or release. A final production-stack choice remains an owner decision after review of reproducible evidence.
+
+## Progress update — 2026-11-27
+
+- Started the Go candidate in isolated directory `poc/go-server`; it is a partial durable-persistence slice, not the full required vertical slice.
+- Implemented PostgreSQL schema, sender-scoped idempotency, transactional message/position/outbox creation, post-commit acceptance, membership-scoped history and integration tests.
+- Latest code revision `683d988f7d7e54b8cdc52f7346fca47db48620d7` passed [GitHub Actions run #46013315702](https://github.com/Elusivedamir/jet/actions/runs/46013315702): module tidy, gofmt, go vet and PostgreSQL 17 race/integration tests with 100 repetitions.
+- Go candidate remains **incomplete**: realtime delivery, outbox worker/lease recovery, recipient acknowledgement, reconnect and hard-crash fault injection remain open.
+- Node/TypeScript and Kotlin/Spring comparable implementations have not started; no score or production selection is permitted.
+- The current implementation PR is Draft #43, stacked on Draft research PR #42. Do not merge or deploy without owner approval.
