@@ -83,7 +83,7 @@ This recommendation is evidence-led but provisional. Do not claim production rea
 
 ## Latest end-to-end delivery signal — 2026-11-27
 
-All candidates completed the three crash scenarios and 30-second producer soak with zero request errors. However, the worker design claims 20 rows and dispatches them serially. Pending outbox after the soak: Go 36,488; Node 23,852; Kotlin 23,480. Oldest open delivery: 29–30 seconds; p95 completed-delivery latency: approximately 27–28 seconds. API acceptance throughput was 1,261/s Go, 807/s Node and 817/s Kotlin. These are not end-to-end delivery rates.
+All candidates completed the three crash scenarios and 30-second producer soak with zero request errors. However, the worker design claims 20 rows and dispatches them serially. Pending outbox after the latest revalidation: Go 32,837; Node 22,801; Kotlin 20,196. Oldest open delivery: 29–30 seconds; p95 completed-delivery latency: approximately 26.6–28.1 seconds. API acceptance throughput was 1,261/s Go, 807/s Node and 817/s Kotlin. These are not end-to-end delivery rates.
 
 This common architecture bottleneck makes the earlier stack ranking provisional. Before final selection, compare bounded worker concurrency 1/4/8/16 and queue-drain latency on equivalent runner/database configurations. See [OUTBOX_WORKER_CAPACITY_FINDINGS](OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md).
 
