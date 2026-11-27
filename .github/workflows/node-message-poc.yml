@@ -69,7 +69,7 @@ jobs:
       - name: Dependency audit and license inventory
         run: |
           npm audit --audit-level=low --json > /tmp/node-npm-audit.json
-          npx --yes license-checker@25.0.1 --onlyAllow "MIT;ISC;Apache-2.0" --json --out /tmp/node-license-report.json
+          npx --yes license-checker@25.0.1 --onlyAllow "MIT;ISC;Apache-2.0" --excludePackages "jetson-node-message-poc@0.1.0" --json --out /tmp/node-license-report.json
           npx --yes @cyclonedx/cyclonedx-npm@1.19.0 --output-file /tmp/node-sbom.json
       - name: Trivy filesystem vulnerability and license report
         run: |
