@@ -30,4 +30,4 @@ The service applies the PoC schema at startup. Test identity is supplied with X-
 - GET /v1/conversations/{id}/events?after=0 — SSE stream.
 - POST /v1/messages/{id}/ack — recipient acknowledgement.
 
-Exactly one recipient besides the sender is supported. No production auth, migrations, E2EE, abuse controls, load benchmark or release readiness is claimed. npm dependency lockfile and full dependency/license review remain open.
+Exactly one recipient besides the sender is supported. No production auth, migrations, E2EE, abuse controls, load benchmark or release readiness is claimed. Committed npm v3 `package-lock.json`; CI installs with `npm ci` and checks that package manifests remain unchanged. Dependency vulnerability/license review is generated in CI and must still be reviewed.
