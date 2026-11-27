@@ -252,3 +252,32 @@ func TestOutboxFailureSchedulesRetry(t *testing.T) {
 		t.Fatalf("unexpected retry state: %s %s", state, lastError)
 	}
 }
+
+
+func TestExpiredLeaseCannotDispatchBeforeAnotherWorkerReclaims(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	if _, err := store.Send(ctx, "alice", "room-a", "expired-lease-op", "lease expired"); err != nil {
+		t.Fatal(err)
+	}
+	items, err := store.ClaimOutbox(ctx, 1, time.Second)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("claim: items=%d err=%v", len(items), err)
+	}
+	if _, err := store.pool.Exec(ctx, "UPDATE delivery_outbox SET lease_until=now()-interval '1 second' WHERE id=$1", items[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Dispatch(ctx, items[0]); err == nil {
+		t.Fatal("worker dispatched after its lease expired, before reclaim")
+	}
+	if err := store.RetryOutbox(ctx, items[0], errors.New("late failure")); err == nil {
+		t.Fatal("expired worker rescheduled work after its lease expired")
+	}
+	var inboxCount int
+	if err := store.pool.QueryRow(ctx, "SELECT count(*) FROM recipient_inbox").Scan(&inboxCount); err != nil {
+		t.Fatal(err)
+	}
+	if inboxCount != 0 {
+		t.Fatalf("expired worker created inbox item: %d", inboxCount)
+	}
+}
