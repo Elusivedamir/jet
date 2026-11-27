@@ -2,7 +2,7 @@
 
 ## Decision status
 
-**Provisional v1 recommendation: Go + PostgreSQL**, documented in [ADR-0002](../architecture/ADR-0002-backend-stack-go.md). This supersedes the earlier Node.js proposal in ADR-0001. It is not production-release authorization: the latest security workflow and three-case crash/soak runs are complete, but the serial outbox worker creates a severe queue backlog and requires a matched concurrency experiment before final stack selection.
+**Owner-selected v1 backend direction: Node.js / TypeScript + PostgreSQL**, documented in [ADR-0003](../architecture/ADR-0003-backend-stack-node-typescript-owner-selected.md). Go remains a strong measured performance/resource candidate in short PoC tests, but the product owner selected Node. This is not production-release authorization: controlled Node repeatability and production engineering gates remain open.
 
 ## Decision criteria and weights
 
@@ -55,18 +55,18 @@ GitHub Actions are now pinned to immutable commit SHAs. The Maven dependency gra
 
 ## Candidate fit
 
-### Go + PostgreSQL — current front-runner
+### Go + PostgreSQL — comparative performance candidate
 Best measured throughput, p95/p99, memory and CPU efficiency. Patched govulncheck is clean. The remaining gates are the refreshed license allow-list/Trivy run, clean reproducibility check on committed go.sum, 30-second soak, and a matched product-development task to test whether explicit Go code costs materially more to maintain.
 
-### Node.js/TypeScript + PostgreSQL — strong alternative
+### Node.js/TypeScript + PostgreSQL — owner-selected backend direction
 Best p50 and fast web/product iteration ecosystem. It may reduce implementation time for CRM, campaigns, KPI and admin surfaces. Current benchmark shows lower throughput and worse tail latency than Go, with about 4.6× the memory. Keep TypeScript for web/admin clients even if Go is selected for the backend.
 
 ### Kotlin/Spring + PostgreSQL — not preferred for v1
 Mature enterprise framework and close throughput to Go, but about 14.4× the measured RSS and 4.6× the CPU time. Three SBOM license declarations need review. Reconsider if enterprise integration requirements justify the runtime footprint.
 
-## Provisional architecture direction
+## Owner-selected architecture direction
 
-Use a **Go modular monolith + PostgreSQL** for the backend. Keep PostgreSQL as the durable source of truth. Do not introduce Kafka, Redis, microservices or a polyglot backend solely to optimize a PoC benchmark. Use TypeScript for web/admin clients where appropriate. Separate AI and analytics jobs asynchronously when required; do not make a second backend language the default.
+Use a **Node.js / TypeScript modular monolith + PostgreSQL** as the primary backend direction, per ADR-0003. Keep PostgreSQL as the current PoC/initial architecture database. Do not introduce Kafka, Redis or microservices solely to optimize a PoC benchmark. Separate AI and analytics jobs asynchronously when required. Go and Kotlin remain comparative PoCs.
 
 ## Current gates
 
