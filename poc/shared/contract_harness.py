@@ -34,11 +34,15 @@ def request(base, method, path, account, payload=None):
             return error.code, raw.decode("utf-8", errors="replace")
 
 
-def sse_event(base, conversation, after, timeout=12):
+def sse_event(base, conversation, after, timeout=12, use_last_event_id=False):
     parsed = urllib.parse.urlsplit(base)
     conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=timeout)
     path = f"/v1/conversations/{conversation}/events?after={after}"
-    conn.request("GET", path, headers={"X-Test-Account": "bob", "Accept": "text/event-stream"})
+    headers = {"X-Test-Account": "bob", "Accept": "text/event-stream"}
+    if use_last_event_id:
+        path = f"/v1/conversations/{conversation}/events"
+        headers["Last-Event-ID"] = str(after)
+    conn.request("GET", path, headers=headers)
     response = conn.getresponse()
     if response.status != 200:
         raise AssertionError(f"SSE returned HTTP {response.status}")
@@ -124,10 +128,16 @@ def main():
     assert all(status == 202 for status, _ in results), results
     assert len({body["message_id"] for _, body in results}) == 1, results
 
-    # Membership isolation.
+    # Membership isolation and cursor validation.
     status, _ = request(base, "GET", f"/v1/conversations/{conversation}/messages?after=0",
                         "mallory")
     assert status == 403, f"non-member history should be forbidden, got {status}"
+    status, _ = request(base, "GET", f"/v1/conversations/{conversation}/messages?after=-1",
+                        "alice")
+    assert status == 400, f"negative history cursor should be rejected, got {status}"
+    status, _ = request(base, "GET", f"/v1/conversations/{conversation}/events?after=-1",
+                        "bob")
+    assert status == 400, f"negative SSE cursor should be rejected, got {status}"
 
     # A recipient sees a durable inbox item, acknowledges it, and resumes after its cursor.
     event = sse_event(base, conversation, 0)
@@ -135,6 +145,10 @@ def main():
     assert status == 204, f"recipient acknowledgement returned {status}"
     status, _ = request(base, "POST", f"/v1/messages/{event['message_id']}/ack", "bob", {})
     assert status == 204, f"repeated acknowledgement should be idempotent, got {status}"
+    resumed = sse_event(base, conversation, int(event["position"]), use_last_event_id=True)
+    assert int(resumed["position"]) > int(event["position"]), "Last-Event-ID did not resume after the supplied cursor"
+    status, _ = request(base, "POST", f"/v1/messages/{resumed['message_id']}/ack", "bob", {})
+    assert status == 204, f"resumed recipient acknowledgement returned {status}"
     reconnect_has_no_duplicate(base, conversation, int(event["position"]), event["message_id"])
 
     # Five independent sequential request-latency rounds; no capacity claim is made.
