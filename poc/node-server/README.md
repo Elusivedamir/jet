@@ -42,6 +42,15 @@ The service applies the PoC schema at startup. The legacy `X-Test-Account` ident
 
 Direct and multi-recipient conversation fan-out are supported by this PoC. Request bodies are JSON-only, size-limited and validated; malformed JSON and invalid cursors return 400. No production rate limiting, versioned migrations, E2EE, sustained-load evidence or release readiness is claimed. Committed npm v3 `package-lock.json`; CI installs with `npm ci` and checks that package manifests remain unchanged. Dependency vulnerability/license review is generated in CI and must still be reviewed.
 
+## Channels
+
+- Create a public or private channel: `POST /v1/channels` with `title`, unique `slug`, `visibility` and optional `description`.
+- Public channel discovery: `GET /v1/channels/search?q=jet`. Private channels never appear in search.
+- Join a public channel: `POST /v1/channels/{slug}/join`. Join a private channel with the one-time invite code returned at creation: `POST /v1/channels/{slug}/join` with `{"invite_code":"..." }`.
+- The creator is the channel owner. The owner may promote a current subscriber to admin: `POST /v1/channels/{slug}/admins` with `{"username":"bob"}`.
+- Owners and admins can publish. Subscribers can read the channel and receive durable fan-out but cannot publish. Channel posts use the same transactional outbox and recipient inbox as other conversations.
+- Private invite codes are high-entropy random values; only their SHA-256 digests are stored. The raw code is returned once at creation.
+
 ## Contacts and personal conversations
 
 - Search users by username or display-name prefix: `GET /v1/users/search?q=bo` (minimum two characters; results are limited to 20 and exclude the current account).
