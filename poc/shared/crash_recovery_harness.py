@@ -160,7 +160,7 @@ def main():
     payload = "crash-recovery-payload-" + str(uuid.uuid4())
     process = None
     log = None
-    evidence = {"test": "hard-process-kill-during-recipient-inbox-transaction",
+    evidence = {"harness_version": 2, "test": "hard-process-kill-during-recipient-inbox-transaction",
                 "server_command": command, "operation_key": operation_key}
 
     try:
