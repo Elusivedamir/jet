@@ -338,3 +338,18 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Latest exact-head 30-second soak metrics: Go 1,134.86 accepted writes/s, p95 19.104 ms, 32,837 pending outbox rows; Node 772.24/s, p95 55.471 ms, 22,801 pending; Kotlin 708.64/s, p95 55.011 ms, 20,196 pending. All three had zero request errors. Oldest open delivery was 29–30 seconds and p95 completed-delivery latency 26.6–28.1 seconds.
 - This confirms that the current serial outbox worker is the shared bottleneck. Added task `AGENT_TASK_06_OUTBOX_WORKER_CONCURRENCY.md`; final backend stack selection is deferred until the matched 1/4/8/16 worker-concurrency and queue-drain experiment is completed.
 - The latest candidate evidence and all caveats are documented in `OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md`, `STACK_POC_RESULTS.md`, scorecard and ADR-0002.
+
+
+## 2026-11-27 — bounded outbox worker implementation started
+
+- Added bounded dispatch concurrency to all three PoC servers. Runtime setting range is 1..16 and default remains 1.
+  - Go: semaphore-limited goroutines, `OUTBOX_WORKER_CONCURRENCY`.
+  - Node: bounded async worker loops, `OUTBOX_WORKER_CONCURRENCY`.
+  - Kotlin: fixed-size executor, `JET_WORKER_CONCURRENCY`; fixed-delay scheduler waits for the current batch before claiming another.
+- All three candidates claim at most 20 rows per batch and complete the batch before the next claim. No new unbounded in-memory work queue was introduced.
+- CI database pool maximum normalized to 40 connections across candidates.
+- Updated all three PoC workflows to run a non-fail-fast matrix at worker concurrency 1, 4, 8 and 16.
+- Extended the shared crash harness to perform three sequential 30-second producer/contract repetitions per matrix cell, record resource metrics and sample the outbox every 5 seconds for up to 60 seconds after producers stop.
+- Prior exact-head CI before these worker changes: security run [#46038242308](https://github.com/Elusivedamir/jet/actions/runs/46038242308) passed all seven jobs; Go [#46038242410](https://github.com/Elusivedamir/jet/actions/runs/46038242410) passed; Node [#46038242669](https://github.com/Elusivedamir/jet/actions/runs/46038242669) passed; Kotlin [#46038242496](https://github.com/Elusivedamir/jet/actions/runs/46038242496) failed only at the unchanged conservative license gate (3 review-required components). All three prior crash/contract/soak portions passed.
+- New concurrency implementation and matrix have not yet been validated by CI. Do not infer correctness or performance improvement until current-head matrix jobs finish and artifacts are reviewed.
+- Manual self-review (not independent), first pass: checked lease fencing remains in the same transactional dispatch path; bounded batch processing; fixed pool limits; environment bounds; batch completion before subsequent claim; retry failure leaves reclaim to lease expiry; same 40-connection DB pool cap. Full reviewer pass and fixes pending CI.
