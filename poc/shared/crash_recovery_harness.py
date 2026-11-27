@@ -332,6 +332,55 @@ def main():
         }
         evidence["crash_recovery_cases"] = 2
 
+        # Third boundary: the message/outbox transaction commits, but the
+        # client intentionally discards the acceptance response and retries
+        # after an immediate process kill/restart.
+        lost_conversation = "lost-response-room"
+        lost_operation_key = "lost-response-" + str(uuid.uuid4())
+        lost_payload = "lost-response-payload-" + str(uuid.uuid4())
+        psql(args.database_url, f"""
+          DELETE FROM conversations WHERE id='{lost_conversation}';
+          INSERT INTO conversations(id) VALUES ('{lost_conversation}');
+          INSERT INTO conversation_members(conversation_id,account_id)
+            VALUES ('{lost_conversation}','alice'),('{lost_conversation}','bob');
+        """)
+        status, discarded_response = http(args.base_url, "POST",
+            f"/v1/conversations/{lost_conversation}/messages", "alice",
+            {"operation_key": lost_operation_key, "payload": lost_payload})
+        if status != 202:
+            raise AssertionError(f"lost-response scenario send did not commit: HTTP {status}, {discarded_response}")
+        # The test client deliberately does not retain or use the response body.
+        stop_server(process, log, hard=True)
+        process = None
+        log = None
+        committed_message_id = psql(args.database_url,
+            f"SELECT id FROM messages WHERE sender_id='alice' AND operation_key='{lost_operation_key}'")
+        if not committed_message_id:
+            raise AssertionError("acceptance response was discarded but the message transaction was not durable")
+        process, log = start_server(command, env, args.log)
+        wait_health(args.base_url, process, args.log)
+        wait_for_sql(args.database_url,
+            f"SELECT state FROM delivery_outbox WHERE message_id='{committed_message_id}'",
+            "completed", timeout=35)
+        lost_inbox_rows = psql(args.database_url,
+            f"SELECT count(*) FROM recipient_inbox WHERE message_id='{committed_message_id}' AND recipient_id='bob'")
+        if lost_inbox_rows != "1":
+            raise AssertionError(f"lost-response recovery expected one inbox row, got {lost_inbox_rows}")
+        status, lost_retry = http(args.base_url, "POST",
+            f"/v1/conversations/{lost_conversation}/messages", "alice",
+            {"operation_key": lost_operation_key, "payload": lost_payload})
+        if status != 202 or lost_retry["message_id"] != committed_message_id:
+            raise AssertionError(f"lost-response idempotent retry failed: HTTP {status}, {lost_retry}")
+        evidence["lost_acceptance_response"] = {
+            "server_sigkill_after_commit": True,
+            "client_discarded_acceptance_response": True,
+            "durable_message_found_after_restart": True,
+            "outbox_state": "completed",
+            "recipient_inbox_rows": 1,
+            "retry_returns_original_message": True,
+        }
+        evidence["crash_recovery_cases"] = 3
+
 
         # Standard black-box contract and comparable request-latency probe on room-a.
         # Ensure fixtures exist for all candidates, even when their DB started empty.
