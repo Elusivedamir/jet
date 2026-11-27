@@ -114,3 +114,16 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - **Verified on latest branch commit `683d988f7d7e54b8cdc52f7346fca47db48620d7`:** GitHub Actions [#46013315702](https://github.com/Elusivedamir/jet/actions/runs/46013315702) passed `go mod tidy`, gofmt, `go vet`, and PostgreSQL 17 integration/race tests with `-count=100`. Five integration test functions passed across 100 repetitions; concurrency case used 12 simultaneous submissions. A superseded intermediate commit failed vet because `schema_apply.go` was not yet present; the helper was added and the latest commit passed. No local test run claimed.
 - **Incomplete contract:** no realtime transport, outbox worker/lease recovery, recipient ack, reconnect client or hard-crash fault injection. No comparative scoring or production selection.
 - Business plan/product requirements unchanged; `main` untouched.
+
+
+## 2026-11-27 — three-stack delivery/reconnect PoC validation
+
+- Latest tested source revision: `bcc14766b381d9ffe9ef2e81695221a9e500c32c`.
+- Go workflow [#46016133216](https://github.com/Elusivedamir/jet/actions/runs/46016133216): module tidy, gofmt, go vet, PostgreSQL 17 integration/race tests with `-count=100`, shared black-box contract and five-round benchmark — PASS. Eight integration test functions were repeated 100 times; package runtime ~31.9 s.
+- Node workflow [#46016133262](https://github.com/Elusivedamir/jet/actions/runs/46016133262): TypeScript build, five PostgreSQL 17 tests, shared black-box contract and five-round benchmark — PASS.
+- Kotlin workflow [#46016133220](https://github.com/Elusivedamir/jet/actions/runs/46016133220): Kotlin main/test compilation, five JUnit/PostgreSQL 17 tests, shared black-box contract and five-round benchmark — PASS.
+- Shared harness passed for each server: send/retry identity, conflict on changed payload, 12 concurrent identical retries, non-member history forbidden, recipient SSE delivery, idempotent acknowledgement and cursor reconnect without replay of the consumed event.
+- Preliminary five-round latency medians (100 sequential sends per round; milliseconds): Go p50/p95/p99/mean = 2.139/2.616/5.854/2.318; Node = 2.934/3.685/5.930/3.111; Kotlin = 2.465/3.654/5.238/2.656. These are CI microbenchmarks only; no CPU/RSS, sustained concurrency capacity or SLO evidence.
+- Earlier intermediate CI failures were not hidden: Go formatting and HTTP error-body parsing were corrected; Node CommonJS import and test isolation were corrected; Kotlin Maven source roots, misplaced test method and DB URL were corrected. The latest exact revision above passed all gates.
+- Remaining: hard process-kill injection at commit/claim/dispatch/ack boundaries; production identity/security; lockfiles/checksums and dependency SBOM/license inventory; equivalent sustained-load and resource measurements; maintenance-task comparison. Stack choice remains Open.
+- Governance unchanged: no production adoption, deployment, merge to `main`, or product/business-plan edits.
