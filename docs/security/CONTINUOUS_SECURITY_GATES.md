@@ -78,7 +78,7 @@ Use `docs/security/OWASP_ASVS_5.0.0_CHECKLIST.md` as a Jetson-specific evidence 
 A conservative root `renovate.json` is committed with dependency dashboard, PR limits, major-update labels and automerge disabled. The GitHub App is not installed or authorized by this change; no Renovate PRs are claimed. Owner installation/authorization is required to activate it.
 
 ### OpenSSF Scorecard
-Configured in `.github/workflows/scorecard.yml` using a pinned upstream commit. It runs only on pushes to `main`, weekly schedule and manual dispatch. Result publication is disabled, so no OIDC write permission or external publication is requested. The first execution is not yet verified.
+Configured in `.github/workflows/scorecard.yml` using a pinned upstream commit. It runs only on pushes to `main` and weekly schedule. Result publication is disabled, so no OIDC write permission or external publication is requested. The first execution is not yet verified.
 
 ## Source references
 
@@ -111,4 +111,19 @@ These are real first-run results and corrections, not PASS claims. The current h
 - Semgrep: **PASS** — 131 rules across 99 files, zero findings; HTTP harness URL-validation regression tests passed.
 - zizmor changed-workflow gate: **PASS** — both new workflow files audited with zero findings.
 - Full-repository zizmor baseline: advisory job still reports legacy findings; it remains open and does not become a clean bill of health.
-- CodeQL Go, JavaScript/TypeScript and Java/Kotlin analyses were still running at the time of this record; do not mark them PASS until the exact run concludes.
+- On the later exact-head run below, CodeQL Go, JavaScript/TypeScript and Java/Kotlin all completed successfully. Go analyzed 6/7 `.go` files (all six non-test source files; `store_test.go` was not in the extracted set); TypeScript analyzed 3/3 files; Kotlin analyzed 2/2 files. This is static-analysis coverage, not proof of vulnerability-free code.
+
+
+### Post-remediation verification — PR #46 head bccb1135
+
+- Exact commit: `bccb1135360245b77526e446bc575baea5b5aaa4`.
+- Workflow run [#46034027567](https://github.com/Elusivedamir/jet/actions/runs/46034027567), overall conclusion **SUCCESS**.
+- Gitleaks: **PASS**, 830 commits scanned; no secret findings after the narrowly scoped RFC 6455 fixture allowlist.
+- Semgrep: **PASS**, 131 rules on 100 files; zero findings; URL-validation regression tests passed.
+- zizmor changed-workflow audit: **PASS**, zero findings.
+- zizmor full-repository audit: **PASS**, no findings to report across all eight workflow files; 15 default-ignored rules were reported separately and are not active findings.
+- CodeQL Go: **PASS**, 6/7 Go files extracted (the six non-test source files; the single `store_test.go` file was not part of the extraction).
+- CodeQL JavaScript/TypeScript: **PASS**, 3/3 TypeScript files extracted.
+- CodeQL Java/Kotlin: **PASS**, 2/2 Kotlin files extracted.
+- PostgreSQL image and GitHub Action pins, workflow permissions, checkout credential handling and AI workflow secret environment scoping were remediated before this run.
+- No ASVS certification, production readiness or guarantee of zero vulnerabilities is implied. The check results apply only to this commit and these tool configurations.
