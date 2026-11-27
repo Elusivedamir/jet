@@ -1,0 +1,41 @@
+name: Node TypeScript message PoC
+on:
+  pull_request:
+    paths:
+      - "poc/node-server/**"
+      - ".github/workflows/node-message-poc.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: jetson
+          POSTGRES_PASSWORD: jetson_test_only
+          POSTGRES_DB: jetson_poc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jetson -d jetson_poc"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: poc/node-server
+    env:
+      TEST_DATABASE_URL: postgres://jetson:jetson_test_only@localhost:5432/jetson_poc?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: poc/node-server/package.json
+      - run: npm install --no-audit --no-fund
+      - run: npm test
