@@ -162,3 +162,16 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - Go: `go.sum` absent; workflow resolves with `go mod tidy` in CI. Node: `package-lock.json` absent; workflow uses `npm install`. Kotlin: Maven parent and Kotlin/plugin versions are declared, but full transitive lock/checksum enforcement is not committed.
 - Result: reproducibility gate remains OPEN for all candidates. No vulnerability scan, SBOM generation, or license review was performed or claimed in this pass.
 - Required next work: create committed dependency metadata, switch Node CI to `npm ci`, make Go CI non-mutating, choose Maven transitive pinning/checksum strategy, then attach SBOM and security/license reports to exact tested SHAs.
+
+
+## 2026-11-27 — executable hard crash/recovery and repeated benchmark
+
+- Added `poc/shared/crash_recovery_harness.py`; integrated it into Go, Node and Kotlin candidate CI. It launches each direct server process, injects a PostgreSQL trigger pause during recipient-inbox insertion, confirms the lease is still valid, sends SIGKILL, checks transaction rollback, waits for lease expiry, restarts the server and checks one durable inbox row plus idempotent retry.
+- Hard crash/recovery result: PASS for Go baseline run [46025003199](https://github.com/Elusivedamir/jet/actions/runs/46025003199), Node run [46026586747](https://github.com/Elusivedamir/jet/actions/runs/46026586747), Kotlin run [46026586769](https://github.com/Elusivedamir/jet/actions/runs/46026586769). Go's crash test passed even though its separate security scan failed.
+- Shared benchmark now performs five sequential rounds and three concurrent rounds of 200 writes at concurrency 16. Direct server RSS and CPU ticks are sampled from `/proc`; PostgreSQL resources are excluded.
+- Latest Node evidence: 565.87 req/s median across concurrent rounds; p95 64.592 ms, p99 94.321 ms; sampled RSS 87,252 KiB; CPU 179 ticks at 100 Hz. npm ci passed; npm audit and Trivy reported zero vulnerabilities.
+- Latest Kotlin evidence: 599.28 req/s median; p95 62.050 ms, p99 80.862 ms; sampled RSS 269,716 KiB; CPU 487 ticks at 100 Hz. Maven verify, dependency tree, CycloneDX SBOM (42 components) and Trivy passed with zero reported vulnerabilities after PostgreSQL JDBC 42.7.12.
+- Go baseline evidence: 341.2 req/s in one concurrent probe; p95 380.520 ms; sampled RSS 17,708 KiB; CPU 64 ticks. This run used the old vulnerable baseline and must not be compared as final against the newer three-round Node/Kotlin runs.
+- Go govulncheck on the old baseline reported 24 reachable advisories. Remediation committed: Go 1.26.11, pgx/v5 5.9.2 and x/text 0.41.0. A post-remediation Go run and refreshed go.sum have not yet been confirmed from the available CI evidence.
+- Added scorecard and ADR-0001 proposing Node.js/TypeScript for v1. The recommendation remains conditional on a clean patched Go security run and further sustained-load testing.
+- Remaining: Maven full transitive lock strategy; refresh/verify Go checksums after dependency upgrades; review project license (`UNLICENSED` on npm root); pin GitHub Actions by immutable SHA; run sustained-load/soak and further crash-boundary tests.
