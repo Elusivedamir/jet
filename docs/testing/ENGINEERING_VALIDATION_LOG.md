@@ -224,3 +224,14 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - The prompt forbids fabricated sub-agent identities, models, effort, scores, rounds, test output or pass claims. It requires `open` status when material risks or unavailable checks remain.
 - This is a documentation/governance update only. No application source code changed and no application CI/build is claimed.
 - Commit: `f6802e681cdeae53e3937e8db3c74398087137e8`.
+
+
+## 2026-11-27 — OpenCommit integration policy documented
+
+- Reviewed upstream `di-sukharev/opencommit` README and package metadata; documented package version 3.3.12 and MIT license.
+- Added `docs/governance/OPENCOMMIT.md` describing local CLI installation, provider configuration, `oco hook set` / `oco hook unset`, IDE integration, credential handling and limitations.
+- Recommended the local `prepare-commit-msg` hook as an opt-in developer convenience. The hook must be installed inside each developer's own clone; GitHub file edits cannot install it on a workstation.
+- Explicitly declined to enable the upstream GitHub Action by default: it is marked beta and rewrites commit history/SHAs on push. Any future rollout requires explicit owner approval, immutable action-source audit, least-privilege permissions, branch-protection/recovery design and isolated-branch testing.
+- Updated `docs/governance/MASTER_PROMPT.md` with mandatory OpenCommit governance and linked the guide from README.
+- No GitHub Action workflow was added; no local workstation CLI or hook installation is claimed. No API credentials were requested or stored.
+- Documentation only; no application build/test is applicable.
