@@ -142,3 +142,16 @@ These are real first-run results and corrections, not PASS claims. The current h
 - CodeQL Java/Kotlin: **PASS**, Maven build and analysis succeeded; 2/2 Kotlin files extracted in the previous exact-head coverage report.
 - The full-repository zizmor job is now blocking; it no longer uses `continue-on-error`.
 - No ASVS certification, production readiness or guarantee of zero vulnerabilities is implied.
+
+
+### Final exact-head verification — PR #46 head 2f2b04d9
+
+- Exact commit: `2f2b04d928dc9419de0ce7a401faf7270a04b5bb`.
+- Workflow run [#46034928833](https://github.com/Elusivedamir/jet/actions/runs/46034928833), run 84: **SUCCESS**.
+- Gitleaks: **PASS**, 840 commits scanned / approximately 2.57 MB; no leaks.
+- Semgrep: **PASS**, 131 rules on 100 files; zero findings; harness URL-validation tests passed.
+- zizmor changed-workflow audit: **PASS**; full-repository blocking audit: **PASS**, no findings to report (15 default-ignored rules).
+- CodeQL Go: **PASS**, manual build mode with `go test ./...` compilation/test step and successful analysis.
+- CodeQL JavaScript/TypeScript: **PASS**.
+- CodeQL Java/Kotlin: **PASS**, Maven compile and successful analysis.
+- All seven jobs in the continuous security workflow completed successfully. This result is scoped to the exact commit and does not constitute a security certification.
