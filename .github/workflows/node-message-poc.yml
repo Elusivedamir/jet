@@ -1,5 +1,12 @@
 name: Node TypeScript message PoC
 on:
+  push:
+    branches:
+      - "poc/realtime-delivery-and-polyglot-2026-11-27"
+    paths:
+      - "poc/node-server/**"
+      - "poc/shared/**"
+      - ".github/workflows/node-message-poc.yml"
   pull_request:
     paths:
       - "poc/node-server/**"
