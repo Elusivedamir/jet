@@ -211,3 +211,22 @@ The assistant is free to propose and iterate the design and research approach. T
 The project has completed the first business-plan study gate using the owner's complete supplied text. The verified working baseline is `docs/product/BUSINESS_PLAN_BASELINE.md`. The original PDF is preserved in the repository; exact byte-level text extraction comparison remains outstanding. Repository/branch inventory and broad research are in progress. No backend, language, framework, database, transport, protocol, hosting or UI implementation is selected.
 
 **Next task:** translate the verified business plan into testable product requirements and user journeys; then continue repository landscape research against those requirements. Keep all technology choices open until comparative evidence and risk-focused proofs of concept justify them. Do not implement a production stack merely to start coding.
+
+
+## 16. Independent code review skill
+
+The repository installs the MIT-licensed [Loop Code Review skill](../../.agents/skills/loop-code-review/SKILL.md), sourced from `di-sukharev/loop-code-review-skill` at pinned upstream commit `23fdbdec6bb211fa55f84da49d58333efe3b09db`.
+
+For implementation changes, invoke `$loop-code-review` (or the equivalent skill trigger) before committing, unless the owner explicitly waives the review for a narrowly scoped change. Follow the installed skill's review loop:
+- review the complete task-scoped diff and untracked files without changing staging;
+- use a fresh reviewer with no author conversation history for each review round;
+- require evidence-backed findings with file/location, failure scenario and impact;
+- accept only material correctness, requirement, security, data-safety, reliability, performance, build/deployment or regression findings;
+- fix accepted findings, run relevant tests, and repeat review for up to five rounds;
+- report score history, rounds, checks, unresolved risks and exact pass/open status.
+
+High-risk changes (authentication, authorization, stored data, migrations, cryptography, concurrency, external contracts and cross-module failure handling) require the strongest available reviewer at high effort. Do not mark the review passed if required independent review or validation is unavailable.
+
+**Capability honesty:** only claim that a fresh sub-agent was started when the active coding environment actually exposes sub-agent orchestration. If it does not, say that independent sub-agent review is unavailable in this session; perform a clearly labelled manual review as a fallback, and do not represent it as an independent sub-agent result. Never fabricate reviewer identity, model, effort, scores or rounds.
+
+The skill is a quality workflow, not permission to commit, push, merge, deploy, alter shared data, or change product scope. Existing Git/branch governance and owner approval requirements remain in force.
