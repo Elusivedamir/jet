@@ -89,6 +89,37 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   assert.ok((await new Store(pool).inbox(bob,group.conversation_id,0)).some(row => row.message_id === groupMessage.message_id));
   assert.ok((await new Store(pool).inbox(carol,group.conversation_id,0)).some(row => row.message_id === groupMessage.message_id));
 
+  const daveRequest = await contacts.request(alice, "dave");
+  await contacts.accept(dave, daveRequest.id);
+  const added = await contacts.addGroupMembers(alice, group.conversation_id, ["dave"]);
+  assert.deepEqual(added, {added:1,members_count:4});
+  await assert.rejects(
+    () => contacts.addGroupMembers(bob, group.conversation_id, ["dave"]),
+    error => error instanceof ContactError && error.code === "forbidden"
+  );
+  await assert.rejects(
+    () => contacts.removeGroupMember(bob, group.conversation_id, "dave"),
+    error => error instanceof ContactError && error.code === "forbidden"
+  );
+  await assert.rejects(
+    () => contacts.renameGroup(bob, group.conversation_id, "Hijacked"),
+    error => error instanceof ContactError && error.code === "forbidden"
+  );
+  await contacts.removeGroupMember(alice, group.conversation_id, "dave");
+  await contacts.renameGroup(alice, group.conversation_id, "Project team v2");
+  await assert.rejects(
+    () => contacts.leaveGroup(alice, group.conversation_id),
+    error => error instanceof ContactError && error.code === "forbidden"
+  );
+  await contacts.leaveGroup(carol, group.conversation_id);
+  assert.ok(!(await contacts.conversations(carol)).some(row => row.conversation_id === group.conversation_id));
+  const remainingMembers = await pool.query(
+    "SELECT account_id FROM conversation_members WHERE conversation_id=$1 ORDER BY account_id",
+    [group.conversation_id]
+  );
+  assert.deepEqual(remainingMembers.rows.map(row => row.account_id), [alice,bob].sort());
+  assert.equal((await contacts.conversations(alice)).find(row => row.conversation_id===group.conversation_id)?.title,"Project team v2");
+
   const channelStore = new ChannelsStore(pool);
   const publicChannel = await channelStore.create(alice, "Jetson updates", "jetson_updates", "public", "Official project updates");
   assert.equal(publicChannel.invite_code, null);
