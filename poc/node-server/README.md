@@ -62,6 +62,10 @@ Direct and multi-recipient conversation fan-out are supported by this PoC. Reque
 - List accepted contacts: `GET /v1/contacts`.
 - List personal conversations for the inbox: `GET /v1/conversations`. Rows distinguish direct and group conversations and include peer or group title, member count, latest-message preview/time and current conversation position.
 - Create a group from accepted contacts: `POST /v1/conversations/groups` with `{"title":"Project team","usernames":["bob","carol"]}`. The creator and 1–50 distinct accepted contacts become members in one transaction.
+- Rename a group (creator only): `PATCH /v1/conversations/{conversation_id}` with `{"title":"Project team v2"}`.
+- Add accepted contacts (creator only): `POST /v1/conversations/{conversation_id}/members` with `{"usernames":["dave"]}`.
+- Remove a member (creator only): `DELETE /v1/conversations/{conversation_id}/members/{username}`.
+- Leave a group: `DELETE /v1/conversations/{conversation_id}/membership`. The creator cannot leave and orphan the group.
 - Get the existing personal conversation with an accepted contact: `POST /v1/conversations/direct` with `{"username":"bob"}`.
 - Accepting a request atomically creates the normalized contact pair and a single stable direct-conversation ID with both participants as members. Repeated direct-conversation lookup returns the same conversation.
 - Self-add, unknown users, duplicate accepted contacts and attempts to accept another person's request are rejected. A reverse pending request is surfaced instead of creating a confusing duplicate.
