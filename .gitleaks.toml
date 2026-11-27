@@ -1,0 +1,11 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public RFC 6455 example nonce used only as a WebSocket handshake test fixture; not a credential."
+paths = [
+  '''deploy/juggleim-poc/scripts/probe-websocket-upgrade\.sh''',
+]
+regexes = [
+  '''dGhlIHNhbXBsZSBub25jZQ==''',
+]
