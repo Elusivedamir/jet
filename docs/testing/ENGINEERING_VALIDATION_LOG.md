@@ -67,3 +67,12 @@ Specify and test the outbox dispatch boundary with a fake external transport: re
 **Not run / limitations:** the complete repository Python reference-model and SQLite adapter suites were not executed in this environment. A temporary validation PR #41 targeting the branch containing the workflow definition produced no associated workflow runs and an empty combined commit status. This is recorded as Not run, not as a CI pass. The added test case was copied into the main research PR branch; PR #41 is only a validation attempt and is not required for the proposed change.
 
 **Compatibility note:** the prototype creates fresh disposable SQLite databases in tests. No migration for an existing deployed schema is included because this is not production code and no deployed SQLite data contract exists.
+
+
+## 2026-11-27 — Idempotency scope regression CI result
+
+- **Workflow:** Message reliability and SQLite adapter tests, run #176 / [Actions run 46011193416](https://github.com/Elusivedamir/jet/actions/runs/46011193416).
+- **Tested commit:** `9bda52e41bd497609bb9dff28458e2150acd8f43` (the current research PR head at run time).
+- **Result:** job completed successfully. Source/test compilation passed; reference-model suite passed **15 tests**; SQLite adapter suite passed **18 tests**; **33 tests total, 0 failures**.
+- The passing reference-model tests include `test_same_sender_cannot_reuse_operation_key_in_another_conversation` and `test_different_senders_have_separate_idempotency_scopes`. The SQLite suite includes the corresponding two regression tests.
+- This is passing evidence for the in-memory reference model and isolated SQLite adapter only. It is not a production server/client test, network delivery test, host/power-loss test, load test, security review, backup/restore drill or production database selection.
