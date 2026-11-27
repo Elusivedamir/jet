@@ -64,4 +64,4 @@ The patched Go comparison changes the provisional v1 recommendation: ADR-0002 no
 
 Two hard crash/recovery scenarios passed on all three candidates. The third lost-acceptance-response scenario and 30-second concurrent soak are implemented but await CI. Go module metadata is committed and a no-drift gate is enabled. Node's npm audit reported zero advisories but the first license gate caught its root UNLICENSED declaration; that root is now excluded from third-party allow-list checking. Kotlin's 42-component SBOM has three components requiring license review; its 72-coordinate Maven version lock is committed.
 
-Current three-candidate runs 46029245021 (Go), 46029245064 (Kotlin), and 46029245080 (Node) were created but were queued at last check. Do not mark the latest gates or expanded harness as passed until those jobs complete.
+Current latest three-candidate runs 46029865456 (Go), 46029865368 (Kotlin), and 46029865303 (Node) were created but were queued at last check. Do not mark the latest gates or expanded harness as passed until those jobs complete.
