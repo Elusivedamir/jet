@@ -104,7 +104,7 @@ def proc_snapshot(pid):
 def run_contract_and_sample(args, process):
     command = [sys.executable, args.contract_harness, "--base-url", args.base_url,
                "--rounds", str(args.rounds), "--per-round", str(args.per_round),
-               "--concurrent-rounds", "3"]
+               "--concurrent-rounds", "3", "--soak-seconds", "30", "--soak-concurrency", "16"]
     started = time.monotonic()
     child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     peak_rss = 0
