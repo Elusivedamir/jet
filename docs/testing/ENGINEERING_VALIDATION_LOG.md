@@ -138,3 +138,11 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - The current exact-head CI is green. Earlier intermediate Go formatting and Kotlin test-placement failures were fixed and retained in Actions history. Do not treat those intermediate failures as the current status.
 - Remaining evidence gaps: hard process-kill injection at transaction/claim/dispatch/ack boundaries; complete committed lockfiles/checksums; dependency SBOM/license inventory; production identity/session/security; sustained-load/resource benchmarks and timed maintenance-task comparison. No stack decision or capacity/SLO claim.
 - Governance unchanged: Draft PR #44 stacked on Draft PR #43; `main`, business plan and product requirements unchanged; no deployment or merge.
+
+
+## 2026-11-27 — hard crash/restart test design
+
+- Added `docs/testing/HARD_CRASH_RECOVERY_TEST_PLAN_2026-11-27.md` with a common process-kill fault boundary and acceptance criteria for Go, Node.js/TypeScript and Kotlin/Spring.
+- The proposed test uses a disposable PostgreSQL trigger/marker to hold dispatch inside an uncommitted recipient-inbox transaction, verifies the server reached that point, kills the actual application process, restarts against the same database, and asserts lease-based recovery plus exactly-one durable inbox delivery.
+- This is a test specification only. No process-kill harness or CI workflow changes have been committed; no crash/restart test is claimed as passing.
+- Existing three-stack CI results remain the prior baseline only. Production-stack decision remains Open.
