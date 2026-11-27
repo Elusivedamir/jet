@@ -166,7 +166,6 @@ func TestHistoryIsConversationMemberScoped(t *testing.T) {
 	}
 }
 
-
 func TestOutboxDispatchIsDurableAndAcknowledgementIsRecipientScoped(t *testing.T) {
 	store := testStore(t)
 	ctx := context.Background()
