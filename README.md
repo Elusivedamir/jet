@@ -13,6 +13,9 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Repository and branch inventory](docs/governance/REPOSITORY_INVENTORY.md)
 - [Repository landscape research method](docs/research/REPOSITORY_LANDSCAPE_METHOD.md)
 - [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
+- [Repository and engineering audit (2026-11-27)](docs/audit/REPOSITORY_AUDIT_2026-11-27.md)
+- [Product and technical decision log](docs/governance/DECISION_LOG.md)
+- [Implementation readiness and next steps](docs/roadmap/IMPLEMENTATION_READINESS_AND_NEXT_STEPS.md)
 
 ## Engineering validation (experimental)
 
