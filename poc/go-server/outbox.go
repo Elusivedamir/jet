@@ -119,7 +119,7 @@ func (s *Store) RetryOutbox(ctx context.Context, item ClaimedDelivery, cause err
 		UPDATE delivery_outbox
 		SET state=$3, available_at=now()+($4 * interval '1 millisecond'),
 		    lease_until=NULL, lease_token=NULL, last_error=$5
-		WHERE id=$1 AND state='processing' AND lease_token=$2
+		WHERE id=$1 AND state='processing' AND lease_token=$2 AND lease_until > now()
 	`, item.ID, item.LeaseToken, state, delay.Milliseconds(), message)
 	if err != nil {
 		return fmt.Errorf("schedule outbox retry: %w", err)
