@@ -60,6 +60,24 @@ export class ChannelsStore {
     return result.rows;
   }
 
+  async leave(accountId:string,slugInput:string):Promise<void> {
+    const slug=slugInput.trim().toLowerCase();
+    if(!accountId || !/^[a-z0-9_]{3,32}$/.test(slug)) throw new ChannelError("invalid");
+    const channel=await this.pool.query<{conversation_id:string}>(
+      "SELECT conversation_id FROM channel_metadata WHERE slug=$1",[slug]
+    );
+    const conversationId=channel.rows[0]?.conversation_id;
+    if(!conversationId) throw new ChannelError("not_found");
+    const membership=await this.pool.query<{role:string}>(
+      "SELECT role FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",
+      [conversationId,accountId]
+    );
+    if(!membership.rowCount) throw new ChannelError("not_found");
+    if(membership.rows[0]!.role==="owner") throw new ChannelError("forbidden");
+    await this.pool.query("DELETE FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",
+      [conversationId,accountId]);
+  }
+
   async addAdmin(accountId:string,slugInput:string,usernameInput:string):Promise<void> {
     const slug=slugInput.trim().toLowerCase();
     const username=usernameInput.trim().toLowerCase();
