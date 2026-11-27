@@ -39,6 +39,12 @@ The service applies the PoC schema at startup. The legacy `X-Test-Account` ident
 - GET /v1/conversations/{id}/messages?after=0 — history.
 - GET /v1/conversations/{id}/events?after=0 — SSE stream.
 - POST /v1/messages/{id}/ack — recipient acknowledgement.
+- POST /v1/messages/{id}/read — recipient marks a delivered message as read; repeated calls are idempotent.
+- GET /v1/messages/{id}/read-receipts — sender-only view of each recipient's delivery and read timestamp.
+- GET /v1/messages/{id}/reactions — list emoji reaction counts and whether the caller reacted.
+- POST /v1/messages/{id}/reactions with `{"emoji":"👍"}` — add a reaction.
+- DELETE /v1/messages/{id}/reactions with `{"emoji":"👍"}` — remove the caller's reaction.
+- Read receipts are distinct from delivery acknowledgements: an inbox row proves delivery, while a read receipt is written only after the recipient explicitly marks the message read. Reactions are unique per account/message/emoji and visible only to conversation members.
 
 Direct and multi-recipient conversation fan-out are supported by this PoC. Request bodies are JSON-only, size-limited and validated; malformed JSON and invalid cursors return 400. No production rate limiting, versioned migrations, E2EE, sustained-load evidence or release readiness is claimed. Committed npm v3 `package-lock.json`; CI installs with `npm ci` and checks that package manifests remain unchanged. Dependency vulnerability/license review is generated in CI and must still be reviewed.
 
