@@ -41,3 +41,17 @@ The service applies the PoC schema at startup. The legacy `X-Test-Account` ident
 - POST /v1/messages/{id}/ack — recipient acknowledgement.
 
 Direct and multi-recipient conversation fan-out are supported by this PoC. Request bodies are JSON-only, size-limited and validated; malformed JSON and invalid cursors return 400. No production rate limiting, versioned migrations, E2EE, sustained-load evidence or release readiness is claimed. Committed npm v3 `package-lock.json`; CI installs with `npm ci` and checks that package manifests remain unchanged. Dependency vulnerability/license review is generated in CI and must still be reviewed.
+
+## Contacts and personal conversations
+
+- Search users by username or display-name prefix: `GET /v1/users/search?q=bo` (minimum two characters; results are limited to 20 and exclude the current account).
+- Send a contact request by username: `POST /v1/contacts/requests` with `{"username":"bob"}`.
+- List pending requests: `GET /v1/contacts/requests` returns separate `incoming` and `outgoing` arrays.
+- Accept an incoming request: `POST /v1/contacts/requests/{request_id}/accept`. Only its recipient may accept it.
+- List accepted contacts: `GET /v1/contacts`.
+- Get the existing personal conversation with an accepted contact: `POST /v1/conversations/direct` with `{"username":"bob"}`.
+- Accepting a request atomically creates the normalized contact pair and a single stable direct-conversation ID with both participants as members. Repeated direct-conversation lookup returns the same conversation.
+- Self-add, unknown users, duplicate accepted contacts and attempts to accept another person's request are rejected. A reverse pending request is surfaced instead of creating a confusing duplicate.
+- Search exposes only public username/display-name fields; contact and request endpoints require an authenticated account.
+
+These endpoints are still part of the isolated PoC. Blocking/reporting, declined-request UX, privacy controls, discovery ranking, abuse throttling and production migrations remain future work.
