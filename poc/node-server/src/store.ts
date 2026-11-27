@@ -14,8 +14,8 @@ export class InvalidRequestError extends Error {}
 export class Store {
   constructor(readonly pool: PoolType) {}
 
-  async send(sender: string, conversation: string, key: string, payload: string): Promise<Message> {
-    if (!sender || !conversation || !key || !payload) throw new InvalidRequestError();
+  async send(sender: string, conversation: string, key: string, payload: string, replyTo: string | null = null): Promise<Message> {
+    if (!sender || !conversation || !key || !payload || (replyTo !== null && (!replyTo || replyTo.length > 128))) throw new InvalidRequestError();
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
@@ -28,12 +28,16 @@ export class Store {
       if (member.rows[0]!.kind === "channel" && !["owner","admin"].includes(member.rows[0]!.role)) {
         throw new ForbiddenError("only channel owners and admins can publish");
       }
+      if (replyTo !== null) {
+        const target = await c.query("SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND deleted_at IS NULL", [replyTo, conversation]);
+        if (target.rowCount !== 1) throw new InvalidRequestError("reply target must be an active message in this conversation");
+      }
       const prior = await c.query<Message>(
-        "SELECT id AS message_id, conversation_id, sender_id, operation_key, payload, position FROM messages WHERE sender_id=$1 AND operation_key=$2",
+        "SELECT id AS message_id, conversation_id, sender_id, operation_key, payload, position, reply_to_message_id FROM messages WHERE sender_id=$1 AND operation_key=$2",
         [sender, key]);
       if (prior.rowCount) {
         const m = prior.rows[0]!;
-        if (m.conversation_id !== conversation || m.payload !== payload) throw new ConflictError();
+        if (m.conversation_id !== conversation || m.payload !== payload || (m.reply_to_message_id ?? null) !== replyTo) throw new ConflictError();
         await c.query("COMMIT");
         return m;
       }
@@ -42,8 +46,8 @@ export class Store {
         [conversation]);
       const position = counter.rows[0]!.last_position;
       const id = randomUUID();
-      await c.query("INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position) VALUES($1,$2,$3,$4,$5,$6)",
-        [id, conversation, sender, key, payload, position]);
+      await c.query("INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id) VALUES($1,$2,$3,$4,$5,$6,$7)",
+        [id, conversation, sender, key, payload, position, replyTo]);
       const recipients = await c.query<{account_id:string}>(
         "SELECT account_id FROM conversation_members WHERE conversation_id=$1 AND account_id<>$2 ORDER BY account_id",
         [conversation, sender]);
@@ -55,7 +59,7 @@ export class Store {
         [id, recipients.rows.map((recipient) => recipient.account_id)]
       );
       await c.query("COMMIT");
-      return {message_id:id,conversation_id:conversation,sender_id:sender,operation_key:key,payload,position};
+      return {message_id:id,conversation_id:conversation,sender_id:sender,operation_key:key,payload,position,reply_to_message_id:replyTo};
     } catch (e) {
       await c.query("ROLLBACK");
       throw e;
@@ -67,7 +71,7 @@ export class Store {
     const member = await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
     if (member.rowCount !== 1) throw new NotMemberError();
     const result = await this.pool.query<Message>(
-      "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,edited_at,deleted_at FROM messages WHERE conversation_id=$1 AND position>$2 ORDER BY position LIMIT $3",
+      "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id,edited_at,deleted_at FROM messages WHERE conversation_id=$1 AND position>$2 ORDER BY position LIMIT $3",
       [conversation,after,limit]);
     return result.rows;
   }
@@ -117,7 +121,7 @@ export class Store {
     if(!account || !conversation || !Number.isSafeInteger(after) || after<0 || limit<1 || limit>100) throw new InvalidRequestError();
     const member=await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
     if(member.rowCount!==1) throw new NotMemberError();
-    const result=await this.pool.query<Message>(`SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.operation_key,m.payload,m.position,m.edited_at,m.deleted_at
+    const result=await this.pool.query<Message>(`SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.operation_key,m.payload,m.position,m.reply_to_message_id,m.edited_at,m.deleted_at
       FROM recipient_inbox i JOIN messages m ON m.id=i.message_id
       WHERE i.recipient_id=$1 AND i.conversation_id=$2 AND i.position>$3
       ORDER BY i.position LIMIT $4`,[account,conversation,after,limit]);
