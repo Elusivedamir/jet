@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json && cp schema.sql dist/schema.sql",
-    "test": "npm run build && node --test dist/test/*.test.js",
+    "test": "npm run build && node --test --test-concurrency=1 dist/test/*.test.js",
     "start": "node dist/src/server.js"
   },
   "dependencies": {
