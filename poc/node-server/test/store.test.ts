@@ -11,8 +11,8 @@ before(async()=>{
  const schema=await readFile(new URL("../schema.sql",import.meta.url),"utf8");
  for(const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
  await pool.query("TRUNCATE delivery_receipts,recipient_inbox,delivery_outbox,messages,conversation_counters,conversation_members,conversations CASCADE");
- await pool.query("INSERT INTO conversations(id) VALUES('room-a'),('room-b')");
- await pool.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES('room-a','alice'),('room-a','bob'),('room-b','alice'),('room-b','carol')");
+ await pool.query("INSERT INTO conversations(id) VALUES('room-a'),('room-b'),('room-group')");
+ await pool.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES('room-a','alice'),('room-a','bob'),('room-b','alice'),('room-b','carol'),('room-group','alice'),('room-group','bob'),('room-group','carol')");
 });
 after(async()=>pool.end());
 
@@ -102,4 +102,19 @@ test("outbox insert failure rolls back message and sequence atomically",async()=
    await pool.query("DROP TRIGGER IF EXISTS reject_delivery_outbox_trigger ON delivery_outbox");
    await pool.query("DROP FUNCTION IF EXISTS reject_delivery_outbox()");
  }
+});
+
+
+test("group message creates one durable delivery per other member",async()=>{
+ const sent=await store.send("alice","room-group","group-1","hello group");
+ const outbox=await pool.query("SELECT recipient_id FROM delivery_outbox WHERE message_id=$1 ORDER BY recipient_id",[sent.message_id]);
+ assert.deepEqual(outbox.rows.map((row)=>row.recipient_id),["bob","carol"]);
+ const items=await store.claim(10,5000);
+ const groupItems=items.filter((item)=>item.message_id===sent.message_id);
+ assert.equal(groupItems.length,2);
+ for(const item of groupItems) await store.dispatch(item);
+ const bob=await store.inbox("bob","room-group",0);
+ const carol=await store.inbox("carol","room-group",0);
+ assert.ok(bob.some((message)=>message.message_id===sent.message_id));
+ assert.ok(carol.some((message)=>message.message_id===sent.message_id));
 });
