@@ -28,7 +28,7 @@ jobs:
       - name: Install pinned Semgrep CLI
         run: python3 -m pip install --disable-pip-version-check --no-input "semgrep==1.187.0"
       - name: Test harness URL validation
-        run: python3 -m unittest discover -s poc/shared -p 'test_http_base_url.py'
+        run: python3 -m unittest discover -s poc/shared -p 'test_http*.py'
       - name: Scan application source
         env:
           SEMGREP_SEND_METRICS: "off"
