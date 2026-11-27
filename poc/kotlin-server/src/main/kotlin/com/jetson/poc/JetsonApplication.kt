@@ -32,7 +32,7 @@ class JetsonApplication {
     }
 
     @Bean(destroyMethod="shutdown")
-    fun outboxExecutor(@Value("${jet.worker.concurrency:1}") concurrency:Int):ExecutorService {
+    fun outboxExecutor(@Value("\${jet.worker.concurrency:1}") concurrency:Int):ExecutorService {
         require(concurrency in 1..16) { "jet.worker.concurrency must be between 1 and 16" }
         return Executors.newFixedThreadPool(concurrency)
     }
