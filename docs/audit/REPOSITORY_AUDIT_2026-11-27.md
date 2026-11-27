@@ -50,8 +50,8 @@ Snapshot retrieved from GitHub on 2026-11-27. The recent-PR endpoint returned 38
 
 | PR | Title / branch | Base | Audit assessment |
 |---:|---|---|---|
-| #38 | PostgreSQL independent-process outbox claim test; `engineering/postgres-multiprocess-claim-fencing` | `project/greenfield-reset` | Relevant test-only increment. Mergeable flag true, but no commit status checks were returned for head SHA. The associated workflow run surfaced by the connector is named "Message reliability and SQLite adapter tests"; it does not establish that the new PostgreSQL multiprocessing test ran. Require explicit PostgreSQL workflow evidence before approval. |
-| #26 | PostgreSQL outbox adapter comparison; `engineering/postgres-adapter-poc` | `project/greenfield-reset` | Draft experiment. Valuable candidate evidence, not a production database decision. No commit status checks were returned for head SHA. |
+| #38 | PostgreSQL independent-process outbox claim test; `engineering/postgres-multiprocess-claim-fencing` | `project/greenfield-reset` | Relevant test-only increment. GitHub Actions run [#45349515731](https://github.com/Elusivedamir/jet/actions/runs/45349515731) completed successfully: both the reference/SQLite job and the PostgreSQL 16 job passed. The PostgreSQL log explicitly shows `test_independent_processes_cannot_claim_same_item_twice ... ok`; PostgreSQL suite: 33 tests, 0 failures. PR remains open; no merge performed. |
+| #26 | PostgreSQL outbox adapter comparison; `engineering/postgres-adapter-poc` | `project/greenfield-reset` | Draft experiment. GitHub Actions run [#45335827757](https://github.com/Elusivedamir/jet/actions/runs/45335827757) passed the PostgreSQL 16 integration workflow; log reports 10 tests, 0 failures. Valuable candidate evidence, not a production database decision. PR remains open/draft. |
 | #13 | Architecture synthesis task brief; `research/architecture-synthesis-task` | `research/repository-landscape` | Task staging only. It is not the architecture synthesis result. The expected synthesis output was not found at the checked path on the research branch. |
 | #9 | Security, licensing and operations report; `agent/klinch-45263308927` | `research/repository-landscape` | Incomplete diligence report. Its own body says live upstream revisions, full license trees, advisories and upstream tests were not verified because network access failed. Do not treat security/license gates as passed. |
 | #8 | Harden KLINCH research workflow; `fix/klinch-agent-workflow-hardening` | `research/repository-landscape` | Workflow maintenance change on a research branch; review separately from product/architecture work. |
@@ -134,11 +134,13 @@ Interpretation:
 
 **Conclusion:** these results do not select SQLite or PostgreSQL for production. The next useful comparison is controlled concurrency (1, 4 and 16 workers), plus resource/lock/pool-wait measurements and operational-cost modeling.
 
-### 4.4 Latest PR #38 verification gap
+### 4.4 Latest PostgreSQL PR verification
 
-PR #38 adds a multiprocessing contention test to `tests/postgres_adapter`. The fetched head SHA is `49b6370b18a4c21f2ba3f6c5365c6c991c4b3037`. The commit-status query returned no status checks. The workflow run associated by the available commit-workflow endpoint was run #45349515731, named "Message reliability and SQLite adapter tests", conclusion success. That name is not evidence that the new PostgreSQL multiprocessing test executed. Treat #38 as **not fully validated** until the PostgreSQL 16 workflow explicitly runs the new test and its job log/artifact is inspected.
+PR #38 head SHA `49b6370b18a4c21f2ba3f6c5365c6c991c4b3037` is covered by GitHub Actions run [#45349515731](https://github.com/Elusivedamir/jet/actions/runs/45349515731). The run has two successful jobs. The PostgreSQL 16 job log explicitly shows `test_independent_processes_cannot_claim_same_item_twice ... ok` and reports 33 tests, 0 failures. The same job also completed the disposable backup/restore check, serial benchmark and concurrent persistence correctness smoke test. This closes the specific CI-evidence gap for the new multiprocessing test. PR #38 remains open; no merge performed.
 
-PR #26 head SHA `c5eaab55a8e4fe38bd48ea270133fa8beb99fc04` also returned no commit status checks in the audit. Do not label its latest head green without a specific run.
+PR #26 head SHA `c5eaab55a8e4fe38bd48ea270133fa8beb99fc04` is covered by [run #45335827757](https://github.com/Elusivedamir/jet/actions/runs/45335827757), PostgreSQL 16 job success, 10 tests, 0 failures. It remains a draft experiment, not a production database decision.
+
+The commit-status endpoint returned no status objects for these SHAs, so this audit relies on the explicit workflow-run, job and log evidence above rather than the combined-status API.
 
 ## 5. Material gaps before architecture selection
 
