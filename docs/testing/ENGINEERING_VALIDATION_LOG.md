@@ -247,3 +247,6 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - OpenSSF Scorecard and Renovate remain documented follow-ups, not active integrations: Scorecard needs a separate least-privilege/publication decision; Renovate requires external GitHub App installation/authorization.
 - Workflow execution, action compatibility, findings and language extraction are **NOT RUN / NOT VERIFIED** at the time of this documentation change. No security PASS, ASVS compliance or production-readiness claim is made.
 - Manual self-review only; no independent sub-agent review was available in this environment.
+
+
+- Follow-up completion: added `.github/workflows/scorecard.yml` with a pinned OpenSSF Scorecard action, default-branch/weekly/manual triggers and result publication disabled; added conservative `renovate.json` with automerge disabled. Scorecard execution is not yet verified; Renovate remains inactive pending owner-authorized GitHub App installation.
