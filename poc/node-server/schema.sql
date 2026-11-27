@@ -14,6 +14,14 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS sessions_account_idx ON sessions(account_id, expires_at);
 CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS conversation_details (
+  conversation_id TEXT PRIMARY KEY REFERENCES conversations(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('direct','group','channel')),
+  title TEXT,
+  created_by TEXT NOT NULL REFERENCES accounts(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK ((kind='direct' AND title IS NULL) OR (kind IN ('group','channel') AND title IS NOT NULL AND char_length(title) BETWEEN 1 AND 80))
+);
 CREATE TABLE IF NOT EXISTS conversation_members (
   conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   account_id TEXT NOT NULL, PRIMARY KEY (conversation_id, account_id)
