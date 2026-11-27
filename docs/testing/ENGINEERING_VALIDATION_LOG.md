@@ -138,3 +138,15 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - The current exact-head CI is green. Earlier intermediate Go formatting and Kotlin test-placement failures were fixed and retained in Actions history. Do not treat those intermediate failures as the current status.
 - Remaining evidence gaps: hard process-kill injection at transaction/claim/dispatch/ack boundaries; complete committed lockfiles/checksums; dependency SBOM/license inventory; production identity/session/security; sustained-load/resource benchmarks and timed maintenance-task comparison. No stack decision or capacity/SLO claim.
 - Governance unchanged: Draft PR #44 stacked on Draft PR #43; `main`, business plan and product requirements unchanged; no deployment or merge.
+
+
+## 2026-11-27 — Owner-approved Business Offers, Interest Graph and Mutuality specification
+
+- Recorded the owner's four additions as a separate product increment: opt-in Business Offers in a dedicated folder; explicit user interests and privacy-safe Business audience matching; Base/Maximum bilateral Mutuality; and consent-based high-throughput campaign policy.
+- Added canonical working specification: `docs/product/BUSINESS_OFFERS_INTERESTS_MUTUALITY.md`.
+- Updated `docs/governance/MASTER_PROMPT.md`, `docs/product/PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md` and `docs/product/USER_JOURNEYS.md` with traceable requirements and journeys K–M.
+- The source business-plan PDF and `BUSINESS_PLAN_BASELINE.md` were not changed. The additions supplement the existing plan; no pricing, trial, external-channel or roadmap promise was altered.
+- Safety boundaries are explicit: offers are opt-in and suppressible at dispatch; businesses do not receive named-user interest directories or raw interest profiles; sensitive-trait inference/targeting is prohibited; Maximum requires bilateral consent and is pair-scoped/revocable; blocks, reports, security/legal controls and anti-abuse protections remain authoritative.
+- Stage placement: Business Offers consent/folder is a Stage 2 candidate; Interest Graph and Mutuality stage placement remains Open pending UX, privacy, legal and abuse validation.
+- **Validation:** documentation consistency only. No application code, schema, runtime behavior, legal compliance, recommendation quality or throughput was implemented or tested by this increment.
+- **Governance:** isolated on `product/offers-interests-mutuality-2026-11-27`; the stack PoC branch was restored to its pre-product-document content so its Task 05 scope remains isolated. No merge, deployment or production decision.
