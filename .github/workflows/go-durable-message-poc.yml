@@ -50,3 +50,29 @@ jobs:
         run: go vet ./...
       - name: PostgreSQL integration and race tests
         run: go test -race -count=100 -v ./...
+
+      - name: Install PostgreSQL client and seed black-box fixtures
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          TRUNCATE delivery_receipts, recipient_inbox, delivery_outbox, messages, conversation_counters, conversation_members, conversations CASCADE;
+          INSERT INTO conversations(id) VALUES ('room-a'), ('room-b');
+          INSERT INTO conversation_members(conversation_id, account_id) VALUES
+           ('room-a','alice'), ('room-a','bob'), ('room-b','alice'), ('room-b','carol');
+          SQL
+      - name: Start Go server
+        run: |
+          nohup env DATABASE_URL="$TEST_DATABASE_URL" LISTEN_ADDR=:8080 go run . >/tmp/jet-go.log 2>&1 &
+          echo $! >/tmp/jet-go.pid
+          for i in {1..60}; do
+            if curl -sf -H 'X-Test-Account: alice' http://127.0.0.1:8080/healthz >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/jet-go.log
+          exit 1
+      - name: Shared HTTP/SSE contract and five-round latency probe
+        run: python3 ../../poc/shared/contract_harness.py --base-url http://127.0.0.1:8080 --rounds 5 --per-round 100 | tee /tmp/go-results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go-message-poc-results
+          path: /tmp/go-results.json
