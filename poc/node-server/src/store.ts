@@ -169,14 +169,14 @@ export class Store {
     const c=await this.pool.connect();
     try {
       await c.query("BEGIN");
-      const prior=await c.query<Message & {created_at:Date;deleted_at:Date|null}>(
-        "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,created_at,deleted_at FROM messages WHERE id=$1 FOR UPDATE",
+      const prior=await c.query<Message & {created_at:Date;deleted_at:Date|null;within_window:boolean}>(
+        "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,created_at,deleted_at,created_at>now()-interval '15 minutes' AS within_window FROM messages WHERE id=$1 FOR UPDATE",
         [message]
       );
       if(prior.rowCount!==1) throw new NotMemberError();
       const row=prior.rows[0]!;
       if(row.sender_id!==account) throw new ForbiddenError("only the sender can delete a message");
-      if(row.deleted_at || Date.now()-new Date(row.created_at).getTime()>15*60*1000) throw new InvalidRequestError("message delete window expired");
+      if(row.deleted_at || !row.within_window) throw new InvalidRequestError("message delete window expired");
       await c.query("INSERT INTO message_versions(message_id,editor_id,previous_payload) VALUES($1,$2,$3)",[message,account,row.payload]);
       const updated=await c.query(
         "UPDATE messages SET payload='',deleted_at=now(),edited_at=now() WHERE id=$1 RETURNING id AS message_id,conversation_id,sender_id,position,edited_at,deleted_at",
