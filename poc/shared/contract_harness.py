@@ -106,6 +106,8 @@ def main():
     parser.add_argument("--concurrency", type=int, default=16)
     parser.add_argument("--concurrent-requests", type=int, default=200)
     parser.add_argument("--concurrent-rounds", type=int, default=3)
+    parser.add_argument("--soak-seconds", type=int, default=30)
+    parser.add_argument("--soak-concurrency", type=int, default=16)
     args = parser.parse_args()
     base = args.base_url
     conversation = "room-a"
@@ -216,6 +218,45 @@ def main():
         "runs": concurrent_probes,
     }
 
+    # Short sustained-write soak after the repeatable microbenchmark.
+    soak_started = time.monotonic()
+    soak_deadline = soak_started + args.soak_seconds
+    soak_latencies = []
+    soak_errors = []
+    def soak_worker(worker_number):
+        sequence = 0
+        while time.monotonic() < soak_deadline:
+            operation = f"soak-{worker_number}-{sequence}-{uuid.uuid4()}"
+            started = time.perf_counter()
+            try:
+                status, body = request(base, "POST", f"/v1/conversations/{conversation}/messages",
+                                       "alice", {"operation_key": operation, "payload": "sustained-soak"})
+                elapsed_ms = (time.perf_counter() - started) * 1000
+                if status != 202:
+                    soak_errors.append(f"HTTP {status}: {body}")
+                else:
+                    soak_latencies.append(elapsed_ms)
+            except Exception as error:
+                soak_errors.append(str(error))
+            sequence += 1
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.soak_concurrency) as executor:
+        futures = [executor.submit(soak_worker, worker) for worker in range(args.soak_concurrency)]
+        for future in futures:
+            future.result()
+    soak_elapsed = time.monotonic() - soak_started
+    if soak_errors:
+        raise AssertionError(f"sustained soak had {len(soak_errors)} request errors; first={soak_errors[0]}")
+    sustained_soak = {
+        "duration_seconds": round(soak_elapsed, 3),
+        "concurrency": args.soak_concurrency,
+        "successful_requests": len(soak_latencies),
+        "requests_per_second": round(len(soak_latencies) / soak_elapsed, 2),
+        "p50_ms": percentile(soak_latencies, 0.50) if soak_latencies else None,
+        "p95_ms": percentile(soak_latencies, 0.95) if soak_latencies else None,
+        "p99_ms": percentile(soak_latencies, 0.99) if soak_latencies else None,
+        "request_errors": len(soak_errors),
+    }
+
     print(json.dumps({
         "contract": "PASS",
         "candidate": base,
@@ -226,7 +267,8 @@ def main():
         },
         "sequential_rounds": benchmark,
         "concurrent_write_probe": concurrent_summary,
-        "note": "Same CI runner class and workload intent, but separate hosted runners introduce noise. These are PoC microbenchmarks, not capacity/SLO claims.",
+        "sustained_soak": sustained_soak,
+        "note": "Same CI runner class and workload intent, but separate hosted runners introduce noise. The short soak is not a production capacity or SLO claim.",
     }, indent=2))
 
 
