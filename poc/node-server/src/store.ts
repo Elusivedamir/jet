@@ -72,6 +72,8 @@ export class Store {
 
   async forward(account:string, sourceMessage:string, targetConversation:string, operationKey:string):Promise<Message> {
     if(!account || !sourceMessage || !targetConversation || !operationKey || operationKey.length>200) throw new InvalidRequestError();
+    const destinationMember=await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[targetConversation,account]);
+    if(destinationMember.rowCount!==1) throw new NotMemberError();
     const prior=await this.pool.query<Message>("SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id,forwarded_from_message_id FROM messages WHERE sender_id=$1 AND operation_key=$2",[account,operationKey]);
     if(prior.rowCount===1) {
       const existing=prior.rows[0]!;
