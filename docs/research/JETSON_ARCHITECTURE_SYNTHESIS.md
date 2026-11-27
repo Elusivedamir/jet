@@ -109,3 +109,10 @@ A second-pass repository check found one provenance limitation that must remain 
 No upstream code was executed during this second-pass review. No upstream build, test suite, load test, fault injection, security audit, legal review or restore drill is claimed. The architecture recommendation remains provisional and the technology stack remains open.
 
 **Next evidence action:** restore the exact manifest and pinned source snapshots (or provide a repository-accessible immutable archive with checksums), verify every SHA, then reconcile the Fluxer revision discrepancy before any source reuse decision.
+
+
+### 3.4 Independent pinned-source check (2026-11-27)
+
+A bounded independent check retrieved five exact raw source files at the revisions cited in the reports: Tinode `server/topic.go`, Synapse `synapse/handlers/message.py`, OpenIM `internal/msgtransfer/online_history_msg_handler.go`, ejabberd `src/mod_offline.erl`, and Listmonk `queries/campaigns.sql`. The observations and limits are documented in [INDEPENDENT_SOURCE_CHECK_2026-11-27.md](INDEPENDENT_SOURCE_CHECK_2026-11-27.md). This confirms those five pinned paths are retrievable and supports only the specific source-level behavior described there.
+
+The full `upstream-sources/MANIFEST.txt` and shallow source snapshot directory remain absent from both the task branch and its research base branch. This limited check does not restore full provenance, verify all report citations, run upstream tests, establish current maintainer/security posture, or provide license/legal clearance. ADR-011 remains Blocked for code reuse.
