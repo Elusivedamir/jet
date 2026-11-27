@@ -24,7 +24,7 @@ Do not expose this service to the public internet. The test identity header is t
 
 ## Run locally
 
-Requires Go 1.24+ and PostgreSQL 17 (or compatible PostgreSQL).
+Requires Go 1.26.11+ and PostgreSQL 17 (or compatible PostgreSQL). The current candidate pins `pgx/v5` 5.9.2 and `golang.org/x/text` 0.41.0 to address advisories found by the first govulncheck pass.
 
 ```sh
 export DATABASE_URL='postgres://jetson:jetson_test_only@localhost:5432/jetson_poc?sslmode=disable'
