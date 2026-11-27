@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { Pool } from "pg";
+import pg, { type Pool as PoolType } from "pg";
+const { Pool } = pg;
 
 export type Message = { [key: string]: any;
   message_id: string; conversation_id: string; sender_id: string;
@@ -10,7 +11,7 @@ export class NotMemberError extends Error {}
 export class InvalidRequestError extends Error {}
 
 export class Store {
-  constructor(readonly pool: Pool) {}
+  constructor(readonly pool: PoolType) {}
 
   async send(sender: string, conversation: string, key: string, payload: string): Promise<Message> {
     if (!sender || !conversation || !key || !payload) throw new InvalidRequestError();
