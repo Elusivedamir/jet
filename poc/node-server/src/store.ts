@@ -28,10 +28,6 @@ export class Store {
       if (member.rows[0]!.kind === "channel" && !["owner","admin"].includes(member.rows[0]!.role)) {
         throw new ForbiddenError("only channel owners and admins can publish");
       }
-      if (replyTo !== null) {
-        const target = await c.query("SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND deleted_at IS NULL", [replyTo, conversation]);
-        if (target.rowCount !== 1) throw new InvalidRequestError("reply target must be an active message in this conversation");
-      }
       const prior = await c.query<Message>(
         "SELECT id AS message_id, conversation_id, sender_id, operation_key, payload, position, reply_to_message_id FROM messages WHERE sender_id=$1 AND operation_key=$2",
         [sender, key]);
@@ -40,6 +36,10 @@ export class Store {
         if (m.conversation_id !== conversation || m.payload !== payload || (m.reply_to_message_id ?? null) !== replyTo) throw new ConflictError();
         await c.query("COMMIT");
         return m;
+      }
+      if (replyTo !== null) {
+        const target = await c.query("SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND deleted_at IS NULL", [replyTo, conversation]);
+        if (target.rowCount !== 1) throw new InvalidRequestError("reply target must be an active message in this conversation");
       }
       const counter = await c.query<{last_position:string}>(
         "INSERT INTO conversation_counters(conversation_id,last_position) VALUES($1,1) ON CONFLICT(conversation_id) DO UPDATE SET last_position=conversation_counters.last_position+1 RETURNING last_position",
