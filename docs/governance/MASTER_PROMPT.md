@@ -210,7 +210,7 @@ The assistant is free to propose and iterate the design and research approach. T
 
 The project has completed the first business-plan study gate using the owner's complete supplied text. The verified working baseline is `docs/product/BUSINESS_PLAN_BASELINE.md`. The original PDF is preserved in the repository; exact byte-level text extraction comparison remains outstanding. Repository/branch inventory and broad research are in progress. ADR-0002 provisionally proposes Go + PostgreSQL for v1 based on the comparative PoC; this is not yet a final production commitment and remains subject to final CI, operational and matched-maintenance evidence.
 
-**Next task:** continue the approved product requirements/user-journey work and repository landscape research while closing the remaining evidence gaps for the provisional Go + PostgreSQL ADR. Do not treat the PoC stack as production-ready or start production implementation merely because a candidate leads the benchmark.
+**Immediate next task:** execute [AGENT_TASK_06_OUTBOX_WORKER_CONCURRENCY.md](../agent/tasks/AGENT_TASK_06_OUTBOX_WORKER_CONCURRENCY.md): compare bounded worker concurrency 1/4/8/16 across Go, Node and Kotlin with normalized database pools, three crash cases, a 30-second producer soak and a 60-second queue-drain window. This blocks final backend stack selection because all current candidates have a large outbox backlog. After that, continue the approved product requirements/user-journey work and repository landscape research. Do not treat the PoC stack as production-ready or start production implementation merely because a candidate leads the API-acceptance benchmark.
 
 
 ## 16. Independent code review skill
