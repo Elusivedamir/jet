@@ -348,3 +348,44 @@ func TestOutboxStopsAfterMaximumAttempts(t *testing.T) {
 		t.Fatalf("want terminal_failure after maximum attempts, got %s", state)
 	}
 }
+
+func TestOutboxInsertFailureRollsBackMessageAndSequence(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	if _, err := store.pool.Exec(ctx, `
+		CREATE OR REPLACE FUNCTION reject_delivery_outbox() RETURNS trigger
+		LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected outbox failure'; END; $$
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.pool.Exec(ctx, `
+		CREATE TRIGGER reject_delivery_outbox_trigger
+		BEFORE INSERT ON delivery_outbox FOR EACH ROW
+		EXECUTE FUNCTION reject_delivery_outbox()
+	`); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = store.pool.Exec(context.Background(), "DROP TRIGGER IF EXISTS reject_delivery_outbox_trigger ON delivery_outbox")
+		_, _ = store.pool.Exec(context.Background(), "DROP FUNCTION IF EXISTS reject_delivery_outbox()")
+	})
+	if _, err := store.Send(ctx, "alice", "room-a", "rollback-op", "must rollback"); err == nil {
+		t.Fatal("send unexpectedly succeeded despite injected outbox failure")
+	}
+	for table := range []string{"messages", "delivery_outbox", "conversation_counters"} {
+		_ = table
+	}
+	var messages, outbox, counters int
+	for query, dest := range map[string]*int{
+		"SELECT count(*) FROM messages": &messages,
+		"SELECT count(*) FROM delivery_outbox": &outbox,
+		"SELECT count(*) FROM conversation_counters": &counters,
+	} {
+		if err := store.pool.QueryRow(ctx, query).Scan(dest); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if messages != 0 || outbox != 0 || counters != 0 {
+		t.Fatalf("transaction was not atomic: messages=%d outbox=%d counters=%d", messages, outbox, counters)
+	}
+}
