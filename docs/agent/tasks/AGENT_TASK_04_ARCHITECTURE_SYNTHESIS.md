@@ -99,3 +99,14 @@ The synthesis must be useful to a non-specialist founder while retaining technic
 - Commit only the two required new files to the isolated agent branch and open a Draft PR targeting `research/repository-landscape`.
 - Do not merge anything. Do not modify `main`.
 - In the PR description, state the evidence limitations, unresolved decisions, and that no upstream test suites/security audits were run unless independently evidenced.
+
+
+## Execution notes — 2026-11-27
+
+- Required synthesis and decision-log deliverables are complete in this branch.
+- Additional supporting research documents were added after source-level checks uncovered material failure hypotheses: `INDEPENDENT_SOURCE_CHECK_2026-11-27.md` and `MESSAGE_DELIVERY_FAILURE_RISK_REGISTER.md`. These do not approve upstream code reuse or claim confirmed upstream defects.
+- The idempotency scope inconsistency in the existing test-only reference model/SQLite adapter was corrected and regression-tested; no production application code was changed.
+- The AI rollout-stage discrepancy between the canonical business plan/user journeys and derivative product requirements was identified. The synthesis follows the canonical business plan. A provisional edit to the product requirements file was reverted to honor this task's explicit prohibition; the file remains unchanged and the discrepancy is open for a separate authorized task.
+- The referenced `upstream-sources/MANIFEST.txt` and source snapshot directory were not present in either the task branch or research base. Five pinned source paths and three additional source blobs were independently retrieved, but full provenance and legal/license clearance remain blocked.
+- GitHub Actions run 46011193416 passed 15 reference-model and 18 SQLite adapter tests (33 total) on commit `9bda52e41bd497609bb9dff28458e2150acd8f43`. Later commits are documentation-only.
+- PR #13 remains Draft and unmerged; no deployment or release was performed; `main` was not modified.
