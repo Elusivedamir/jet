@@ -54,7 +54,7 @@ def sse_event(base, conversation, after, timeout=12):
     return data
 
 
-def reconnect_has_no_duplicate(base, conversation, after):
+def reconnect_has_no_duplicate(base, conversation, after, consumed_message_id):
     parsed = urllib.parse.urlsplit(base)
     conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=2)
     conn.request("GET", f"/v1/conversations/{conversation}/events?after={after}",
@@ -73,7 +73,8 @@ def reconnect_has_no_duplicate(base, conversation, after):
             if not line:
                 break
             if line.startswith(b"data: "):
-                duplicate = True
+                event = json.loads(line[6:])
+                duplicate = event["message_id"] == consumed_message_id
                 break
     finally:
         conn.close()
@@ -129,7 +130,7 @@ def main():
     assert status == 204, f"recipient acknowledgement returned {status}"
     status, _ = request(base, "POST", f"/v1/messages/{event['message_id']}/ack", "bob", {})
     assert status == 204, f"repeated acknowledgement should be idempotent, got {status}"
-    reconnect_has_no_duplicate(base, conversation, int(event["position"]))
+    reconnect_has_no_duplicate(base, conversation, int(event["position"]), event["message_id"])
 
     # Five independent sequential request-latency rounds; no capacity claim is made.
     benchmark = []
