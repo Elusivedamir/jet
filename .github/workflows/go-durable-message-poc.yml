@@ -20,6 +20,10 @@ concurrency:
   cancel-in-progress: true
 jobs:
   integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        worker-concurrency: [1, 4, 8, 16]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -40,6 +44,8 @@ jobs:
       run:
         working-directory: poc/go-server
     env:
+      OUTBOX_WORKER_CONCURRENCY: ${{ matrix.worker-concurrency }}
+      DATABASE_POOL_MAX_CONNS: "40"
       TEST_DATABASE_URL: postgres://jetson:jetson_test_only@localhost:5432/jetson_poc?sslmode=disable
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -98,7 +104,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: go-message-poc-evidence
+          name: go-message-poc-evidence-${{ matrix.worker-concurrency }}
           path: |
             /tmp/go-crash-recovery.json
             /tmp/jet-go-server.log
