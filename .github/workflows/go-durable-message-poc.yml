@@ -1,5 +1,12 @@
 name: Go durable-message PoC
 on:
+  push:
+    branches:
+      - "poc/realtime-delivery-and-polyglot-2026-11-27"
+    paths:
+      - "poc/go-server/**"
+      - "poc/shared/**"
+      - ".github/workflows/go-durable-message-poc.yml"
   pull_request:
     paths:
       - "poc/go-server/**"
