@@ -86,3 +86,17 @@ Additional integration coverage was added for:
 The Go run for the first new test commit failed only at the formatting gate (`store_test.go`); formatting was corrected. A Kotlin run failed because two newly appended tests were outside the test class; test placement was corrected. These failed intermediate runs are retained in Actions history and are not represented as passing. Final verification must use the exact current head and the three corresponding workflow runs.
 
 Hard process-kill tests at transaction/claim/dispatch/ack boundaries, production identity/security, complete committed dependency lockfiles/checksums, SBOM/license inventory and sustained-load/resource benchmarks remain open. No stack selection is authorized.
+
+
+## Final verification after lease/cursor hardening — 2026-11-27
+
+All three candidate workflows passed on the exact shared head `f86d25e755b17fcc7509b90288ae5c55f05f14e0`:
+- Go [run #46021008920](https://github.com/Elusivedamir/jet/actions/runs/46021008920): gofmt, go vet, PostgreSQL 17, race detector, 12 integration test functions with `-count=100`, shared HTTP/SSE contract and five-round benchmark — PASS.
+- Node [run #46021008197](https://github.com/Elusivedamir/jet/actions/runs/46021008197): TypeScript build, 8 PostgreSQL integration tests, shared contract and five-round benchmark — PASS.
+- Kotlin [run #46021008199](https://github.com/Elusivedamir/jet/actions/runs/46021008199): actual Kotlin main/test compilation, 8 JUnit/PostgreSQL integration tests, shared contract and five-round benchmark — PASS.
+
+The shared harness now verifies negative history/SSE cursor rejection and that `Last-Event-ID` overrides a stale `after=0` query parameter for all three servers. It also retains idempotent retry, changed-payload conflict, 12 concurrent identical sends, non-member history denial, SSE delivery, idempotent acknowledgement and reconnect without replay.
+
+The expanded candidate tests now cover: active-lease expiry rejection before reclaim, stale-token rejection after reclaim, parallel worker claims without duplicate row ownership, retry exhaustion, and transaction rollback when an injected outbox insert failure occurs. Go's 12 integration test functions ran 100 repetitions under the race detector. Node and Kotlin each ran 8 integration tests.
+
+Earlier failed intermediate CI runs were corrected, not hidden: Go formatting check failure and Kotlin test methods initially outside the test class. The exact final-head runs listed above are green. The decision remains Open: no production stack score/selection. Hard process-kill tests, complete committed lockfiles/checksums, SBOM/license inventory, production auth/security, sustained-load/resource measurements and timed maintenance-task comparison remain outstanding.
