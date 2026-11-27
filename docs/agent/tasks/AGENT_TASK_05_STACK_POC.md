@@ -104,3 +104,12 @@ No production adoption, merge to `main`, deployment or release. A final producti
 - Shared harness passed negative cursor rejection and Last-Event-ID precedence over stale query cursor, in addition to the prior retry/concurrency/member/SSE/ack/reconnect checks.
 - Added deterministic outbox-insert fault injection and verified message, sequence counter and outbox all roll back together. Parallel worker claims and retry terminal state are covered in each candidate.
 - Candidate implementation remains a research PoC. Hard process-kill tests at commit/claim/dispatch/ack boundaries, production identity/security, complete committed lockfiles/checksums, SBOM/license inventory, sustained-load/resource benchmarking and owner/agent maintenance-task comparison remain open. No weighted score or stack choice is allowed yet; status remains Open.
+
+
+## Hard crash/restart test specification — 2026-11-27
+
+- Added `docs/testing/HARD_CRASH_RECOVERY_TEST_PLAN_2026-11-27.md` defining an equivalent SIGKILL/restart scenario for all three candidates.
+- The first fault boundary is after outbox claim commit and during the recipient-inbox dispatch transaction, using an ephemeral PostgreSQL trigger/marker to prove the process reached the intended point before SIGKILL.
+- Required recovery assertions include committed message/outbox survival, rollback of in-flight inbox insertion, lease expiry/reclaim after restart, exactly-one durable inbox delivery, completed outbox state and idempotent sender retry.
+- **Status: specification only. No executable crash harness has been added and no hard process-kill test has run.** Existing lease-expiry and transaction-rollback tests must not be described as process-kill evidence.
+- Next implementation step: add a shared harness and direct-process launch/termination to each CI workflow; run all three and record exact run IDs/SHA. Keep stack decision Open.
