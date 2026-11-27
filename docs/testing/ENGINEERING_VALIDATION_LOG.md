@@ -94,3 +94,13 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - Found AI-001/AI-002 listed under Stage 2 in the derivative requirements table, while the canonical business plan §11 and AI user journey place AI rollout in Stage 3.
 - The synthesis follows the canonical baseline. A provisional requirements-file edit was reverted because Agent Task 04 explicitly prohibits modifying product requirements. The final requirements file matches the base branch unchanged; the discrepancy remains open for a separate authorized product-document task.
 - AI remains included in the base Jetson Business subscription; only the rollout stage is inconsistent. No business-plan or product-requirements change is retained.
+
+
+## 2026-11-27 — Application-server candidate screen
+
+- Added `docs/research/STACK_CANDIDATE_SCREEN_AND_POC_GATE_2026-11-27.md`.
+- Shortlist for a reversible PoC: Go, TypeScript/Node.js LTS and Kotlin/Spring Boot; Rust retained as a reserve candidate. This is not a stack selection.
+- Official documentation was checked for Go SQL transaction/connection-pool/concurrency behavior, Node event-loop and LTS guidance, Spring Boot operational/transaction facilities and proxy transaction semantics, and Rust ownership/async-runtime concepts.
+- All 8 weighted criteria remain Unknown for all candidates until an identical Jetson-specific PoC is run. No score or aggregate is claimed.
+- Defined a common durable direct-message contract, 12 P0 tests, fair resource/test measurements, stop conditions and dependency/security/license checks.
+- No production code, product scope, business plan or stack configuration changed. No PoC runtime tests were run in this documentation step.
