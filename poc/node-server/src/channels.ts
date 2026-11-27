@@ -61,7 +61,7 @@ export class ChannelsStore {
   }
 
   async join(accountId:string,slugInput:string,inviteCodeInput=""):
-    Promise<{conversation_id:string;slug:string;title:string;visibility:ChannelVisibility;role:"subscriber"}> {
+    Promise<{conversation_id:string;slug:string;title:string;visibility:ChannelVisibility;role:"owner"|"admin"|"subscriber"}> {
     const slug=slugInput.trim().toLowerCase();
     if(!accountId || !/^[a-z0-9_]{3,32}$/.test(slug)) throw new ChannelError("invalid");
     const found=await this.pool.query<{
@@ -83,6 +83,6 @@ export class ChannelsStore {
       "SELECT role FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",
       [channel.conversation_id,accountId]
     );
-    return {conversation_id:channel.conversation_id,slug:channel.slug,title:channel.title,visibility:channel.visibility,role:membership.rows[0]!.role as "subscriber"};
+    return {conversation_id:channel.conversation_id,slug:channel.slug,title:channel.title,visibility:channel.visibility,role:membership.rows[0]!.role as "owner"|"admin"|"subscriber"};
   }
 }
