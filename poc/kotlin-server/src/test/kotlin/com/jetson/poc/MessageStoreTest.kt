@@ -79,4 +79,19 @@ class MessageStoreTest @Autowired constructor(private val store:MessageStore,pri
         store.retry(terminal,RuntimeException("final injected failure"))
         assertEquals("terminal_failure",jdbc.queryForObject("SELECT state FROM delivery_outbox WHERE id=?",String::class.java,terminal.id))
     }
+
+
+    @Test fun outboxInsertFailureRollsBackMessageAndSequenceAtomically() {
+        jdbc.execute("CREATE OR REPLACE FUNCTION reject_delivery_outbox() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected outbox failure'; END; $$")
+        jdbc.execute("CREATE TRIGGER reject_delivery_outbox_trigger BEFORE INSERT ON delivery_outbox FOR EACH ROW EXECUTE FUNCTION reject_delivery_outbox()")
+        try {
+            assertThrows(RuntimeException::class.java) { store.send("alice","room-a","rollback-op","must rollback") }
+            assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM messages",Int::class.java))
+            assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM delivery_outbox",Int::class.java))
+            assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM conversation_counters",Int::class.java))
+        } finally {
+            jdbc.execute("DROP TRIGGER IF EXISTS reject_delivery_outbox_trigger ON delivery_outbox")
+            jdbc.execute("DROP FUNCTION IF EXISTS reject_delivery_outbox()")
+        }
+    }
 }
