@@ -123,6 +123,11 @@ const server=createServer(async(req,res)=>{
       await channels.addAdmin(user,decodeURIComponent(channelAdmins[1]!),requiredString(input,"username",24));
       res.writeHead(204);res.end();return;
     }
+    const channelMembership=url.pathname.match(/^\/v1\/channels\/([^/]+)\/membership$/);
+    if(req.method==="DELETE" && channelMembership) {
+      await channels.leave(user,decodeURIComponent(channelMembership[1]!));
+      res.writeHead(204);res.end();return;
+    }
     const joinChannel=url.pathname.match(/^\/v1\/channels\/([^/]+)\/join$/);
     if(req.method==="POST" && joinChannel) {
       const input=await body(req);
@@ -185,7 +190,7 @@ const server=createServer(async(req,res)=>{
     if(e instanceof ChannelError) {
       if(e.code==="invalid") json(res,400,{error:"invalid channel data"});
       else if(e.code==="exists") json(res,409,{error:"channel slug unavailable"});
-      else if(e.code==="forbidden") json(res,403,{error:"only the channel owner can manage admins"});
+      else if(e.code==="forbidden") json(res,403,{error:"channel operation not permitted"});
       else json(res,404,{error:"channel not found or invite invalid"});
     }
     else if(e instanceof ContactError) {
