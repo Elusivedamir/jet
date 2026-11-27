@@ -130,11 +130,13 @@ def run_contract_and_sample(args, process):
     started = time.monotonic()
     child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     peak_rss = 0
+    rss_samples = []
     cpu_start = proc_snapshot(process.pid)
     while child.poll() is None:
         snap = proc_snapshot(process.pid)
         if snap:
             peak_rss = max(peak_rss, snap["rss_kib"])
+            rss_samples.append(snap["rss_kib"])
         time.sleep(0.2)
     stdout, stderr = child.communicate()
     elapsed = round(time.monotonic() - started, 3)
@@ -144,14 +146,23 @@ def run_contract_and_sample(args, process):
     cpu_ticks = None
     if cpu_start and final:
         cpu_ticks = max(0, final["cpu_ticks"] - cpu_start["cpu_ticks"])
+    clock_ticks = os.sysconf("SC_CLK_TCK")
+    cpu_seconds = (cpu_ticks / clock_ticks) if cpu_ticks is not None else None
+    cpu_percent_one_core = (cpu_seconds / elapsed * 100) if cpu_seconds is not None and elapsed else None
+    logical_cpus = os.cpu_count() or 1
     return {
         "elapsed_seconds": elapsed,
         "peak_server_rss_kib_sampled": peak_rss,
+        "mean_server_rss_kib_sampled": round(sum(rss_samples) / len(rss_samples), 1) if rss_samples else None,
+        "rss_sample_count": len(rss_samples),
         "server_cpu_ticks_delta": cpu_ticks,
-        "kernel_clock_ticks_per_second": os.sysconf("SC_CLK_TCK"),
-        "runtime_environment": {"platform": platform.platform(), "logical_cpus": os.cpu_count()},
+        "server_cpu_seconds": round(cpu_seconds, 3) if cpu_seconds is not None else None,
+        "server_cpu_percent_one_core": round(cpu_percent_one_core, 2) if cpu_percent_one_core is not None else None,
+        "server_cpu_percent_host": round(cpu_percent_one_core / logical_cpus, 2) if cpu_percent_one_core is not None else None,
+        "kernel_clock_ticks_per_second": clock_ticks,
+        "runtime_environment": {"platform": platform.platform(), "logical_cpus": logical_cpus},
         "contract_and_latency_probe": json.loads(stdout),
-        "resource_metric_note": "Linux /proc sampling of the direct server PID every 200ms; excludes PostgreSQL and is runner-specific. CPU ticks use the runner kernel clock tick rate.",
+        "resource_metric_note": "Linux /proc sampling of the direct server PID every 200ms; excludes PostgreSQL and is runner-specific. CPU percentage is derived from process CPU ticks divided by elapsed wall time; one-core and whole-host-normalized figures are both reported.",
     }
 
 
