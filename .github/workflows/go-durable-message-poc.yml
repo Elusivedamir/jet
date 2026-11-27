@@ -1,12 +1,5 @@
 name: Go durable-message PoC
 on:
-  push:
-    branches:
-      - "poc/realtime-delivery-and-polyglot-2026-11-27"
-    paths:
-      - "poc/go-server/**"
-      - "poc/shared/**"
-      - ".github/workflows/go-durable-message-poc.yml"
   pull_request:
     paths:
       - "poc/go-server/**"
@@ -14,7 +7,7 @@ on:
       - ".github/workflows/go-durable-message-poc.yml"
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   integration:
     runs-on: ubuntu-latest
@@ -45,21 +38,14 @@ jobs:
           go-version: "1.26.11"
           cache: true
           cache-dependency-path: |\n            poc/go-server/go.mod\n            poc/go-server/go.sum
+            /tmp/go-module-metadata.diff
       - name: Resolve patched dependency graph and generate checksums
         run: |
           go mod tidy
           go mod verify
           test -s go.sum
-      - name: Commit refreshed Go checksums on the research branch
-        if: github.event_name == 'push' && github.ref == 'refs/heads/poc/realtime-delivery-and-polyglot-2026-11-27'
-        run: |
-          if ! git diff --quiet -- go.mod go.sum; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add go.mod go.sum
-            git commit -m "build(go): refresh pinned module checksums"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
+          git diff -- go.mod go.sum > /tmp/go-module-metadata.diff || true
+          cat /tmp/go-module-metadata.diff
       - name: Format and static analysis
         run: |
           files="$(gofmt -l *.go)"
@@ -88,12 +74,13 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           govulncheck ./... > /tmp/go-vulnerability-scan.txt
           go install github.com/google/go-licenses@v1.6.0
+          go-licenses check ./... --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,0BSD
           go-licenses report ./... > /tmp/go-license-report.csv
           go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.8.0
           cyclonedx-gomod mod -json -output /tmp/go-sbom.json
       - name: Trivy filesystem vulnerability and license report
         run: |
-          docker run --rm -v "$PWD:/workspace" -v /tmp:/reports aquasec/trivy:0.58.2 fs --scanners vuln,license --format json --output /reports/go-trivy-report.json /workspace
+          docker run --rm -v "$PWD:/workspace" -v /tmp:/reports aquasec/trivy:0.58.2 fs --scanners vuln,license --exit-code 1 --severity HIGH,CRITICAL --format json --output /reports/go-trivy-report.json /workspace
       - uses: actions/upload-artifact@v4
         if: always()
         with:
