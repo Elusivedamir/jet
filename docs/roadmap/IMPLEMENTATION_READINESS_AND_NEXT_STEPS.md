@@ -1,7 +1,7 @@
 # Jetson Messenger — implementation readiness and next-step plan
 
 **Date:** 2026-11-27  
-**Planning baseline:** \`project/greenfield-reset\`  
+**Planning baseline:** `project/greenfield-reset`  
 **Status:** proposed execution sequence; technical choices remain open.
 
 ## Objective
@@ -20,7 +20,7 @@ Move from research-only persistence experiments to a defensible architecture dec
 **Exit criteria**
 - Current baseline SHA recorded.
 - CI checks map to the actual changed test packages.
-- No workflow can silently target \`main\` or the obsolete JuggleIM PoC.
+- No workflow can silently target `main` or the obsolete JuggleIM PoC.
 - Audit and inventory documents match the repository state.
 
 ## Workstream 1 — close persistence evidence gaps
@@ -134,7 +134,7 @@ Do not implement external email/SMS channels or developer API ahead of the appro
 ## Explicitly not authorized by this plan
 
 - merging any PR;
-- changing \`main\`;
+- changing `main`;
 - deploying production infrastructure;
 - selecting a paid provider or incurring cloud/API spend;
 - changing the business plan, pricing, product stages or user promises;
