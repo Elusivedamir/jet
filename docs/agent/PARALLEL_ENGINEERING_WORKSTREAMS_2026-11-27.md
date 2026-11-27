@@ -56,3 +56,12 @@ These are logical parallel workstreams, not separate autonomous agents. A result
 Node.js/TypeScript is the provisional v1 recommendation in ADR-0001, not a release gate closure. Kotlin's small throughput advantage does not currently justify its much larger sampled RSS. Go remains a strong resource-efficiency candidate, but cannot be fairly ranked until its patched toolchain and dependencies pass security checks and the repeated benchmark.
 
 The logical workstreams remain coordination labels, not separate autonomous coding agents. The connected environment still does not expose a direct Copilot/Codex agent launch/assignment action.
+
+
+## Updated decision evidence — 2026-11-27
+
+The patched Go comparison changes the provisional v1 recommendation: ADR-0002 now proposes Go + PostgreSQL, superseding the earlier Node proposal. Same-runner evidence: Go 723.39 req/s median, p95 26.873 ms, p99 30.586 ms, RSS 18,420 KiB, 115 CPU ticks; Node 576.98 req/s, p95 69.909 ms, p99 138.041 ms, RSS 85,384 KiB, 141 ticks; Kotlin 703.05 req/s, p95 52.171 ms, p99 66.678 ms, RSS 265,864 KiB, 527 ticks. Go's patched govulncheck reported no vulnerabilities; the first third-party license check failed only because the first-party module has no declared license. The workflow now excludes the first-party module from third-party scanning, and the project's own license remains an owner decision.
+
+Two hard crash/recovery scenarios passed on all three candidates. The third lost-acceptance-response scenario and 30-second concurrent soak are implemented but await CI. Go module metadata is committed and a no-drift gate is enabled. Node's npm audit reported zero advisories but the first license gate caught its root UNLICENSED declaration; that root is now excluded from third-party allow-list checking. Kotlin's 42-component SBOM has three components requiring license review; its 72-coordinate Maven version lock is committed.
+
+Current three-candidate runs 46029245021 (Go), 46029245064 (Kotlin), and 46029245080 (Node) were created but were queued at last check. Do not mark the latest gates or expanded harness as passed until those jobs complete.
