@@ -22,10 +22,10 @@ export class ContactsStore {
     if (!accountId || q.length < 2 || q.length > 32) throw new ContactError("invalid");
     const result = await this.pool.query<UserPreview>(
       `SELECT id, username, display_name FROM accounts
-       WHERE id<>$1 AND (username LIKE $2 ESCAPE '\\' OR lower(display_name) LIKE $2 ESCAPE '\\')
-       ORDER BY CASE WHEN username=$3 THEN 0 WHEN username LIKE $2 ESCAPE '\\' THEN 1 ELSE 2 END, username
+       WHERE id<>$1 AND (left(username,char_length($2))=$2 OR left(lower(display_name),char_length($2))=$2)
+       ORDER BY CASE WHEN username=$2 THEN 0 WHEN left(username,char_length($2))=$2 THEN 1 ELSE 2 END, username
        LIMIT 20`,
-      [accountId, q.replace(/[\\%_]/g, "\\$&") + "%", q]
+      [accountId, q]
     );
     return result.rows;
   }
