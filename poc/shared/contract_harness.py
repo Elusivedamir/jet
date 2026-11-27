@@ -105,6 +105,7 @@ def main():
     parser.add_argument("--per-round", type=int, default=100)
     parser.add_argument("--concurrency", type=int, default=16)
     parser.add_argument("--concurrent-requests", type=int, default=200)
+    parser.add_argument("--concurrent-rounds", type=int, default=3)
     args = parser.parse_args()
     base = args.base_url
     conversation = "room-a"
@@ -176,21 +177,44 @@ def main():
             "mean_ms": round(statistics.mean(latencies), 3),
         })
 
-    # Same concurrent write workload for all candidate stacks.
-    concurrent_latencies = []
-    concurrent_started = time.perf_counter()
-    def send_benchmark(index):
-        op = f"concurrent-{index}-{uuid.uuid4()}"
-        started = time.perf_counter()
-        status, body = request(base, "POST", f"/v1/conversations/{conversation}/messages",
-                               "alice", {"operation_key": op, "payload": "concurrent-benchmark"})
-        elapsed = (time.perf_counter() - started) * 1000
-        if status != 202:
-            raise AssertionError(f"concurrent benchmark send failed: HTTP {status}, {body}")
-        return elapsed
-    with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as executor:
-        concurrent_latencies = list(executor.map(send_benchmark, range(args.concurrent_requests)))
-    concurrent_elapsed = time.perf_counter() - concurrent_started
+    # Repeat the same concurrent write workload to reduce hosted-runner noise.
+    concurrent_probes = []
+    for round_number in range(1, args.concurrent_rounds + 1):
+        concurrent_latencies = []
+        concurrent_started = time.perf_counter()
+        def send_benchmark(index):
+            op = f"concurrent-{round_number}-{index}-{uuid.uuid4()}"
+            started = time.perf_counter()
+            status, body = request(base, "POST", f"/v1/conversations/{conversation}/messages",
+                                   "alice", {"operation_key": op, "payload": "concurrent-benchmark"})
+            elapsed = (time.perf_counter() - started) * 1000
+            if status != 202:
+                raise AssertionError(f"concurrent benchmark send failed: HTTP {status}, {body}")
+            return elapsed
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as executor:
+            concurrent_latencies = list(executor.map(send_benchmark, range(args.concurrent_requests)))
+        concurrent_elapsed = time.perf_counter() - concurrent_started
+        concurrent_probes.append({
+            "round": round_number,
+            "requests": len(concurrent_latencies),
+            "concurrency": args.concurrency,
+            "elapsed_seconds": round(concurrent_elapsed, 3),
+            "requests_per_second": round(len(concurrent_latencies) / concurrent_elapsed, 2),
+            "p50_ms": percentile(concurrent_latencies, 0.50),
+            "p95_ms": percentile(concurrent_latencies, 0.95),
+            "p99_ms": percentile(concurrent_latencies, 0.99),
+            "mean_ms": round(statistics.mean(concurrent_latencies), 3),
+        })
+    concurrent_summary = {
+        "rounds": args.concurrent_rounds,
+        "requests_per_round": args.concurrent_requests,
+        "concurrency": args.concurrency,
+        "median_requests_per_second": round(statistics.median(x["requests_per_second"] for x in concurrent_probes), 2),
+        "median_p50_ms": round(statistics.median(x["p50_ms"] for x in concurrent_probes), 3),
+        "median_p95_ms": round(statistics.median(x["p95_ms"] for x in concurrent_probes), 3),
+        "median_p99_ms": round(statistics.median(x["p99_ms"] for x in concurrent_probes), 3),
+        "runs": concurrent_probes,
+    }
 
     print(json.dumps({
         "contract": "PASS",
@@ -201,16 +225,7 @@ def main():
             "logical_cpus": __import__("os").cpu_count(),
         },
         "sequential_rounds": benchmark,
-        "concurrent_write_probe": {
-            "requests": len(concurrent_latencies),
-            "concurrency": args.concurrency,
-            "elapsed_seconds": round(concurrent_elapsed, 3),
-            "requests_per_second": round(len(concurrent_latencies) / concurrent_elapsed, 2),
-            "p50_ms": percentile(concurrent_latencies, 0.50),
-            "p95_ms": percentile(concurrent_latencies, 0.95),
-            "p99_ms": percentile(concurrent_latencies, 0.99),
-            "mean_ms": round(statistics.mean(concurrent_latencies), 3),
-        },
+        "concurrent_write_probe": concurrent_summary,
         "note": "Same CI runner class and workload intent, but separate hosted runners introduce noise. These are PoC microbenchmarks, not capacity/SLO claims.",
     }, indent=2))
 
