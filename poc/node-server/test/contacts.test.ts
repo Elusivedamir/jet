@@ -11,14 +11,15 @@ const contacts = new ContactsStore(pool);
 const alice = randomUUID();
 const bob = randomUUID();
 const carol = randomUUID();
+const dave = randomUUID();
 
 before(async () => {
   const schema = await readFile(new URL("../schema.sql", import.meta.url), "utf8");
   for (const statement of schema.split(";").map(s => s.trim()).filter(Boolean)) await pool.query(statement);
   await pool.query("TRUNCATE contact_requests,contacts,direct_conversations,delivery_receipts,recipient_inbox,delivery_outbox,messages,conversation_counters,conversation_members,conversations,sessions,accounts CASCADE");
   await pool.query(
-    "INSERT INTO accounts(id,username,password_hash,display_name) VALUES($1,'alice','test-hash','Alice Example'),($2,'bob','test-hash','Bob Example'),($3,'carol','test-hash','Carol Example')",
-    [alice,bob,carol]
+    "INSERT INTO accounts(id,username,password_hash,display_name) VALUES($1,'alice','test-hash','Alice Example'),($2,'bob','test-hash','Bob Example'),($3,'carol','test-hash','Carol Example'),($4,'dave','test-hash','Dave Example')",
+    [alice,bob,carol,dave]
   );
 });
 after(async () => pool.end());
@@ -52,4 +53,13 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   assert.deepEqual(members.rows.map(row => row.account_id), [alice,bob].sort());
   await assert.rejects(() => contacts.request(alice, "bob"), error => error instanceof ContactError && error.code === "already_contact");
   await assert.rejects(() => contacts.directConversation(carol, "alice"), error => error instanceof ContactError && error.code === "not_found");
+
+  const reciprocal = await Promise.allSettled([
+    contacts.request(carol, "dave"),
+    contacts.request(dave, "carol")
+  ]);
+  assert.equal(reciprocal.filter(result => result.status === "fulfilled").length, 1);
+  const rejected = reciprocal.find(result => result.status === "rejected");
+  assert.ok(rejected && rejected.status === "rejected");
+  assert.ok(rejected.reason instanceof ContactError && rejected.reason.code === "reverse_pending");
 });
