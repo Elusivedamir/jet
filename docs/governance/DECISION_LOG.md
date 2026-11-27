@@ -34,7 +34,7 @@ This log separates approved product decisions from technical recommendations and
 | ID | Status | Decision / finding | Evidence and limitation |
 |---|---|---|---|
 | T-001 | OBSERVED | Message state-machine and outbox contracts exist, with an in-memory reference model and SQLite/PostgreSQL experiments. | Engineering validation log and tests. Not production code. |
-| T-002 | OBSERVED | Historical combined CI increments recorded 51, 60, 78, 81 and 90 passing tests at their respective commits. | \`docs/testing/ENGINEERING_VALIDATION_LOG.md\`. These counts are not a current-tip CI guarantee. |
+| T-002 | OBSERVED | Historical combined CI increments recorded 51, 60, 78, 81 and 90 passing tests at their respective commits. | `docs/testing/ENGINEERING_VALIDATION_LOG.md`. These counts are not a current-tip CI guarantee. |
 | T-003 | OBSERVED | PostgreSQL connection pooling materially improved the tested serial POC compared with opening a fresh connection per operation. | Five-trial median: acceptance 94.48 → 443.39 ops/s; outbox claim+ack 34.36 → 73.94 ops/s. Small serial CI benchmark only. |
 | T-004 | OPEN | Production database is not selected. | Need controlled concurrency, operational model, migration/restore, workload and cost evidence. |
 | T-005 | OPEN | Production broker/queue and realtime transport are not selected. | Need architecture/system-shape comparison and end-to-end client/server requirements. |
