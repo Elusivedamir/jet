@@ -49,14 +49,14 @@ See [CONTINUOUS_SECURITY_GATES.md](../security/CONTINUOUS_SECURITY_GATES.md) for
 | zizmor action v0.8.0 + CLI v1.30.1 | GitHub Actions workflow | Audit workflow security |
 | CodeQL action (immutable SHA) | GitHub Actions workflow | Semantic source analysis for Go, TypeScript/JavaScript and Kotlin/Java |
 | OWASP ASVS 5.0.0 | Jetson checklist | Manual security requirement evidence |
-| OpenSSF Scorecard | Follow-up, not activated | Repository posture and supply-chain practices |
-| Renovate | Follow-up, not activated | Dependency update PRs; GitHub App installation required |
+| OpenSSF Scorecard | `.github/workflows/scorecard.yml` | Weekly/default-branch repository posture scan; publication disabled |
+| Renovate | `renovate.json` committed; app not installed | Conservative dependency PR configuration; GitHub App installation required |
 
 ### Deprecated or not activated
 
 - `semgrep/semgrep-action` is archived/deprecated. Do not use it; the native Semgrep CLI is configured instead.
-- OpenSSF Scorecard is documented as a follow-up only; no new permissions or result publication are enabled.
-- Renovate requires an external GitHub App authorization. A config file alone would not install or activate it.
+- OpenSSF Scorecard is configured for default-branch pushes, weekly schedule and manual dispatch; result publication is disabled and no OIDC write permission is granted.
+- Renovate configuration is committed with automerge disabled. It remains inactive until the repository owner installs/authorizes the GitHub App.
 - No third-party action receives write permissions unless a documented requirement exists.
 
 ## Updating skills and tools
