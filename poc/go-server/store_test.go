@@ -372,9 +372,6 @@ func TestOutboxInsertFailureRollsBackMessageAndSequence(t *testing.T) {
 	if _, err := store.Send(ctx, "alice", "room-a", "rollback-op", "must rollback"); err == nil {
 		t.Fatal("send unexpectedly succeeded despite injected outbox failure")
 	}
-	for table := range []string{"messages", "delivery_outbox", "conversation_counters"} {
-		_ = table
-	}
 	var messages, outbox, counters int
 	for query, dest := range map[string]*int{
 		"SELECT count(*) FROM messages": &messages,
