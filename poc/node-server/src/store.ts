@@ -14,8 +14,8 @@ export class InvalidRequestError extends Error {}
 export class Store {
   constructor(readonly pool: PoolType) {}
 
-  async send(sender: string, conversation: string, key: string, payload: string, replyTo: string | null = null): Promise<Message> {
-    if (!sender || !conversation || !key || !payload || (replyTo !== null && (!replyTo || replyTo.length > 128))) throw new InvalidRequestError();
+  async send(sender: string, conversation: string, key: string, payload: string, replyTo: string | null = null, forwardedFrom: string | null = null): Promise<Message> {
+    if (!sender || !conversation || !key || !payload || (replyTo !== null && (!replyTo || replyTo.length > 128)) || (forwardedFrom !== null && (!forwardedFrom || forwardedFrom.length > 128)) || (replyTo !== null && forwardedFrom !== null)) throw new InvalidRequestError();
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
@@ -29,13 +29,17 @@ export class Store {
         throw new ForbiddenError("only channel owners and admins can publish");
       }
       const prior = await c.query<Message>(
-        "SELECT id AS message_id, conversation_id, sender_id, operation_key, payload, position, reply_to_message_id FROM messages WHERE sender_id=$1 AND operation_key=$2",
+        "SELECT id AS message_id, conversation_id, sender_id, operation_key, payload, position, reply_to_message_id, forwarded_from_message_id FROM messages WHERE sender_id=$1 AND operation_key=$2",
         [sender, key]);
       if (prior.rowCount) {
         const m = prior.rows[0]!;
-        if (m.conversation_id !== conversation || m.payload !== payload || (m.reply_to_message_id ?? null) !== replyTo) throw new ConflictError();
+        if (m.conversation_id !== conversation || m.payload !== payload || (m.reply_to_message_id ?? null) !== replyTo || (m.forwarded_from_message_id ?? null) !== forwardedFrom) throw new ConflictError();
         await c.query("COMMIT");
         return m;
+      }
+      if (forwardedFrom !== null) {
+        const source = await c.query("SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id AND cm.account_id=$2 WHERE m.id=$1 AND m.deleted_at IS NULL", [forwardedFrom, sender]);
+        if (source.rowCount !== 1) throw new InvalidRequestError("forward source must be an active message visible to the sender");
       }
       if (replyTo !== null) {
         const target = await c.query("SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND deleted_at IS NULL", [replyTo, conversation]);
@@ -46,8 +50,8 @@ export class Store {
         [conversation]);
       const position = counter.rows[0]!.last_position;
       const id = randomUUID();
-      await c.query("INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id) VALUES($1,$2,$3,$4,$5,$6,$7)",
-        [id, conversation, sender, key, payload, position, replyTo]);
+      await c.query("INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id,forwarded_from_message_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+        [id, conversation, sender, key, payload, position, replyTo, forwardedFrom]);
       const recipients = await c.query<{account_id:string}>(
         "SELECT account_id FROM conversation_members WHERE conversation_id=$1 AND account_id<>$2 ORDER BY account_id",
         [conversation, sender]);
@@ -59,11 +63,20 @@ export class Store {
         [id, recipients.rows.map((recipient) => recipient.account_id)]
       );
       await c.query("COMMIT");
-      return {message_id:id,conversation_id:conversation,sender_id:sender,operation_key:key,payload,position,reply_to_message_id:replyTo};
+      return {message_id:id,conversation_id:conversation,sender_id:sender,operation_key:key,payload,position,reply_to_message_id:replyTo,forwarded_from_message_id:forwardedFrom};
     } catch (e) {
       await c.query("ROLLBACK");
       throw e;
     } finally { c.release(); }
+  }
+
+  async forward(account:string, sourceMessage:string, targetConversation:string, operationKey:string):Promise<Message> {
+    if(!account || !sourceMessage || !targetConversation || !operationKey || operationKey.length>200) throw new InvalidRequestError();
+    const source=await this.pool.query<{payload:string}>(
+      `SELECT m.payload FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id AND cm.account_id=$2
+       WHERE m.id=$1 AND m.deleted_at IS NULL`,[sourceMessage,account]);
+    if(source.rowCount!==1) throw new NotMemberError();
+    return this.send(account,targetConversation,operationKey,source.rows[0]!.payload,null,sourceMessage);
   }
 
   async history(account: string, conversation: string, after: number, limit=50): Promise<Message[]> {
@@ -71,7 +84,7 @@ export class Store {
     const member = await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
     if (member.rowCount !== 1) throw new NotMemberError();
     const result = await this.pool.query<Message>(
-      "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id,edited_at,deleted_at FROM messages WHERE conversation_id=$1 AND position>$2 ORDER BY position LIMIT $3",
+      "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id,forwarded_from_message_id,edited_at,deleted_at FROM messages WHERE conversation_id=$1 AND position>$2 ORDER BY position LIMIT $3",
       [conversation,after,limit]);
     return result.rows;
   }
@@ -121,7 +134,7 @@ export class Store {
     if(!account || !conversation || !Number.isSafeInteger(after) || after<0 || limit<1 || limit>100) throw new InvalidRequestError();
     const member=await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
     if(member.rowCount!==1) throw new NotMemberError();
-    const result=await this.pool.query<Message>(`SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.operation_key,m.payload,m.position,m.reply_to_message_id,m.edited_at,m.deleted_at
+    const result=await this.pool.query<Message>(`SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.operation_key,m.payload,m.position,m.reply_to_message_id,m.forwarded_from_message_id,m.edited_at,m.deleted_at
       FROM recipient_inbox i JOIN messages m ON m.id=i.message_id
       WHERE i.recipient_id=$1 AND i.conversation_id=$2 AND i.position>$3
       ORDER BY i.position LIMIT $4`,[account,conversation,after,limit]);
@@ -195,6 +208,47 @@ export class Store {
       await c.query("COMMIT");
     } catch(e) { await c.query("ROLLBACK"); throw e; }
     finally { c.release(); }
+  }
+
+  async pinMessage(account:string,conversation:string,message:string) {
+    if(!account || !conversation || !message) throw new InvalidRequestError();
+    const c=await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",[ "pins:"+conversation ]);
+      const member=await c.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
+      if(member.rowCount!==1) throw new NotMemberError();
+      const target=await c.query("SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND deleted_at IS NULL",[message,conversation]);
+      if(target.rowCount!==1) throw new InvalidRequestError("only active messages in this conversation can be pinned");
+      const count=await c.query<{n:number}>("SELECT count(*)::int AS n FROM conversation_pins WHERE conversation_id=$1",[conversation]);
+      const exists=await c.query("SELECT 1 FROM conversation_pins WHERE conversation_id=$1 AND message_id=$2",[conversation,message]);
+      if(exists.rowCount===0 && count.rows[0]!.n>=50) throw new InvalidRequestError("a conversation can have at most 50 pinned messages");
+      const result=await c.query(
+        "INSERT INTO conversation_pins(conversation_id,message_id,pinned_by) VALUES($1,$2,$3) ON CONFLICT(conversation_id,message_id) DO UPDATE SET message_id=EXCLUDED.message_id RETURNING conversation_id,message_id,pinned_by,created_at",
+        [conversation,message,account]);
+      await c.query("COMMIT");
+      return result.rows[0];
+    } catch(e) { await c.query("ROLLBACK"); throw e; }
+    finally { c.release(); }
+  }
+
+  async unpinMessage(account:string,conversation:string,message:string):Promise<void> {
+    if(!account || !conversation || !message) throw new InvalidRequestError();
+    const member=await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
+    if(member.rowCount!==1) throw new NotMemberError();
+    await this.pool.query("DELETE FROM conversation_pins WHERE conversation_id=$1 AND message_id=$2",[conversation,message]);
+  }
+
+  async pinnedMessages(account:string,conversation:string) {
+    if(!account || !conversation) throw new InvalidRequestError();
+    const member=await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
+    if(member.rowCount!==1) throw new NotMemberError();
+    const result=await this.pool.query(
+      `SELECT p.conversation_id,p.message_id,p.pinned_by,p.created_at,
+              m.sender_id,m.payload,m.position,m.reply_to_message_id,m.forwarded_from_message_id
+       FROM conversation_pins p JOIN messages m ON m.id=p.message_id
+       WHERE p.conversation_id=$1 ORDER BY p.created_at DESC,p.message_id`,[conversation]);
+    return result.rows;
   }
 
   async events(account:string,conversation:string,after:number,limit=100) {
