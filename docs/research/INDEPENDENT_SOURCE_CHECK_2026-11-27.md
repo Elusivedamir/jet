@@ -88,3 +88,14 @@ The source references above may support architectural learning and test hypothes
 - ejabberd provides an offline spool pattern with explicit capacity limits.
 - Listmonk demonstrates recipient eligibility filtering in campaign selection, but Jetson must still recheck current consent/suppression at dispatch.
 - The modular-monolith recommendation remains provisional. No technology stack, service topology, protocol or upstream code reuse is approved by this source check.
+
+
+## Extended critical-path source trace
+
+The existing deep-dive report also provided exact blob identifiers for the OpenIM consumer handler, OpenIM message-transfer controller and Tinode storage mapper. Those blobs were independently retrieved through GitHub and inspected on 2026-11-27:
+
+- [OpenIM online_history_msg_handler.go blob](https://github.com/OpenIMSDK/Open-IM-Server/blob/8af585ce33b1ca9661bfda1abd00e5277d46e944/internal/msgtransfer/online_history_msg_handler.go): confirms unconditional Mark/Commit in OnComplete, a void worker callback, logged enqueue errors with nil return, cache insertion error early-return, and logged downstream Mongo-MQ/push errors.
+- [OpenIM msg_transfer.go blob](https://github.com/OpenIMSDK/Open-IM-Server/blob/8a8d9e7d26cf51a117826e7728b9f92ff5d3861f): confirms sequence allocation precedes Redis cache write and exposes separate Mongo/push MQ publish methods.
+- [Tinode store.go blob](https://github.com/tinode/chat/blob/0a06b29288f92cd203b13d7573bf835a3e6cdda0/server/store/store.go): confirms mapper calls TopicUpdateOnMessage and then MessageSave; sender read-state update is best-effort.
+
+These code shapes create high-priority fault-injection hypotheses, not confirmed message-loss defects. Batcher/consumer offset semantics and each database adapter's transaction behavior remain unverified. See [MESSAGE_DELIVERY_FAILURE_RISK_REGISTER.md](MESSAGE_DELIVERY_FAILURE_RISK_REGISTER.md) for precise caveats and tests.
