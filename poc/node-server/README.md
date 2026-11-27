@@ -16,7 +16,7 @@
 Requires Node.js 22+, PostgreSQL 17+.
 
     export DATABASE_URL='postgres://jetson:jetson_test_only@localhost:5432/jetson_poc?sslmode=disable'
-    npm install
+    npm ci
     npm test
     npm run build
     npm start
