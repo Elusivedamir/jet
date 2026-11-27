@@ -92,7 +92,7 @@ const server=createServer(async(req,res)=>{
     if(req.method==="GET" && url.pathname==="/v1/contacts/requests") {
       json(res,200,await contacts.requests(user));return;
     }
-    const accept=url.pathname.match(/^\\/v1\\/contacts\\/requests\\/([^/]+)\\/accept$/);
+    const accept=url.pathname.match(/^\/v1\/contacts\/requests\/([^/]+)\/accept$/);
     if(req.method==="POST" && accept) {
       const result=await contacts.accept(user,decodeURIComponent(accept[1]!));
       json(res,200,result);return;
