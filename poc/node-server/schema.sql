@@ -84,6 +84,9 @@ CREATE INDEX IF NOT EXISTS messages_conversation_position_idx ON messages(conver
 
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS messages_payload_fts_idx
+  ON messages USING GIN (to_tsvector('simple', payload)) WHERE deleted_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS message_versions (
   id BIGSERIAL PRIMARY KEY,
   message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
