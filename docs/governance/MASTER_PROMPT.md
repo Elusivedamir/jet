@@ -277,3 +277,6 @@ Mandatory evidence rules:
 8. If the current runtime cannot execute an agent workflow or spawn independent reviewers, disclose that limitation and use only a clearly labelled manual fallback.
 
 A green CI run is necessary evidence for its configured gates, not a security certification or release authorization. Release readiness still requires the full applicable ASVS review, threat model, operational tests, privacy/legal review and explicit owner approval.
+
+9. OpenSSF Scorecard runs on the default branch and weekly schedule with result publication disabled; do not broaden permissions or enable publishing without a documented review and owner approval.
+10. Renovate configuration is present with automerge disabled, but the service remains inactive until the owner authorizes installation of its GitHub App. Do not claim dependency automation is active before that external step.
