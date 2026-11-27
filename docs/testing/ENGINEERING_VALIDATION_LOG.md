@@ -198,3 +198,8 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - Added a committed 72-coordinate Maven version-graph lock and checker. GitHub Actions pinned to immutable commit SHAs.
 - Added a 30-second concurrent write soak and richer mean-RSS/CPU percentage metrics. These additions, the lost-response scenario, and corrected fail-closed workflows await the next CI result.
 - ADR-0002 now proposes Go + PostgreSQL for v1, superseding the earlier Node proposal. This remains provisional pending clean final CI, soak and matched product-development task evidence.
+
+
+## Runtime pinning — 2026-11-27
+
+GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are pinned in CI: Go 1.26.11, Node.js 22.23.5 via `.nvmrc`, Temurin JDK 21.0.13 and PostgreSQL 17.12.
