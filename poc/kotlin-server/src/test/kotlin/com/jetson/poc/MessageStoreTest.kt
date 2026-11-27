@@ -46,7 +46,6 @@ class MessageStoreTest @Autowired constructor(private val store:MessageStore,pri
         store.acknowledge("bob",message.message_id)
         assertThrows(NotMemberException::class.java) { store.acknowledge("mallory",message.message_id) }
     }
-}
 
     @Test fun expiredOutboxLeaseFencesStaleWorker() {
         store.send("alice","room-a","lease","fenced")
@@ -58,3 +57,4 @@ class MessageStoreTest @Autowired constructor(private val store:MessageStore,pri
         assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM recipient_inbox",Int::class.java))
         store.dispatch(second)
     }
+}
