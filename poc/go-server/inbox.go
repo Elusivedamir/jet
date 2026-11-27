@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-
 )
 
 func (s *Store) InboxAfter(ctx context.Context, accountID, conversationID string, after int64, limit int) ([]Message, error) {
