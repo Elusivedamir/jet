@@ -105,6 +105,9 @@ const server=createServer(async(req,res)=>{
     if(req.method==="GET" && url.pathname==="/v1/contacts") {
       json(res,200,await contacts.list(user));return;
     }
+    if(req.method==="GET" && url.pathname==="/v1/conversations") {
+      json(res,200,await contacts.conversations(user));return;
+    }
     if(req.method==="POST" && url.pathname==="/v1/conversations/direct") {
       const input=await body(req);
       const conversation_id=await contacts.directConversation(user,requiredString(input,"username",24));
