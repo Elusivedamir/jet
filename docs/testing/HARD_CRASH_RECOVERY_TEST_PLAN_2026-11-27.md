@@ -2,7 +2,7 @@
 
 ## Status
 
-**Executable harness implemented.** The first process-kill scenario has passed on all three candidates in earlier CI runs. Two additional crash/recovery scenarios have now been added to the shared harness; their first three-candidate CI execution is pending. This document distinguishes previously observed PASS evidence from newly added tests awaiting execution.
+**Executable harness implemented.** Two process-kill scenarios passed on all three candidates in runs 46028089040, 46028089075 and 46028089057. A third lost-acceptance-response scenario and a 30-second concurrent soak are implemented and await the latest CI execution.
 
 ## Objective
 
@@ -12,38 +12,47 @@ Run the same scenario against Go, Node.js/TypeScript and Kotlin/Spring using Pos
 
 ## Fault boundary
 
-The first hard-crash scenario targets **after claim commit, during recipient-inbox dispatch, before dispatch transaction commit**:
+1. **Kill during dispatch transaction**
+   - Start the direct server process and seed a two-member conversation.
+   - Install a test-only PostgreSQL trigger on `recipient_inbox` that sleeps for five seconds for the test conversation.
+   - Submit a message and verify HTTP 202.
+   - Wait for PostgreSQL `pg_stat_activity` to show the worker inside `pg_sleep`, while the 15-second outbox lease is still valid.
+   - Send SIGKILL to the actual server process.
+   - Verify the recipient-inbox insert rolled back and the outbox row remains `processing`.
+   - Drop the trigger, wait for lease expiry, restart the same server and verify one inbox row, completed outbox and idempotent retry.
 
-1. Start PostgreSQL and seed a two-member conversation.
-2. Install a test-only PostgreSQL trigger on recipient-inbox insertion. The trigger writes a marker row and sleeps long enough for the harness to observe it. It must be confined to the ephemeral CI database and removed after the scenario.
-3. Start exactly one candidate server process with a short, explicit test lease (for example 3 seconds); verify health.
-4. Submit one message using a stable operation key. Require HTTP 202, then verify the message and outbox row are committed.
-5. Wait until the trigger marker proves the worker claimed the outbox row and entered the dispatch transaction.
-6. Send SIGKILL to the **actual server process**, not a package-manager/build-tool parent. Verify the process is gone and PostgreSQL rolled back the in-flight dispatch transaction.
-7. Remove the sleeping trigger while the application is stopped.
-8. Restart the same candidate against the same database with the normal worker enabled.
-9. Wait for lease expiry and recovery. Verify exactly one recipient-inbox row exists for the message, the outbox row is completed, and the original message/position remain unchanged.
-10. Re-submit the same sender-scoped operation key and payload; verify the original logical message is returned and no second outbox/inbox delivery is created.
+2. **Kill after committed outbox claim, before dispatch completes**
+   - Hold an AccessExclusiveLock on `recipient_inbox` using a separate PostgreSQL session.
+   - Submit a message; wait until the outbox claim is committed in `processing` and the worker is blocked on the inbox insert.
+   - Confirm the lease is still valid, then SIGKILL the server.
+   - Release the table lock, verify no inbox row exists and the committed outbox state remains `processing`.
+   - Wait for lease expiry, restart and verify one inbox row, completed outbox and idempotent retry.
+
+3. **Lost acceptance response**
+   - Send a complete HTTP request, then close the client connection without reading the server response.
+   - Wait until the message row is visible in PostgreSQL, proving the transaction committed.
+   - SIGKILL and restart the server.
+   - Retry the same sender-scoped operation key and payload; verify the original message ID and one durable inbox row.
 
 ## Required assertions
 
 - The accepted message and outbox intent survive process death.
-- The uncommitted recipient-inbox insert is rolled back when the process dies.
-- The expired processing lease becomes reclaimable after restart.
+- An uncommitted recipient-inbox insert is rolled back when the process dies.
+- A committed processing lease is reclaimable after expiry and restart.
 - The message is eventually present in the recipient inbox exactly once.
 - The outbox reaches completed state with no stale lease token.
-- The sender retry is idempotent and does not create another logical message.
-- The harness records process exit status, marker observation, recovery duration, SQL row counts and HTTP results.
+- A client that did not receive the acceptance response can retry idempotently.
+- The harness records the observed SQL fault boundary, lease remaining, process SIGKILL, row counts, outbox state and HTTP retry result.
 - A timeout, duplicate inbox row, missing message, stuck outbox, surviving process or inability to prove the fault boundary is a failure, not a skipped pass.
 
 ## Isolation and safety
 
 - Use only the disposable PostgreSQL service database in CI.
-- Use a unique conversation/message per run; clean up only those fixture rows.
-- The sleep trigger and marker table must be created and dropped by the harness, with cleanup in a finally/trap path.
+- Use isolated test conversations and unique sender operation keys; cleanup only the harness fixtures.
+- The sleep trigger is created and dropped by the harness. CI database teardown is the final cleanup boundary if the harness itself fails.
 - Never expose a public HTTP crash/fault-injection endpoint or production environment variable.
-- Launch the compiled/runtime process directly so SIGKILL targets the server, not a wrapper. Confirm PID identity before killing.
-- Keep the existing ordinary integration and shared contract tests; this scenario supplements rather than replaces them.
+- Launch the compiled/runtime process directly so SIGKILL targets the server, not a package-manager/build-tool parent.
+- Keep ordinary integration and shared contract tests; crash scenarios supplement rather than replace them.
 
 ## Executed shared scenario — current result
 
@@ -73,7 +82,7 @@ The 30-second concurrent write soak at concurrency 16 is also part of the shared
 
 ## Acceptance gate
 
-A candidate is marked PASS only when the executable test is committed, run in its own CI workflow, logs the fault boundary, and passes on the exact commit SHA. A design document or lease-expiry unit/integration test is not a substitute. Keep all candidate scores and the production-stack decision Open until all three candidates have equivalent evidence.
+A candidate is marked PASS only when the executable test is committed, run in its own CI workflow, logs the fault boundary, and passes on the exact commit SHA. A design document or lease-expiry unit/integration test is not a substitute. Keep the production-release decision open until all three candidates have equivalent evidence and the remaining product/security gates are closed.
 
 
 ## Expanded executable harness — 2026-11-27
