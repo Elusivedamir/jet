@@ -31,4 +31,4 @@ The schema is initialized from classpath SQL at startup. Tests disable the sched
 - GET /v1/conversations/{id}/events?after=0 — SSE stream.
 - POST /v1/messages/{id}/ack — recipient acknowledgement.
 
-Exactly one recipient besides the sender is supported. No production auth, migrations, E2EE, abuse controls, load benchmark or release readiness is claimed. Maven dependency/license inventory and reproducibility review remain open.
+Exactly one recipient besides the sender is supported. No production auth, migrations, E2EE, abuse controls, load benchmark or release readiness is claimed. CI runs Maven in strict checksum mode (`-C`), captures the resolved dependency tree and generates a CycloneDX SBOM. Maven still has no committed full transitive dependency lock; reproducibility review remains open.
