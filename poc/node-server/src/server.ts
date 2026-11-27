@@ -267,7 +267,7 @@ const server=createServer(async(req,res)=>{
       else json(res,401,{error:"invalid credentials"});
     }
     else if(e instanceof ConflictError) json(res,409,{error:"operation key conflict"});
-    else if(e instanceof ForbiddenError) json(res,403,{error:"channel is read-only for subscribers"});
+    else if(e instanceof ForbiddenError) json(res,403,{error:"operation not permitted"});
     else if(e instanceof NotMemberError) json(res,403,{error:"not a conversation member"});
     else if(e instanceof InvalidRequestError || e instanceof URIError) json(res,400,{error:"invalid request"});
     else json(res,500,{error:"internal error"});
