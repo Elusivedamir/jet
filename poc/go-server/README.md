@@ -5,6 +5,7 @@
 ## What this slice implements
 
 - PostgreSQL schema for direct conversations, membership, ordered messages and durable per-recipient outbox intents.
+- Committed `go.sum`; CI verifies it with `go mod tidy -diff` and `go mod verify` without changing the dependency graph.
 - Sender-scoped idempotency key serialized with a PostgreSQL transaction advisory lock.
 - Atomic transaction for message identity, conversation position and delivery intent.
 - HTTP acceptance response only after commit.
