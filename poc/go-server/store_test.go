@@ -27,17 +27,17 @@ func testStore(t *testing.T) *Store {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, string(schema)); err != nil {
+	if err := applySchema(ctx, pool, string(schema)); err != nil {
 		t.Fatal(err)
 	}
-	_, err = pool.Exec(ctx, `
-		TRUNCATE delivery_outbox, messages, conversation_counters, conversation_members, conversations CASCADE;
-		INSERT INTO conversations (id) VALUES ('room-a'), ('room-b');
-		INSERT INTO conversation_members (conversation_id, account_id) VALUES
-			('room-a','alice'), ('room-a','bob'), ('room-b','alice'), ('room-b','carol');
-	`)
-	if err != nil {
-		t.Fatal(err)
+	for _, statement := range []string{
+		"TRUNCATE delivery_outbox, messages, conversation_counters, conversation_members, conversations CASCADE",
+		"INSERT INTO conversations (id) VALUES ('room-a'), ('room-b')",
+		"INSERT INTO conversation_members (conversation_id, account_id) VALUES ('room-a','alice'), ('room-a','bob'), ('room-b','alice'), ('room-b','carol')",
+	} {
+		if _, err := pool.Exec(ctx, statement); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return NewStore(pool)
 }
