@@ -1,6 +1,6 @@
 # Engineering validation log
 
-Last updated: 2026-11-24
+Last updated: 2026-11-27
 
 This log records completed, reviewable engineering increments. It is evidence of test work, not approval of a production architecture.
 
@@ -175,3 +175,14 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - Go govulncheck on the old baseline reported 24 reachable advisories. Remediation committed: Go 1.26.11, pgx/v5 5.9.2 and x/text 0.41.0. A post-remediation Go run and refreshed go.sum have not yet been confirmed from the available CI evidence.
 - Added scorecard and ADR-0001 proposing Node.js/TypeScript for v1. The recommendation remains conditional on a clean patched Go security run and further sustained-load testing.
 - Remaining: Maven full transitive lock strategy; refresh/verify Go checksums after dependency upgrades; review project license (`UNLICENSED` on npm root); pin GitHub Actions by immutable SHA; run sustained-load/soak and further crash-boundary tests.
+
+
+## 2026-11-27 — expanded recovery coverage and fail-closed supply-chain CI
+
+- Extended the shared crash harness to three process-failure scenarios: (1) SIGKILL during recipient-inbox dispatch transaction; (2) SIGKILL after the outbox claim commits while the worker is blocked before inbox insertion; (3) client closes without reading the committed HTTP acceptance response, server is killed/restarted, then client retries the same idempotency key.
+- The first scenario has historical PASS evidence on all three candidates. The new second and third scenarios are committed but their CI execution is pending; do not mark them PASS until exact-SHA workflow evidence is available.
+- Hardened all three workflows: read-only repository permissions; push triggers restricted to the research branch; Node npm audit now fails on low-or-higher advisories and license-checker uses an allow-list; Go govulncheck and go-licenses checks are required; Kotlin emits a third-party license inventory; Trivy exits nonzero for HIGH/CRITICAL findings.
+- Corrected Go workflow's module cache path and removed an earlier workflow self-push mechanism. The Go workflow now retains the refreshed module metadata diff and go.sum as an artifact; the repository go.sum must be updated only after reviewing the generated artifact.
+- Added a 30-second concurrent write soak at concurrency 16 after the three-round microbenchmark. The soak and expanded crash tests have not yet produced confirmed results in the current workflow attempt.
+- Earlier Node/Kotlin SBOM and vulnerability results remain historical inventory evidence. The new fail-closed gates require fresh runs; no new clean result is claimed yet.
+- Stack recommendation remains Node.js/TypeScript for v1 as a provisional architecture choice, not a production release decision. Go's patched security scan/checksum confirmation and comparable performance result remain open.
