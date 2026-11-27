@@ -64,12 +64,9 @@ jobs:
           npm audit --json > /tmp/node-npm-audit.json || true
           npx --yes license-checker@25.0.1 --json --out /tmp/node-license-report.json
           npx --yes @cyclonedx/cyclonedx-npm@1.19.0 --output-file /tmp/node-sbom.json
-      - name: Install pinned Trivy scanner
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.58.2/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.58.2
-          trivy --version
       - name: Trivy filesystem vulnerability and license report
-        run: trivy fs --scanners vuln,license --format json --output /tmp/node-trivy-report.json .
+        run: |
+          docker run --rm -v "$PWD:/workspace" -v /tmp:/reports aquasec/trivy:0.58.2 fs --scanners vuln,license --format json --output /reports/node-trivy-report.json /workspace
       - uses: actions/upload-artifact@v4
         if: always()
         with:
