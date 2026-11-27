@@ -93,3 +93,4 @@ jobs:
             /tmp/go-sbom.json
             /tmp/go-trivy-report.json
             poc/go-server/go.sum
+            /tmp/go-module-metadata.diff
