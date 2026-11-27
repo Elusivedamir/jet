@@ -144,7 +144,14 @@ const server=createServer(async(req,res)=>{
     }
     json(res,404,{error:"not found"});
   } catch(e) {
-    if(e instanceof ContactError) {\n      if(e.code==="invalid")json(res,400,{error:"invalid request"});\n      else if(e.code==="not_recipient")json(res,403,{error:"only the recipient can accept this request"});\n      else if(e.code==="already_contact")json(res,409,{error:"already a contact"});\n      else if(e.code==="reverse_pending")json(res,409,{error:"an incoming request already exists"});\n      else json(res,404,{error:"user or request not found"});\n    }\n    else if(e instanceof AuthError) {
+    if(e instanceof ContactError) {
+      if(e.code==="invalid") json(res,400,{error:"invalid request"});
+      else if(e.code==="not_recipient") json(res,403,{error:"only the recipient can accept this request"});
+      else if(e.code==="already_contact") json(res,409,{error:"already a contact"});
+      else if(e.code==="reverse_pending") json(res,409,{error:"an incoming request already exists"});
+      else json(res,404,{error:"user or request not found"});
+    }
+    else if(e instanceof AuthError) {
       if(e.code==="exists")json(res,409,{error:"username unavailable"});
       else if(e.code==="invalid")json(res,400,{error:"invalid registration data"});
       else json(res,401,{error:"invalid credentials"});
