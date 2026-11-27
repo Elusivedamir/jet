@@ -136,3 +136,18 @@ Runs:
 - Node produced exactly one terminal row in each cell, consistently `attempt_count=2` and `last_error='Error: final injected failure'`. HTTP request errors were zero. The deterministic row appears tied to a failure-injection path, but its precise intended test origin has not yet been proven; keep this as an open item rather than silently treating it as benign.
 - Kotlin's functional, crash-recovery and producer-soak checks passed; its license gate remains a real blocker. The known review-required dependency licenses remain unresolved, and no blanket policy exception is appropriate.
 - This matrix confirms the worker-loop correction but does not establish a production SLO or select the final backend. Keep worker concurrency default at 1 until the terminal-row origin, Kotlin licensing, and a controlled repeatability pass are resolved.
+
+
+
+## Node terminal-row root cause confirmed — 2026-11-27
+
+Source inspection traced the deterministic Node terminal row to test-fixture leakage, not to an unexpected live-worker delivery failure:
+
+1. `poc/node-server/test/store.test.ts` contains the test “parallel workers claim distinct outbox rows and max attempts terminate”. It intentionally sets the claimed item's in-memory `attempt_count=8` and calls `store.retry(terminal, new Error("final injected failure"))` to exercise the terminal transition.
+2. The test asserts the terminal state but previously did not remove the inserted message/outbox fixtures after the suite.
+3. The Node CI workflow runs `npm test` and then starts the live server and shared crash/soak harness against the same PostgreSQL service/database. The harness therefore counted the test's deliberately terminal row in its later outbox snapshot.
+4. This exactly explains the stable `attempt_count=2` / `Error: final injected failure` evidence observed in each matrix cell: the DB attempt counter reflects one claim, while the in-memory item passed to `retry` was changed to 8. The unit test did not update the persisted attempt counter.
+
+Regression patch: the Node test suite now calls a shared fixture-reset helper in both setup and teardown, with teardown running before the pool closes. The terminal-transition unit test also asserts the exact expected `last_error`. This prevents its fixture from contaminating the subsequent live-server harness while retaining explicit coverage of terminal-state behavior.
+
+**Validation status:** root cause is source-confirmed; patch is committed, but it is not considered fixed until the exact-head Node CI run passes and the crash/soak artifact reports `terminal_failure=0` for all four worker-concurrency cells. Keep this distinction in future reporting.
