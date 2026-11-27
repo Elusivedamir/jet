@@ -246,6 +246,93 @@ def main():
                                 "retry_returns_original_message": True}
         evidence["crash_recovery"] = "PASS"
 
+        # Second boundary: the worker has committed its lease claim, but its
+        # recipient-inbox INSERT is blocked before dispatch can begin.
+        claim_conversation = "claim-crash-room"
+        claim_operation_key = "claim-crash-" + str(uuid.uuid4())
+        claim_payload = "claim-crash-payload-" + str(uuid.uuid4())
+        psql(args.database_url, f"""
+          DELETE FROM conversations WHERE id='{claim_conversation}';
+          INSERT INTO conversations(id) VALUES ('{claim_conversation}');
+          INSERT INTO conversation_members(conversation_id,account_id)
+            VALUES ('{claim_conversation}','alice'),('{claim_conversation}','bob');
+        """)
+        lock_holder = subprocess.Popen(
+            ["psql", args.database_url, "-X", "-v", "ON_ERROR_STOP=1", "-c",
+             "BEGIN; LOCK TABLE recipient_inbox IN ACCESS EXCLUSIVE MODE; SELECT pg_sleep(90);"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
+            start_new_session=True)
+        try:
+            wait_for_sql(args.database_url,
+                "SELECT count(*) FROM pg_locks WHERE relation='recipient_inbox'::regclass "
+                "AND mode='AccessExclusiveLock' AND granted", "1", timeout=15)
+            status, claim_message = http(args.base_url, "POST",
+                f"/v1/conversations/{claim_conversation}/messages", "alice",
+                {"operation_key": claim_operation_key, "payload": claim_payload})
+            if status != 202:
+                raise AssertionError(f"claim-boundary send failed: HTTP {status}, {claim_message}")
+            claim_message_id = claim_message["message_id"]
+            wait_for_sql(args.database_url,
+                f"SELECT state FROM delivery_outbox WHERE message_id='{claim_message_id}'",
+                "processing", timeout=20)
+            wait_for_sql(args.database_url,
+                "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type='Lock' "
+                "AND query ILIKE '%recipient_inbox%' AND datname=current_database()",
+                "1", timeout=20)
+            claim_lease_remaining = int(psql(args.database_url,
+                f"SELECT GREATEST(0,CEIL(EXTRACT(EPOCH FROM (lease_until-clock_timestamp()))))::int "
+                f"FROM delivery_outbox WHERE message_id='{claim_message_id}'") or "0")
+            if claim_lease_remaining < 1:
+                raise AssertionError("claim lease expired before worker reached blocked inbox insert")
+            stop_server(process, log, hard=True)
+            process = None
+            log = None
+            evidence["claim_boundary_sigkill_confirmed"] = True
+        finally:
+            if lock_holder.poll() is None:
+                os.killpg(lock_holder.pid, signal.SIGTERM)
+                try:
+                    lock_holder.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(lock_holder.pid, signal.SIGKILL)
+                    lock_holder.wait(timeout=5)
+        claim_inbox_after_kill = psql(args.database_url,
+            f"SELECT count(*) FROM recipient_inbox WHERE message_id='{claim_message_id}'")
+        claim_outbox_after_kill = psql(args.database_url,
+            f"SELECT state FROM delivery_outbox WHERE message_id='{claim_message_id}'")
+        if claim_inbox_after_kill != "0" or claim_outbox_after_kill != "processing":
+            raise AssertionError("claim-boundary SIGKILL did not preserve the committed claim without an inbox row: "
+                                 f"inbox={claim_inbox_after_kill}, outbox={claim_outbox_after_kill}")
+        claim_wait_seconds = claim_lease_remaining + 2
+        evidence["claim_boundary"] = {
+            "server_sigkill_confirmed": True,
+            "committed_claim_state_after_kill": claim_outbox_after_kill,
+            "recipient_inbox_rows_after_kill": int(claim_inbox_after_kill),
+            "lease_remaining_at_kill_seconds": claim_lease_remaining,
+            "lease_expiry_wait_seconds": claim_wait_seconds,
+        }
+        time.sleep(claim_wait_seconds)
+        process, log = start_server(command, env, args.log)
+        wait_health(args.base_url, process, args.log)
+        wait_for_sql(args.database_url,
+            f"SELECT state FROM delivery_outbox WHERE message_id='{claim_message_id}'",
+            "completed", timeout=35)
+        claim_recovered_inbox = psql(args.database_url,
+            f"SELECT count(*) FROM recipient_inbox WHERE message_id='{claim_message_id}' AND recipient_id='bob'")
+        if claim_recovered_inbox != "1":
+            raise AssertionError(f"expected one inbox row after claim-boundary recovery, got {claim_recovered_inbox}")
+        status, claim_retry = http(args.base_url, "POST",
+            f"/v1/conversations/{claim_conversation}/messages", "alice",
+            {"operation_key": claim_operation_key, "payload": claim_payload})
+        if status != 202 or claim_retry["message_id"] != claim_message_id:
+            raise AssertionError(f"claim-boundary idempotent retry failed: HTTP {status}, {claim_retry}")
+        evidence["claim_boundary"]["recovery"] = {
+            "outbox_state": "completed", "recipient_inbox_rows": 1,
+            "retry_returns_original_message": True,
+        }
+        evidence["crash_recovery_cases"] = 2
+
+
         # Standard black-box contract and comparable request-latency probe on room-a.
         # Ensure fixtures exist for all candidates, even when their DB started empty.
         psql(args.database_url, """
