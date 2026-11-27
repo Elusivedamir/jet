@@ -40,3 +40,8 @@ A related source-document discrepancy remains open: the canonical business-plan 
 - No technology decision is approved by this update; modular monolith remains a reversible proposal.
 
 **Required closure:** restore manifest/snapshot provenance, verify all pinned SHAs, reconcile Fluxer, then update ADR-011 with exact evidence and review results.
+
+
+### ADR-011 — Partial source-path verification update (2026-11-27)
+
+Five report-cited raw source files were independently retrieved at their pinned upstream revisions (Tinode, Synapse, OpenIM, ejabberd and Listmonk). See `INDEPENDENT_SOURCE_CHECK_2026-11-27.md` for exact paths, observed behavior and limits. This improves confidence in those five narrow source observations only. The source manifest and shallow snapshot directory are still absent from both Jet research branches; remaining citations, complete dependency trees, nested licenses/assets, current advisories and legal reuse clearance are not verified. **ADR-011 remains Blocked.** No upstream code reuse is approved.
