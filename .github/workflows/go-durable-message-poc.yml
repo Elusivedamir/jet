@@ -37,8 +37,9 @@ jobs:
         with:
           go-version: "1.26.11"
           cache: true
-          cache-dependency-path: |\n            poc/go-server/go.mod\n            poc/go-server/go.sum
-            /tmp/go-module-metadata.diff
+          cache-dependency-path: |
+            poc/go-server/go.mod
+            poc/go-server/go.sum
       - name: Resolve patched dependency graph and generate checksums
         run: |
           go mod tidy
