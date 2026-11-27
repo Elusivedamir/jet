@@ -155,3 +155,13 @@ Pooling improves this PostgreSQL prototype substantially versus opening a new co
 ## Next engineering increment
 
 Run controlled concurrent sender/dispatcher workloads (1, 4 and 16 workers) against SQLite, pooled PostgreSQL and unpooled PostgreSQL, asserting ordering/no lost outbox items and measuring CPU, memory, pool waits, connections, lock waits and errors. Then produce a bounded operational-cost comparison; keep all candidates experimental until those gates pass. Add a versioned DDL migration chain with tests from supported prior schemas. Only then consider broker/transport experiments or architecture recommendations. Keep exactly-once network delivery explicitly out of scope.
+
+
+## Audit follow-up — 2026-11-27
+
+The repository audit inspected the exact PostgreSQL workflow jobs and logs for two open pull requests:
+
+- PR #26 head \`c5eaab55a8e4fe38bd48ea270133fa8beb99fc04\`: GitHub Actions run [#45335827757](https://github.com/Elusivedamir/jet/actions/runs/45335827757), PostgreSQL 16 contract integration job completed successfully; **10 tests passed, 0 failures**.
+- PR #38 head \`49b6370b18a4c21f2ba3f6c5365c6c991c4b3037\`: GitHub Actions run [#45349515731](https://github.com/Elusivedamir/jet/actions/runs/45349515731), both workflow jobs completed successfully. The PostgreSQL 16 job explicitly ran \`test_independent_processes_cannot_claim_same_item_twice\` successfully and reported **33 tests passed, 0 failures**. The job also completed the disposable backup/restore check, serial benchmark and concurrent persistence correctness smoke test.
+
+These runs close the specific CI-verification gap previously noted for PRs #26 and #38. Both PRs remain open (PR #26 draft); no merge was performed. These results validate the test code at those PR head commits only. A fresh full test run on the current \`project/greenfield-reset\` tip is still required before architecture selection.
