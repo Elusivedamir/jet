@@ -56,7 +56,7 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   const inbox = await contacts.conversations(bob);
   assert.equal(inbox.length, 1);
   assert.equal(inbox[0]!.conversation_id, accepted.conversation_id);
-  assert.equal(inbox[0]!.peer.username, "alice");
+  const peer = inbox[0]!.peer;\n  assert.ok(peer);\n  assert.equal(peer.username, "alice");
   assert.equal(inbox[0]!.last_message, "Hello from Alice");
   assert.equal(inbox[0]!.last_position, "1");
 
