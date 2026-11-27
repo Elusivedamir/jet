@@ -9,6 +9,7 @@ one durable inbox row plus idempotent client retry.
 import argparse
 import json
 import os
+import platform
 import shlex
 import signal
 import subprocess
@@ -124,6 +125,8 @@ def run_contract_and_sample(args, process):
         "elapsed_seconds": elapsed,
         "peak_server_rss_kib_sampled": peak_rss,
         "server_cpu_ticks_delta": cpu_ticks,
+        "kernel_clock_ticks_per_second": os.sysconf("SC_CLK_TCK"),
+        "runtime_environment": {"platform": platform.platform(), "logical_cpus": os.cpu_count()},
         "contract_and_latency_probe": json.loads(stdout),
         "resource_metric_note": "Linux /proc sampling of the direct server PID every 200ms; excludes PostgreSQL and is runner-specific. CPU ticks use the runner kernel clock tick rate.",
     }
