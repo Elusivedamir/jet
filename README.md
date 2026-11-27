@@ -1,6 +1,6 @@
 # Jetson Messenger
 
-Jetson Messenger is restarting from a technology-neutral discovery baseline. The **original business-plan PDF is the canonical product source** and must be preserved without edits.
+Jetson Messenger is being developed from the approved product baseline. The owner selected Node.js + TypeScript as the primary backend direction; detailed architecture and security decisions remain evidence-gated. The **original business-plan PDF is the canonical product source** and must be preserved without edits.
 
 ## Canonical product source
 
@@ -38,7 +38,7 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 
 ## Current status
 
-**Requirements and discovery.** The owner's full business-plan text has been structured into staged requirements and user journeys. Repository landscape research continues. Isolated Go, Node.js/TypeScript and Kotlin/Spring message-core prototypes now pass the same PostgreSQL-backed delivery/reconnect contract and preliminary CI latency probe. These are comparison experiments only: no backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. Detailed UI remains iterative.
+**Implementation and verification.** The owner-approved primary backend direction is Node.js + TypeScript (ADR-0003). The Node/PostgreSQL message PoC has a green CI run #276, including clean dependency install, TypeScript build, PostgreSQL integration, hard crash/restart recovery, dependency audit, license inventory and Trivy. This remains a research PoC, not production-ready. Go and Kotlin remain comparison evidence, not alternate approved primary stacks. Production authentication, migrations, multi-device semantics, E2EE scope, backup/restore, sustained-load evidence and client implementation remain open. Detailed UI remains iterative.
 
 Research up to 1,000 relevant public repositories in transparent tiers. No repository is adopted wholesale. Existing projects are learning sources only; choices require evidence and comparison against the business plan.
 
