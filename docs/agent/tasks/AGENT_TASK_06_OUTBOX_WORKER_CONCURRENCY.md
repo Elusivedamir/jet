@@ -90,3 +90,16 @@ Exact head: `6593d501dcdb8921e221edffc142c368f2ea1e0b`.
 - Full metrics are in `docs/research/OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md`.
 
 Do not select a final backend or raise the default worker concurrency yet. The CI runners differed (Azure for Go/Node, AWS for Kotlin), starting queue backlogs varied, and Kotlin's dependency licensing remains unresolved. Run a controlled repeatability comparison after the open findings are resolved.
+
+
+## Owner decision update — 2026-11-27
+
+The owner has selected **Node.js / TypeScript** as the primary backend direction. This resolves the language-selection decision; it does not close the remaining engineering gates or imply that the benchmark objectively ranked Node first.
+
+Remaining work is now scoped to validating the selected Node implementation:
+- identify and prove the origin of the one deterministic `terminal_failure` row in each matrix cell (`attempt_count=2`, `last_error='Error: final injected failure'`);
+- add an explicit assertion that expected injected failures are distinguished from unexpected terminal failures;
+- run a controlled repeatability pass on Node with exact runner/configuration and record evidence;
+- keep worker concurrency at 1 until those checks are reviewed.
+
+Go and Kotlin remain retained comparative PoCs. Kotlin's license review remains relevant to its own PoC but is no longer a blocker to the owner's Node language choice. PostgreSQL, production topology, hosting and production readiness remain separate decisions.
