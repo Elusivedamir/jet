@@ -134,6 +134,28 @@ const server=createServer(async(req,res)=>{
       const inviteCode=input.invite_code===undefined ? "" : typeof input.invite_code==="string" ? input.invite_code : (()=>{throw new InvalidRequestError();})();
       json(res,200,await channels.join(user,decodeURIComponent(joinChannel[1]!),inviteCode));return;
     }
+    const groupRoute=url.pathname.match(/^\/v1\/conversations\/([^/]+)$/);
+    if(req.method==="PATCH" && groupRoute) {
+      const input=await body(req);
+      await contacts.renameGroup(user,decodeURIComponent(groupRoute[1]!),requiredString(input,"title",80));
+      res.writeHead(204);res.end();return;
+    }
+    const groupMembers=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/members$/);
+    if(req.method==="POST" && groupMembers) {
+      const input=await body(req);
+      if(!Array.isArray(input.usernames) || input.usernames.some(value=>typeof value!=="string")) throw new InvalidRequestError();
+      json(res,200,await contacts.addGroupMembers(user,decodeURIComponent(groupMembers[1]!),input.usernames as string[]));return;
+    }
+    const removeGroupMember=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/members\/([^/]+)$/);
+    if(req.method==="DELETE" && removeGroupMember) {
+      await contacts.removeGroupMember(user,decodeURIComponent(removeGroupMember[1]!),decodeURIComponent(removeGroupMember[2]!));
+      res.writeHead(204);res.end();return;
+    }
+    const leaveGroup=url.pathname.match(/^\/v1\/conversations\/([^/]+)\/membership$/);
+    if(req.method==="DELETE" && leaveGroup) {
+      await contacts.leaveGroup(user,decodeURIComponent(leaveGroup[1]!));
+      res.writeHead(204);res.end();return;
+    }
     if(req.method==="POST" && url.pathname==="/v1/conversations/groups") {
       const input=await body(req);
       if(!Array.isArray(input.usernames) || input.usernames.some(value=>typeof value!=="string")) throw new InvalidRequestError();
@@ -198,6 +220,7 @@ const server=createServer(async(req,res)=>{
       else if(e.code==="not_recipient") json(res,403,{error:"only the recipient can accept this request"});
       else if(e.code==="already_contact") json(res,409,{error:"already a contact"});
       else if(e.code==="reverse_pending") json(res,409,{error:"an incoming request already exists"});
+      else if(e.code==="forbidden") json(res,403,{error:"group owner permission required"});
       else json(res,404,{error:"user or request not found"});
     }
     else if(e instanceof AuthError) {
