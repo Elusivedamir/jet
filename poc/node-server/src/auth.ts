@@ -1,11 +1,14 @@
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
-import { promisify } from "node:util";
 import type { Pool as PoolType } from "pg";
 
-const scrypt=promisify(scryptCallback);
 const KEY_LENGTH=64;
 const SCRYPT_OPTIONS={N:32768,r:8,p:1,maxmem:64*1024*1024};
 const SESSION_TTL_DAYS=30;
+const scrypt=(password:string,salt:Buffer):Promise<Buffer>=>new Promise((resolve,reject)=>{
+  scryptCallback(password,salt,KEY_LENGTH,SCRYPT_OPTIONS,(error,key)=>{
+    if(error)reject(error);else resolve(key as Buffer);
+  });
+});
 
 export type PublicAccount={id:string;username:string;display_name:string;created_at:Date};
 export type AuthResult={account:PublicAccount;token:string;expires_at:Date};
@@ -19,7 +22,7 @@ function tokenDigest(token:string):string {
 }
 async function passwordHash(password:string):Promise<string> {
   const salt=randomBytes(16);
-  const key=await scrypt(password,salt,KEY_LENGTH,SCRYPT_OPTIONS) as Buffer;
+  const key=await scrypt(password,salt);
   return `scrypt$${salt.toString("base64url")}$${key.toString("base64url")}`;
 }
 async function passwordMatches(password:string,encoded:string):Promise<boolean> {
@@ -29,7 +32,7 @@ async function passwordMatches(password:string,encoded:string):Promise<boolean> 
     const salt=Buffer.from(parts[1]!,"base64url");
     const expected=Buffer.from(parts[2]!,"base64url");
     if(salt.length!==16||expected.length!==KEY_LENGTH)return false;
-    const actual=await scrypt(password,salt,KEY_LENGTH,SCRYPT_OPTIONS) as Buffer;
+    const actual=await scrypt(password,salt);
     return timingSafeEqual(actual,expected);
   } catch {return false;}
 }
