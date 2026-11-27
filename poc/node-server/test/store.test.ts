@@ -185,7 +185,7 @@ test("replies stay within one conversation and preserve idempotent reply metadat
  assert.equal(history.find(row=>row.message_id===reply.message_id)?.reply_to_message_id,target.message_id);
  const deliveries=await store.claim(100,5000);
  for(const item of deliveries) await store.dispatch(item);
- const inbox=await store.inbox("bob","room-a",0);
+ const inbox=await store.inbox("alice","room-a",0);
  assert.equal(inbox.find(row=>row.message_id===reply.message_id)?.reply_to_message_id,target.message_id);
 });
 
