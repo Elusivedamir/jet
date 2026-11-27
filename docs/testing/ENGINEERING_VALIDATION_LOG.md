@@ -214,3 +214,13 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Skill invocation: `$loop-code-review` or “используй ревью в цикле”.
 - Capability boundary is documented: only report independent sub-agent review when the active environment actually supports sub-agent orchestration. Otherwise disclose the limitation and label any manual review as a fallback, not an independent review.
 - Installation verification: source and installed SKILL.md blob SHAs match. No application build or CI test is applicable to this documentation/skill-only change; skill discovery should be verified in the target coding-agent runtime.
+
+
+## 2026-11-27 — Manual Loop Code Review fallback made mandatory in the master prompt
+
+- Owner confirmed that, in this ChatGPT environment, the Loop Code Review rules should be applied through a separate manual review phase rather than attempting to claim unavailable sub-agent orchestration.
+- Updated section 16 of `docs/governance/MASTER_PROMPT.md` with an explicit seven-step manual review procedure: switch from authoring to reviewer mode; inspect the full task diff and untracked files; trace requirements; challenge failure/security/concurrency/data-integrity cases; run checks and regression tests; record and fix material findings over up to five rounds; perform a complete follow-up review.
+- All such results must be labelled **manual self-review (not independent)**. Any score is a self-assessed implementation score, not an independent reviewer score.
+- The prompt forbids fabricated sub-agent identities, models, effort, scores, rounds, test output or pass claims. It requires `open` status when material risks or unavailable checks remain.
+- This is a documentation/governance update only. No application source code changed and no application CI/build is claimed.
+- Commit: `f6802e681cdeae53e3937e8db3c74398087137e8`.
