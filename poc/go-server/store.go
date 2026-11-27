@@ -59,6 +59,21 @@ func (s *Store) Send(ctx context.Context, senderID, conversationID, operationKey
 		return Message{}, fmt.Errorf("lock idempotency key: %w", err)
 	}
 
+	// Re-check current membership even for an idempotent retry. Revoked members
+	// must not use a previous operation key to read conversation data.
+	var member bool
+	if err = tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM conversation_members
+			WHERE conversation_id = $1 AND account_id = $2
+		)
+	`, conversationID, senderID).Scan(&member); err != nil {
+		return Message{}, fmt.Errorf("check conversation membership: %w", err)
+	}
+	if !member {
+		return Message{}, ErrNotMember
+	}
+
 	var existing Message
 	err = tx.QueryRow(ctx, `
 		SELECT id, conversation_id, sender_id, operation_key, payload, position
@@ -78,19 +93,6 @@ func (s *Store) Send(ctx context.Context, senderID, conversationID, operationKey
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return Message{}, fmt.Errorf("read idempotency record: %w", err)
-	}
-
-	var member bool
-	if err = tx.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1 FROM conversation_members
-			WHERE conversation_id = $1 AND account_id = $2
-		)
-	`, conversationID, senderID).Scan(&member); err != nil {
-		return Message{}, fmt.Errorf("check conversation membership: %w", err)
-	}
-	if !member {
-		return Message{}, ErrNotMember
 	}
 
 	var position int64
@@ -142,6 +144,9 @@ func (s *Store) Send(ctx context.Context, senderID, conversationID, operationKey
 	rows.Close()
 	if err = rows.Err(); err != nil {
 		return Message{}, fmt.Errorf("iterate recipients: %w", err)
+	}
+	if len(recipients) != 1 {
+		return Message{}, fmt.Errorf("%w: PoC supports exactly one recipient", ErrInvalidRequest)
 	}
 	for _, recipient := range recipients {
 		if _, err = tx.Exec(ctx, `
