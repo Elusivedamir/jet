@@ -140,21 +140,25 @@ class MessageStore(private val jdbc:JdbcTemplate, manager:PlatformTransactionMan
 class OutboxScheduler(private val store:MessageStore, private val executor:ExecutorService) {
     @Scheduled(fixedDelay=250)
     fun poll() {
+        // Keep claiming immediately while every batch is full. The 250ms
+        // fixed delay is the idle poll interval, not a throttle between
+        // batches when a durable backlog exists.
         try {
-            // Fixed-delay scheduling plus waiting for this batch prevents an
-            // unbounded executor queue. Only the configured number of
-            // deliveries can be in flight at once.
-            val items=store.claim(20,15000)
-            val tasks=items.map { item ->
-                executor.submit {
-                    try { store.dispatch(item) }
-                    catch(e:Exception) {
-                        try { store.retry(item,e) }
-                        catch(_:Exception) { /* lease expiry/reclaim remains authoritative */ }
+            while(true) {
+                val items=store.claim(20,15000)
+                if(items.isEmpty()) return
+                val tasks=items.map { item ->
+                    executor.submit {
+                        try { store.dispatch(item) }
+                        catch(e:Exception) {
+                            try { store.retry(item,e) }
+                            catch(_:Exception) { /* lease expiry/reclaim remains authoritative */ }
+                        }
                     }
                 }
+                tasks.forEach { it.get() }
+                if(items.size<20) return
             }
-            tasks.forEach { it.get() }
         } catch(_:Exception) { /* transient database failure; next poll retries */ }
     }
 }
