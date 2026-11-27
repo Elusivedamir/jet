@@ -157,15 +157,21 @@ def proc_snapshot(pid):
 
 
 def run_contract_and_sample(args, process):
-    command = [sys.executable, args.contract_harness, "--base-url", args.base_url,
-               "--rounds", str(args.rounds), "--per-round", str(args.per_round),
-               "--concurrent-rounds", "3", "--soak-seconds", "30", "--soak-concurrency", "16"]
+    producer_harness = os.path.join(os.path.dirname(os.path.abspath(args.contract_harness)),
+                                    "producer_soak_harness.py")
     started = time.monotonic()
     cpu_start = proc_snapshot(process.pid)
     peak_rss = 0
     rss_samples = []
     probes = []
     for repetition in range(1, args.soak_repetitions + 1):
+        if repetition == 1:
+            command = [sys.executable, args.contract_harness, "--base-url", args.base_url,
+                       "--rounds", str(args.rounds), "--per-round", str(args.per_round),
+                       "--concurrent-rounds", "3", "--soak-seconds", "30", "--soak-concurrency", "16"]
+        else:
+            command = [sys.executable, producer_harness, "--base-url", args.base_url,
+                       "--duration-seconds", "30", "--concurrency", "16"]
         child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         while child.poll() is None:
             snap = proc_snapshot(process.pid)
@@ -175,7 +181,7 @@ def run_contract_and_sample(args, process):
             time.sleep(0.2)
         stdout, stderr = child.communicate()
         if child.returncode != 0:
-            raise RuntimeError(f"shared contract/benchmark repetition {repetition} failed:\n{stdout}\n{stderr}")
+            raise RuntimeError(f"producer/contract repetition {repetition} failed:\n{stdout}\n{stderr}")
         probes.append(json.loads(stdout))
     elapsed = round(time.monotonic() - started, 3)
     final = proc_snapshot(process.pid)
