@@ -363,3 +363,12 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Both fixes are committed on the comparison branch. The first matrix runs at the previous head are treated as failed and discarded; they are not performance evidence.
 - Current-head CI is being rerun after these corrections. Do not mark the matrix green until the new Go, Node, Kotlin and security runs complete.
 - Manual self-review finding: the CI compile gates caught two source-generation mistakes that were not visible from a superficial text inspection. Reviewer round 1 therefore remains OPEN until corrected-head CI and full diff review complete.
+
+
+## 2026-11-27 — isolate repeated producer soaks from functional contract
+
+- Manual review found that re-running the entire SSE/ack contract before each soak could make later repetitions fail for the wrong reason: with deliberately accumulated outbox backlog, a newly enqueued SSE event may sit behind the queue and exceed the contract's short delivery timeout.
+- Added `poc/shared/producer_soak_harness.py` for repeated 30-second producer-only runs. The first repetition still executes the complete functional contract + benchmark + soak; repetitions 2 and 3 exercise only producer acceptance under load. This preserves three comparable producer periods without coupling later repeats to an SSE timeout unrelated to HTTP acceptance.
+- The crash harness still measures queue state after the three producer periods and samples drain every 5 seconds for up to 60 seconds.
+- Previous matrix runs are superseded by this methodology correction and will not be used as evidence. Corrected-head CI is required.
+- Manual self-review (not independent), round 2: identified and removed the false-failure path caused by repeated SSE assertions behind a deliberately accumulated queue. No production protocol or lease semantics changed.
