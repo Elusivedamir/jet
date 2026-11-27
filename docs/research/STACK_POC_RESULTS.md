@@ -70,13 +70,13 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 
 ## Latest comparable crash recovery and 30-second soak — 2026-11-27
 
-Source commit: `7a7301310cb6757cfe17046158c6da185138deea`. All three candidates passed all three crash/restart cases, the shared contract and had zero request errors during the 30-second soak. Exact runs: Go [46036340867](https://github.com/Elusivedamir/jet/actions/runs/46036340867), Node [46036340934](https://github.com/Elusivedamir/jet/actions/runs/46036340934), Kotlin [46036340835](https://github.com/Elusivedamir/jet/actions/runs/46036340835).
+Latest docs-head revalidation: `9dbec25214df3011d2c1bfc48b7da35f6f802e53`. All three candidates passed all three crash/restart cases, the shared contract and had zero request errors during the 30-second soak. Exact runs: Go [46037451522](https://github.com/Elusivedamir/jet/actions/runs/46037451522), Node [46037451549](https://github.com/Elusivedamir/jet/actions/runs/46037451549), Kotlin [46037451443](https://github.com/Elusivedamir/jet/actions/runs/46037451443).
 
 | Candidate | Soak accepted writes/s | p50 | p95 | p99 | Peak RSS | CPU seconds | Pending outbox after soak | p95 completed delivery |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Go | **1,260.92** | 12.148 ms | **17.933 ms** | **21.498 ms** | **18,880 KiB** | 17.68 | 36,488 | 27,935 ms |
-| Node | 807.32 | **13.387 ms** | 52.003 ms | 85.685 ms | 99,660 KiB | 16.58 | 23,852 | 27,800 ms |
-| Kotlin | 816.98 | 15.167 ms | 45.701 ms | 71.322 ms | 307,312 KiB | 36.18 | 23,480 | 27,018 ms |
+| Go | **1,134.86** | 13.745 ms | **19.104 ms** | **22.622 ms** | **19,208 KiB** | 17.34 | 32,837 | 28,090 ms |
+| Node | 772.24 | **13.296 ms** | 55.471 ms | 88.676 ms | 99,632 KiB | 20.38 | 22,801 | 28,078 ms |
+| Kotlin | 708.64 | 17.108 ms | 55.011 ms | 83.092 ms | 412,868 KiB | 37.91 | 20,196 | 26,630 ms |
 
 **Important qualification:** these are API acceptance writes/s, not delivered-message throughput. Each implementation claims batches of 20 and dispatches serially. After 30 seconds, each had roughly 23k–36k pending rows and oldest-open age 29–30 seconds. This common worker design is the current bottleneck. Go remains the provisional backend front-runner on acceptance throughput and memory, but final stack selection is deferred until matched bounded worker concurrency and queue-drain tests. Full details: [OUTBOX_WORKER_CAPACITY_FINDINGS](OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md).
 
