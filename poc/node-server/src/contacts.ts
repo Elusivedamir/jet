@@ -77,7 +77,15 @@ export class ContactsStore {
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
-      await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`contact-request:${requestId}`]);
+      const preview = await c.query<{requester_id:string;recipient_id:string}>(
+        "SELECT requester_id,recipient_id FROM contact_requests WHERE id=$1",
+        [requestId]
+      );
+      const candidate = preview.rows[0];
+      if (!candidate) throw new ContactError("not_found");
+      if (candidate.recipient_id !== accountId) throw new ContactError("not_recipient");
+      const [low, high] = pair(candidate.requester_id, candidate.recipient_id);
+      await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`contact:${low}:${high}`]);
       const found = await c.query<ContactRequest>(
         "SELECT id,requester_id,recipient_id,status,created_at,responded_at FROM contact_requests WHERE id=$1 FOR UPDATE",
         [requestId]
@@ -85,7 +93,6 @@ export class ContactsStore {
       const request = found.rows[0];
       if (!request || request.status !== "pending") throw new ContactError("not_found");
       if (request.recipient_id !== accountId) throw new ContactError("not_recipient");
-      const [low, high] = pair(request.requester_id, request.recipient_id);
       await c.query("INSERT INTO contacts(account_low,account_high) VALUES($1,$2) ON CONFLICT DO NOTHING", [low, high]);
       const conversationId = randomUUID();
       await c.query("INSERT INTO conversations(id) VALUES($1) ON CONFLICT DO NOTHING", [conversationId]);
