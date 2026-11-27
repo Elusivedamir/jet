@@ -175,8 +175,9 @@ const server=createServer(async(req,res)=>{
       const input=await body(req);
       if(typeof input.operation_key!=="string" || typeof input.payload!=="string" ||
          input.operation_key.length<1 || input.operation_key.length>200 ||
-         input.payload.length<1 || input.payload.length>32768) throw new InvalidRequestError();
-      const message=await store.send(user,decodeURIComponent(match[1]!),input.operation_key,input.payload);
+         input.payload.length<1 || input.payload.length>32768 ||
+         (input.reply_to_message_id!==undefined && (typeof input.reply_to_message_id!=="string" || input.reply_to_message_id.length<1 || input.reply_to_message_id.length>128))) throw new InvalidRequestError();
+      const message=await store.send(user,decodeURIComponent(match[1]!),input.operation_key,input.payload,(input.reply_to_message_id as string|undefined)??null);
       json(res,202,message);return;
     }
     if(req.method==="GET" && match) {
