@@ -1,0 +1,43 @@
+name: Kotlin Spring message PoC
+on:
+  pull_request:
+    paths:
+      - "poc/kotlin-server/**"
+      - ".github/workflows/kotlin-message-poc.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: jetson
+          POSTGRES_PASSWORD: jetson_test_only
+          POSTGRES_DB: jetson_poc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jetson -d jetson_poc"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: poc/kotlin-server
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/jetson_poc
+      SPRING_DATASOURCE_USERNAME: jetson
+      SPRING_DATASOURCE_PASSWORD: jetson_test_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Compile and run PostgreSQL integration tests
+        run: mvn -B test
