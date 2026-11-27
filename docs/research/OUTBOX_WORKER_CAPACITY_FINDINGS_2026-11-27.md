@@ -101,3 +101,38 @@ The measured median producer-acceptance rates and 60-second queue-drain rates we
 - The complete matrix above is **superseded** for final stack selection. A corrected-head matrix must be run and all artifacts inspected.
 - Node emitted one terminal-failure row in each concurrency cell. The cause has not yet been classified; this remains an open investigation, not an accepted baseline.
 - Queue did not drain to zero in any 60-second window. This confirms the worker bottleneck but is not a production SLO or capacity claim.
+
+
+## Corrected worker matrix — results at head `6593d501dcdb8921e221edffc142c368f2ea1e0b`
+
+The corrected 12-cell matrix completed on the exact current head. Each cell ran the full functional contract and three 30-second producer periods (the first with the complete contract; the next two producer-only), then sampled the outbox drain at 5-second intervals for up to 60 seconds. Each cell retained batch 20, 250ms idle poll, 15s lease and pool max 40.
+
+Runs:
+- Go [#46041977725](https://github.com/Elusivedamir/jet/actions/runs/46041977725) — all four concurrency cells passed.
+- Node [#46041977599](https://github.com/Elusivedamir/jet/actions/runs/46041977599) — all four concurrency cells passed.
+- Kotlin [#46041977715](https://github.com/Elusivedamir/jet/actions/runs/46041977715) — all four functional/crash/soak cells passed; the overall workflow failed only the conservative CycloneDX license policy (and one inventory-generation step in one cell). No license exceptions were added.
+- Security [#46041977777](https://github.com/Elusivedamir/jet/actions/runs/46041977777) — all seven jobs passed.
+
+| Candidate | Workers | Median producer writes/s | Median producer p95 ms | Peak RSS MiB | Server CPU s | Open rows after soak | Drain seconds | Zero by 60s | Terminal rows |
+|---|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| Go | 1 | 1,017 | 55.3 | 19.9 | 52.6 | 41,151 | >60 | no | 0 |
+| Go | 4 | 697 | 80.5 | 20.1 | 50.1 | 17,596 | 35.67 | yes | 0 |
+| Go | 8 | 495 | 117.0 | 21.4 | 40.2 | 4,625 | 10.22 | yes | 0 |
+| Go | 16 | 675 | 85.3 | 22.9 | 52.3 | 0 | 0.08 | yes | 0 |
+| Node | 1 | 581 | 89.5 | 98.0 | 50.8 | 15,735 | 35.69 | yes | 1 |
+| Node | 4 | 399 | 129.1 | 98.2 | 56.0 | 120 | 5.16 | yes | 1 |
+| Node | 8 | 570 | 91.5 | 100.3 | 50.6 | 2,350 | 5.14 | yes | 1 |
+| Node | 16 | 423 | 118.6 | 97.9 | 55.5 | 0 | 0.07 | yes | 1 |
+| Kotlin | 1 | 1,169 | 43.1 | 305.9 | 74.5 | 9,707 | 15.42 | yes | 0 |
+| Kotlin | 4 | 1,091 | 45.9 | 290.0 | 64.7 | 36,806 | 56.14 | yes | 0 |
+| Kotlin | 8 | 785 | 66.3 | 315.2 | 67.3 | 0 | 0.10 | yes | 0 |
+| Kotlin | 16 | 1,133 | 44.6 | 323.8 | 66.5 | 37,509 | 60.09 | yes | 0 |
+
+**Interpretation**
+- The 250ms-per-full-batch ceiling is removed: queue drain now progresses and all cells except Go/1 reached zero within the 60-second drain window. Go/1 still had 9,491 open rows at the end of the window.
+- A zero/near-zero drain time means the worker kept up during the preceding producer soak; it does not mean the post-soak worker was faster than another cell.
+- Backlog sizes differ substantially because producer acceptance rates and hosted runner load differed. Drain times must be read alongside the starting backlog, not compared as isolated speed scores.
+- Go and Node ran on 4-vCPU Azure-hosted runners; Kotlin ran on a 4-vCPU AWS-hosted runner. Hosted runner noise and host differences prevent a defensible language/runtime ranking from this matrix alone.
+- Node produced exactly one terminal row in each cell, consistently `attempt_count=2` and `last_error='Error: final injected failure'`. HTTP request errors were zero. The deterministic row appears tied to a failure-injection path, but its precise intended test origin has not yet been proven; keep this as an open item rather than silently treating it as benign.
+- Kotlin's functional, crash-recovery and producer-soak checks passed; its license gate remains a real blocker. The known review-required dependency licenses remain unresolved, and no blanket policy exception is appropriate.
+- This matrix confirms the worker-loop correction but does not establish a production SLO or select the final backend. Keep worker concurrency default at 1 until the terminal-row origin, Kotlin licensing, and a controlled repeatability pass are resolved.
