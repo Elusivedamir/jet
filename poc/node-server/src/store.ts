@@ -202,7 +202,8 @@ export class Store {
       const row=prior.rows[0]!;
       if(row.sender_id!==account) throw new ForbiddenError("only the sender can delete a message");
       if(row.deleted_at || !row.within_window) throw new InvalidRequestError("message delete window expired");
-      await c.query("INSERT INTO message_versions(message_id,editor_id,previous_payload) VALUES($1,$2,$3)",[message,account,row.payload]);
+      // A delete-for-everyone tombstone must not leave recoverable message text in version history.
+      await c.query("DELETE FROM message_versions WHERE message_id=$1",[message]);
       const updated=await c.query(
         "UPDATE messages SET payload='',deleted_at=now(),edited_at=now() WHERE id=$1 RETURNING id AS message_id,conversation_id,sender_id,position,edited_at,deleted_at",
         [message]
