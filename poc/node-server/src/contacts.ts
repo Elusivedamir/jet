@@ -229,7 +229,7 @@ export class ContactsStore {
       await c.query("INSERT INTO conversations(id) VALUES($1)", [conversationId]);
       await c.query("INSERT INTO conversation_details(conversation_id,kind,title,created_by) VALUES($1,'group',$2,$3)",
         [conversationId,title,accountId]);
-      await c.query("INSERT INTO conversation_members(conversation_id,account_id,role) SELECT $1,member_id,CASE WHEN member_id=$3 THEN 'owner' ELSE 'member' END FROM unnest($2::text[]) AS member_id",
+      await c.query("INSERT INTO conversation_members(conversation_id,account_id,role) SELECT $1,members.member_id,CASE WHEN members.member_id=$3 THEN 'owner' ELSE 'member' END FROM unnest($2::text[]) AS members(member_id)",
         [conversationId,[accountId,...memberIds],accountId]);
       await c.query("COMMIT");
       return {conversation_id:conversationId,title,members_count:memberIds.length+1};
