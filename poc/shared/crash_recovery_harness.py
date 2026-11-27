@@ -161,20 +161,23 @@ def run_contract_and_sample(args, process):
                "--rounds", str(args.rounds), "--per-round", str(args.per_round),
                "--concurrent-rounds", "3", "--soak-seconds", "30", "--soak-concurrency", "16"]
     started = time.monotonic()
-    child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    cpu_start = proc_snapshot(process.pid)
     peak_rss = 0
     rss_samples = []
-    cpu_start = proc_snapshot(process.pid)
-    while child.poll() is None:
-        snap = proc_snapshot(process.pid)
-        if snap:
-            peak_rss = max(peak_rss, snap["rss_kib"])
-            rss_samples.append(snap["rss_kib"])
-        time.sleep(0.2)
-    stdout, stderr = child.communicate()
+    probes = []
+    for repetition in range(1, args.soak_repetitions + 1):
+        child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        while child.poll() is None:
+            snap = proc_snapshot(process.pid)
+            if snap:
+                peak_rss = max(peak_rss, snap["rss_kib"])
+                rss_samples.append(snap["rss_kib"])
+            time.sleep(0.2)
+        stdout, stderr = child.communicate()
+        if child.returncode != 0:
+            raise RuntimeError(f"shared contract/benchmark repetition {repetition} failed:\n{stdout}\n{stderr}")
+        probes.append(json.loads(stdout))
     elapsed = round(time.monotonic() - started, 3)
-    if child.returncode != 0:
-        raise RuntimeError(f"shared contract/benchmark failed:\n{stdout}\n{stderr}")
     final = proc_snapshot(process.pid)
     cpu_ticks = None
     if cpu_start and final:
@@ -185,6 +188,7 @@ def run_contract_and_sample(args, process):
     logical_cpus = os.cpu_count() or 1
     return {
         "elapsed_seconds": elapsed,
+        "repetitions": len(probes),
         "peak_server_rss_kib_sampled": peak_rss,
         "mean_server_rss_kib_sampled": round(sum(rss_samples) / len(rss_samples), 1) if rss_samples else None,
         "rss_sample_count": len(rss_samples),
@@ -194,9 +198,37 @@ def run_contract_and_sample(args, process):
         "server_cpu_percent_host": round(cpu_percent_one_core / logical_cpus, 2) if cpu_percent_one_core is not None else None,
         "kernel_clock_ticks_per_second": clock_ticks,
         "runtime_environment": {"platform": platform.platform(), "logical_cpus": logical_cpus},
-        "contract_and_latency_probe": json.loads(stdout),
-        "resource_metric_note": "Linux /proc sampling of the direct server PID every 200ms; excludes PostgreSQL and is runner-specific. CPU percentage is derived from process CPU ticks divided by elapsed wall time; one-core and whole-host-normalized figures are both reported.",
+        "repeated_contract_and_capacity_probes": probes,
+        "resource_metric_note": "Linux /proc sampling of the direct server PID every 200ms across all repetitions; excludes PostgreSQL and is runner-specific. CPU percentage is derived from process CPU ticks divided by elapsed wall time; one-core and whole-host-normalized figures are both reported.",
     }
+
+
+def read_outbox_snapshot(database_url):
+    raw = psql(database_url, """
+      SELECT json_build_object(
+        'total', count(*),
+        'completed', count(*) FILTER (WHERE state='completed'),
+        'pending', count(*) FILTER (WHERE state='pending'),
+        'processing', count(*) FILTER (WHERE state='processing'),
+        'retry_wait', count(*) FILTER (WHERE state='retry_wait'),
+        'terminal_failure', count(*) FILTER (WHERE state='terminal_failure'),
+        'open', count(*) FILTER (WHERE state IN ('pending','processing','retry_wait')),
+        'p95_completed_delivery_ms', COALESCE(
+          percentile_cont(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (completed_at-created_at))*1000
+          ) FILTER (WHERE state='completed'), 0
+        ),
+        'oldest_open_delivery_age_seconds', COALESCE(
+          CEIL(EXTRACT(EPOCH FROM (
+            clock_timestamp() - MIN(created_at) FILTER (
+              WHERE state IN ('pending','processing','retry_wait')
+            )
+          ))), 0
+        )
+      )::text
+      FROM delivery_outbox
+    """)
+    return json.loads(raw)
 
 
 def main():
@@ -206,10 +238,15 @@ def main():
     parser.add_argument("--contract-harness", required=True)
     parser.add_argument("--rounds", type=int, default=5)
     parser.add_argument("--per-round", type=int, default=100)
+    parser.add_argument("--soak-repetitions", type=int, default=3)
+    parser.add_argument("--drain-seconds", type=int, default=60)
+    parser.add_argument("--drain-sample-seconds", type=int, default=5)
     parser.add_argument("--output", default="crash-recovery-results.json")
     parser.add_argument("--log", default="crash-recovery-server.log")
     parser.add_argument("--server-command", nargs=argparse.REMAINDER, required=True)
     args = parser.parse_args()
+    if not 1 <= args.soak_repetitions <= 5 or not 0 <= args.drain_seconds <= 300 or not 1 <= args.drain_sample_seconds <= 30:
+        parser.error("soak repetitions must be 1..5, drain seconds 0..300, sample interval 1..30")
     validate_base_url(args.base_url)
     command = args.server_command
     if command and command[0] == "--":
@@ -457,31 +494,37 @@ def main():
             ('room-a','alice'),('room-a','bob'),('room-b','alice'),('room-b','carol')
           ON CONFLICT DO NOTHING;
         """)
+        evidence["worker_configuration"] = {
+            "concurrency": int(env.get("OUTBOX_WORKER_CONCURRENCY", env.get("JET_WORKER_CONCURRENCY", "1"))),
+            "database_pool_max_connections": int(env.get("DATABASE_POOL_MAX_CONNS", env.get("SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE", "40"))),
+            "claim_batch_size": 20,
+            "poll_interval_ms": 250,
+            "lease_duration_ms": 15000,
+        }
         evidence["performance"] = run_contract_and_sample(args, process)
-        outbox_snapshot = psql(args.database_url, """
-          SELECT json_build_object(
-            'total', count(*),
-            'completed', count(*) FILTER (WHERE state='completed'),
-            'pending', count(*) FILTER (WHERE state='pending'),
-            'processing', count(*) FILTER (WHERE state='processing'),
-            'retry_wait', count(*) FILTER (WHERE state='retry_wait'),
-            'terminal_failure', count(*) FILTER (WHERE state='terminal_failure'),
-            'p95_completed_delivery_ms', COALESCE(
-              percentile_cont(0.95) WITHIN GROUP (
-                ORDER BY EXTRACT(EPOCH FROM (completed_at-created_at))*1000
-              ) FILTER (WHERE state='completed'), 0
-            ),
-            'oldest_open_delivery_age_seconds', COALESCE(
-              CEIL(EXTRACT(EPOCH FROM (
-                clock_timestamp() - MIN(created_at) FILTER (
-                  WHERE state IN ('pending','processing','retry_wait')
-                )
-              ))), 0
-            )
-          )::text
-          FROM delivery_outbox
-        """)
-        evidence["outbox_state_after_soak"] = json.loads(outbox_snapshot)
+        evidence["outbox_state_after_soak"] = read_outbox_snapshot(args.database_url)
+        drain_started = time.monotonic()
+        drain_samples = []
+        while True:
+            snapshot = read_outbox_snapshot(args.database_url)
+            drain_samples.append({
+                "elapsed_seconds": round(time.monotonic() - drain_started, 1),
+                **snapshot,
+            })
+            if snapshot["open"] == 0:
+                break
+            remaining = args.drain_seconds - (time.monotonic() - drain_started)
+            if remaining <= 0:
+                break
+            time.sleep(min(args.drain_sample_seconds, remaining))
+        evidence["queue_drain"] = {
+            "window_seconds": args.drain_seconds,
+            "sample_interval_seconds": args.drain_sample_seconds,
+            "actual_elapsed_seconds": round(time.monotonic() - drain_started, 2),
+            "drained_to_zero": drain_samples[-1]["open"] == 0,
+            "samples": drain_samples,
+            "final": drain_samples[-1],
+        }
         with open(args.output, "w", encoding="utf-8") as handle:
             json.dump(evidence, handle, indent=2)
         print(json.dumps(evidence, indent=2))
