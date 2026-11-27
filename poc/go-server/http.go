@@ -105,9 +105,9 @@ func (a *API) history(w http.ResponseWriter, r *http.Request) {
 }
 
 func parseCursor(r *http.Request) (int64, error) {
-	raw := r.URL.Query().Get("after")
+	raw := r.Header.Get("Last-Event-ID")
 	if raw == "" {
-		raw = r.Header.Get("Last-Event-ID")
+		raw = r.URL.Query().Get("after")
 	}
 	if raw == "" {
 		return 0, nil
