@@ -59,6 +59,32 @@ test("user search, contact request, acceptance and direct conversation lifecycle
   assert.equal(inbox[0]!.peer.username, "alice");
   assert.equal(inbox[0]!.last_message, "Hello from Alice");
   assert.equal(inbox[0]!.last_position, "1");
+
+  const carolRequest = await contacts.request(alice, "carol");
+  await contacts.accept(carol, carolRequest.id);
+  const group = await contacts.createGroup(alice, "Project team", ["bob","carol"]);
+  assert.equal(group.title, "Project team");
+  assert.equal(group.members_count, 3);
+  await assert.rejects(
+    () => contacts.createGroup(alice, "Not allowed", ["dave"]),
+    error => error instanceof ContactError && error.code === "not_found"
+  );
+  const groupMessage = await new Store(pool).send(alice, group.conversation_id, "group-message-1", "Hello team");
+  const groupMembers = await pool.query(
+    "SELECT account_id FROM conversation_members WHERE conversation_id=$1 ORDER BY account_id",
+    [group.conversation_id]
+  );
+  assert.deepEqual(groupMembers.rows.map(row => row.account_id), [alice,bob,carol].sort());
+  const conversations = await contacts.conversations(alice);
+  const groupEntry = conversations.find(row => row.conversation_id === group.conversation_id);
+  assert.equal(groupEntry?.kind, "group");
+  assert.equal(groupEntry?.title, "Project team");
+  assert.equal(groupEntry?.peer, null);
+  assert.equal(groupEntry?.members_count, 3);
+  const pendingDeliveries = await new Store(pool).claim(20,5000);
+  for (const item of pendingDeliveries) await new Store(pool).dispatch(item);
+  assert.ok((await new Store(pool).inbox(bob,group.conversation_id,0)).some(row => row.message_id === groupMessage.message_id));
+  assert.ok((await new Store(pool).inbox(carol,group.conversation_id,0)).some(row => row.message_id === groupMessage.message_id));
   await assert.rejects(() => contacts.request(alice, "bob"), error => error instanceof ContactError && error.code === "already_contact");
   await assert.rejects(() => contacts.directConversation(carol, "alice"), error => error instanceof ContactError && error.code === "not_found");
 
