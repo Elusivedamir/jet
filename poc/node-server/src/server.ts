@@ -203,6 +203,28 @@ const server=createServer(async(req,res)=>{
       res.on("close",()=>clearInterval(timer));
       return;
     }
+    const reaction=url.pathname.match(/^\/v1\/messages\/([^/]+)\/reactions$/);
+    if(req.method==="GET" && reaction) {
+      json(res,200,await store.listReactions(user,decodeURIComponent(reaction[1]!)));return;
+    }
+    if(req.method==="POST" && reaction) {
+      const input=await body(req);
+      await store.addReaction(user,decodeURIComponent(reaction[1]!),requiredString(input,"emoji",32));
+      res.writeHead(204);res.end();return;
+    }
+    if(req.method==="DELETE" && reaction) {
+      const input=await body(req);
+      await store.removeReaction(user,decodeURIComponent(reaction[1]!),requiredString(input,"emoji",32));
+      res.writeHead(204);res.end();return;
+    }
+    const read=url.pathname.match(/^\/v1\/messages\/([^/]+)\/read$/);
+    if(req.method==="POST" && read) {
+      await store.markRead(user,decodeURIComponent(read[1]!));res.writeHead(204);res.end();return;
+    }
+    const readReceipts=url.pathname.match(/^\/v1\/messages\/([^/]+)\/read-receipts$/);
+    if(req.method==="GET" && readReceipts) {
+      json(res,200,await store.readReceipts(user,decodeURIComponent(readReceipts[1]!)));return;
+    }
     const ack=url.pathname.match(/^\/v1\/messages\/([^/]+)\/ack$/);
     if(req.method==="POST" && ack) {
       await store.acknowledge(user,decodeURIComponent(ack[1]!));res.writeHead(204);res.end();return;
