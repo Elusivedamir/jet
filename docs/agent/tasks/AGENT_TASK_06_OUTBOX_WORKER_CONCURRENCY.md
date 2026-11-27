@@ -1,6 +1,6 @@
 # Agent task 06 — bounded outbox worker concurrency comparison
 
-**Status:** first matrix completed and exposed a shared 250ms-per-batch throttle; all three worker loops corrected to immediately claim the next full batch. Corrected-head CI matrix pending. Blocks final backend stack selection.  
+**Status:** corrected 12-cell matrix completed on 2026-11-27. Worker-loop throttle fix validated. Remaining gates: classify Node's deterministic terminal_failure row, resolve Kotlin dependency-license review, and perform a controlled repeatability pass. Blocks final backend stack selection.  
 **Priority:** high.  
 **Scope:** comparative PoC only; no production-readiness claim.
 
@@ -76,3 +76,17 @@ The task is complete only when correctness/recovery tests pass for each candidat
 The first 12-cell matrix completed its crash-recovery and producer tests. Delivery throughput remained about 67–80 rows/s across all concurrency settings because each implementation waited 250ms after every batch, even when all 20 claimed rows were processed and backlog remained. This imposed an approximately 80 rows/s claim-loop ceiling.
 
 Corrected in Go, Node and Kotlin: after a full 20-row batch, claim again immediately; use the 250ms poll interval only after an empty/partial batch or a transient DB error. Concurrency bound, claim size, lease and DB pool remain unchanged. The first matrix is diagnostic only and is superseded for stack selection. A fresh exact-head 12-cell matrix is required.
+
+
+## Corrected matrix result (2026-11-27)
+
+Exact head: `6593d501dcdb8921e221edffc142c368f2ea1e0b`.
+
+- Go: [run 46041977725](https://github.com/Elusivedamir/jet/actions/runs/46041977725), all four cells passed.
+- Node: [run 46041977599](https://github.com/Elusivedamir/jet/actions/runs/46041977599), all four cells passed.
+- Kotlin: [run 46041977715](https://github.com/Elusivedamir/jet/actions/runs/46041977715), all four functional cells passed; overall run failed conservative license policy.
+- 11/12 cells drained to zero within 60 seconds; Go concurrency 1 retained 9,491 rows at 60 seconds.
+- Node left one deterministic `terminal_failure` row per cell, `attempt_count=2`, `last_error='Error: final injected failure'`; source-level origin still requires confirmation.
+- Full metrics are in `docs/research/OUTBOX_WORKER_CAPACITY_FINDINGS_2026-11-27.md`.
+
+Do not select a final backend or raise the default worker concurrency yet. The CI runners differed (Azure for Go/Node, AWS for Kotlin), starting queue backlogs varied, and Kotlin's dependency licensing remains unresolved. Run a controlled repeatability comparison after the open findings are resolved.
