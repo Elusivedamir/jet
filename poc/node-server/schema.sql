@@ -1,3 +1,18 @@
+CREATE TABLE IF NOT EXISTS accounts (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  username TEXT NOT NULL UNIQUE CHECK (username = lower(username)),
+  password_hash TEXT NOT NULL,
+  display_name TEXT NOT NULL CHECK (char_length(display_name) BETWEEN 1 AND 48),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoked_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS sessions_account_idx ON sessions(account_id, expires_at);
 CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS conversation_members (
   conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
