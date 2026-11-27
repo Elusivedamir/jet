@@ -250,3 +250,12 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 
 
 - Follow-up completion: added `.github/workflows/scorecard.yml` with a pinned OpenSSF Scorecard action, default-branch/weekly triggers and result publication disabled; added conservative `renovate.json` with automerge disabled. Scorecard execution is not yet verified; Renovate remains inactive pending owner-authorized GitHub App installation.
+
+
+## 2026-11-27 — first security workflow baseline run
+
+- Initial continuous-security workflow run [#46032883696](https://github.com/Elusivedamir/jet/actions/runs/46032883696) executed on PR #46 merge commit `892532f0f726548587b41e3a9ec3eb40867c2184`.
+- Gitleaks scanned 808 commits / approximately 2.53 MB and reported one leak. The exact location has not yet been established from the current log output; do not dismiss or classify it as a false positive until a redacted verbose report is available. The gate correctly failed closed.
+- The initial full-repository zizmor scan reported 40 findings (14 ignored; 15 high and 11 medium active). Confirmed examples include workflow-wide write permissions and unpinned actions in `ai-engineer-klinch.yml` and `ai-engineer-manual.yml`, unpinned PostgreSQL 17.12 service images in three PoC workflows, and unpinned actions in `sqlite-adapter-tests.yml`. Details and limitations are in `docs/security/ZIZMOR_BASELINE_AUDIT_2026-11-27.md`.
+- This is existing repository baseline debt, not attributed to the new workflow. The new workflow is being changed to block on the two newly introduced workflow files while retaining a separate non-blocking full-repository baseline report until legacy findings are triaged.
+- CodeQL and Semgrep were still running when the job snapshot was inspected. No result is claimed for them here.
