@@ -46,3 +46,11 @@ The matrix used different hosted-runner environments for candidate groups and ha
 3. Run and record a controlled repeatability test for Node.
 4. Update the Node architecture ADR and implementation plan to reflect this owner-selected direction without overstating benchmark evidence.
 5. Continue the Node vertical slice only after its task-specific quality and security gates are defined.
+
+
+
+## Follow-up finding — Node terminal row source identified
+
+Source inspection confirmed that the deterministic `final injected failure` row was generated intentionally by the Node unit test that verifies the max-attempt terminal transition. The test left its fixture in the same PostgreSQL database later reused by the live crash/soak harness. The harness therefore reported a test fixture as a terminal delivery failure. The Node test now resets fixtures in teardown and explicitly asserts the expected terminal error. See [ADR-0003](../architecture/ADR-0003-backend-stack-node-typescript-owner-selected.md) and the outbox findings for the full chain.
+
+The regression is **source-confirmed and patched, but not yet CI-verified**. Do not mark it closed until the exact-head Node workflow passes and all four harness artifacts show zero terminal failures.
