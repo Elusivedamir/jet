@@ -63,16 +63,13 @@ Observed PASS evidence:
 
 This proves one crash boundary: process death during the recipient-inbox dispatch transaction. It does not prove every possible crash point or production-grade exactly-once device delivery.
 
-## Additional crash boundaries still required
+## Remaining crash boundaries still required
 
-The first scenario does not cover every failure point. Separate tests are still required for:
-- commit succeeds but the HTTP acceptance response is lost;
-- process death immediately after outbox claim commit and before dispatch begins;
-- process death after recipient inbox insert but before outbox completion commit;
-- process death after dispatch commit but before worker acknowledgement/next poll;
-- recipient acknowledgement commit followed by lost HTTP response.
+- Process death after dispatch transaction commit but before the worker's next poll; assert the completed outbox is not replayed and the inbox remains unique.
+- Recipient acknowledgement commits but its HTTP response is genuinely lost; retry acknowledgement and assert idempotency.
+- Repeated kill/restart loops and recovery with multiple concurrent workers.
 
-For each, assert idempotent retry/recovery and no lost or duplicate logical delivery.
+The 30-second concurrent write soak at concurrency 16 is also part of the shared harness; its result is pending the next three-candidate CI run.
 
 ## Acceptance gate
 
@@ -87,7 +84,7 @@ The shared `poc/shared/crash_recovery_harness.py` now executes three distinct pr
 2. **Kill after committed claim, before dispatch completes:** the harness holds an AccessExclusiveLock on `recipient_inbox`, waits until the worker's committed outbox claim is in `processing` and the worker is blocked on the inbox insert, kills the server, releases the lock, waits for lease expiry and verifies recovery with one inbox row.
 3. **Lost acceptance response:** the test client sends a complete HTTP request and closes without reading the response, waits for the committed message row, kills the server, restarts, then retries the same sender/operation key and verifies the original message ID and one durable inbox row.
 
-The first scenario has historical PASS evidence on Go baseline run 87, Node run 101 and Kotlin run 101. Scenarios 2 and 3 are newly implemented and are **not marked PASS until their CI runs complete on the exact current commit**.
+Scenarios 1 and 2 have PASS evidence on Go run [46028089040](https://github.com/Elusivedamir/jet/actions/runs/46028089040), Node run [46028089075](https://github.com/Elusivedamir/jet/actions/runs/46028089075) and Kotlin run [46028089057](https://github.com/Elusivedamir/jet/actions/runs/46028089057). Scenario 3 (lost acceptance response) is implemented but awaits its first CI execution on the latest harness.
 
 CI workflow hardening on this branch:
 - All three workflows have read-only repository permissions.
