@@ -81,3 +81,8 @@ Specify and test the outbox dispatch boundary with a fake external transport: re
 ## 2026-11-27 — Independent upstream source-path spot check
 
 Five pinned raw files were retrieved and inspected directly: Tinode `server/topic.go`, Synapse `synapse/handlers/message.py`, OpenIM `internal/msgtransfer/online_history_msg_handler.go`, ejabberd `src/mod_offline.erl`, and Listmonk `queries/campaigns.sql`. Detailed source-level observations and caveats are in `docs/research/INDEPENDENT_SOURCE_CHECK_2026-11-27.md`. The check supports only those five path-specific observations. The full source manifest/snapshot directory remains absent from both Jet research branches; no full upstream test/build, SBOM, nested license, security advisory or legal review was performed. No code reuse is approved.
+
+
+## 2026-11-27 — Critical-path source trace and risk register
+
+Independently retrieved three exact upstream Git blobs cited by the existing message-delivery deep dive: OpenIM consumer handler `8af585ce33b1ca9661bfda1abd00e5277d46e944`, OpenIM message-transfer controller `8a8d9e7d26cf51a117826e7728b9f92ff5d3861f`, and Tinode storage mapper `0a06b29288f92cd203b13d7573bf835a3e6cdda0`. Source observations include OpenIM MQ Mark/Commit callback, non-propagated enqueue/processing errors, sequence allocation before cache write, separate Mongo/push MQ methods, and Tinode's separate sequence-update/message-save adapter calls. These are high-priority failure hypotheses only; no actual upstream message loss or vulnerability is asserted. Exact evidence and required fault tests are in `docs/research/MESSAGE_DELIVERY_FAILURE_RISK_REGISTER.md`.
