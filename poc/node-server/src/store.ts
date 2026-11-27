@@ -84,7 +84,7 @@ export class Store {
         SELECT id,$2,conversation_id,position FROM messages WHERE id=$1
         ON CONFLICT(message_id,recipient_id) DO NOTHING`,[item.message_id,item.recipient_id]);
       const done = await c.query(`UPDATE delivery_outbox SET state='completed',completed_at=now(),lease_until=NULL,lease_token=NULL
-        WHERE id=$1 AND state='processing' AND lease_token=$2`,[item.id,item.lease_token]);
+        WHERE id=$1 AND state='processing' AND lease_token=$2 AND lease_until>clock_timestamp()`,[item.id,item.lease_token]);
       if (done.rowCount !== 1) throw new Error("outbox lease lost");
       await c.query("COMMIT");
     } catch(e) { await c.query("ROLLBACK"); throw e; }
