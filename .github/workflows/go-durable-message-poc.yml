@@ -52,6 +52,7 @@ jobs:
           go mod tidy
           go mod verify
           test -s go.sum
+          git diff --exit-code -- go.mod go.sum
           git diff -- go.mod go.sum > /tmp/go-module-metadata.diff || true
           cat /tmp/go-module-metadata.diff
       - name: Format and static analysis
