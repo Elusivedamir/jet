@@ -45,7 +45,7 @@ test("history and inbox are account scoped",async()=>{
 });
 
 test("expired outbox lease is reclaimed and stale worker is fenced",async()=>{
- await store.send("alice","room-a","lease","fenced");
+ const sent=await store.send("alice","room-a","lease","fenced");
  const first=await store.claim(1,1000);
  assert.equal(first.length,1);
  await pool.query("UPDATE delivery_outbox SET lease_until=now()-interval '1 second' WHERE id=$1",[first[0].id]);
@@ -53,7 +53,7 @@ test("expired outbox lease is reclaimed and stale worker is fenced",async()=>{
  assert.equal(second.length,1);
  assert.notEqual(first[0].lease_token,second[0].lease_token);
  await assert.rejects(()=>store.dispatch(first[0]),/lease lost/);
- const inboxCount=await pool.query("SELECT count(*)::int AS n FROM recipient_inbox");
+ const inboxCount=await pool.query("SELECT count(*)::int AS n FROM recipient_inbox WHERE message_id=$1",[sent.message_id]);
  assert.equal(inboxCount.rows[0]!.n,0);
  await store.dispatch(second[0]);
 });
