@@ -155,3 +155,11 @@ These are real first-run results and corrections, not PASS claims. The current h
 - CodeQL JavaScript/TypeScript: **PASS**.
 - CodeQL Java/Kotlin: **PASS**, Maven compile and successful analysis.
 - All seven jobs in the continuous security workflow completed successfully. This result is scoped to the exact commit and does not constitute a security certification.
+
+
+### Latest security revalidation — docs head 9dbec252
+
+- Exact commit: `9dbec25214df3011d2c1bfc48b7da35f6f802e53`.
+- Workflow run [#46037451504](https://github.com/Elusivedamir/jet/actions/runs/46037451504): **SUCCESS**, all seven jobs completed.
+- Gitleaks PASS; Semgrep PASS (including real HTTP regression tests); CodeQL Go, JavaScript/TypeScript and Java/Kotlin PASS; changed-workflow zizmor PASS; full-repository blocking zizmor PASS.
+- The three candidate PoC runs on the same docs head also completed: Go PASS, Node PASS, Kotlin crash/contract/soak and Trivy PASS but overall FAIL at the same three-component conservative license review gate.
