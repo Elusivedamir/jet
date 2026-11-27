@@ -105,6 +105,12 @@ const server=createServer(async(req,res)=>{
     if(req.method==="GET" && url.pathname==="/v1/contacts") {
       json(res,200,await contacts.list(user));return;
     }
+    if(req.method==="POST" && url.pathname==="/v1/conversations/groups") {
+      const input=await body(req);
+      if(!Array.isArray(input.usernames) || input.usernames.some(value=>typeof value!=="string")) throw new InvalidRequestError();
+      const group=await contacts.createGroup(user,requiredString(input,"title",80),input.usernames as string[]);
+      json(res,201,group);return;
+    }
     if(req.method==="GET" && url.pathname==="/v1/conversations") {
       json(res,200,await contacts.conversations(user));return;
     }
