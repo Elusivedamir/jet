@@ -52,16 +52,17 @@ Use these labels consistently:
 
 Maintain a decision log. Do not rewrite history to make an earlier technical choice appear approved.
 
-## 4. No predetermined technical foundation
+## 4. Evidence-based technical decisions
 
-This is mandatory:
-- Do not select a backend, language, framework, database, transport, protocol, cloud, hosting provider, SDK, identity provider, cryptographic library, analytics platform or deployment topology in advance.
+The owner has explicitly selected **Node.js + TypeScript as the primary backend direction** on 2026-11-27; this is recorded in ADR-0003. This approved decision supersedes the earlier technology-neutral prohibition only for the primary backend language/runtime. It does not predetermine the remaining architecture.
+
+Still open and evidence-gated: database choice for production, framework, transport/protocol, cloud/hosting, SDKs, identity/session provider, cryptographic library, analytics platform, deployment topology, service boundaries and E2EE scope. Do not silently decide these.
 - Do not treat JuggleIM, Matrix, LansetSpBot, Chatwoot, Zulip, or any other named project as the foundation, template or required dependency.
 - Do not assume a greenfield implementation is automatically superior to an existing standard or component. Equally, do not assume a popular project is suitable.
 - Existing repositories are evidence and learning material only. Extract patterns, compare alternatives, inspect failure modes, licensing, maintenance, security and operational cost. Adopt a component or pattern only after a documented, requirement-based decision.
 - Avoid vendor lock-in and single-project lock-in where practical, but do not add abstraction layers without a demonstrated need.
 - Keep architecture and implementation choices reversible while evidence is incomplete.
-- Do not write production code merely to validate a previously chosen stack. First establish the requirement and compare credible alternatives.
+- Do not treat the current Node/PostgreSQL message PoC as production code. Continue validating the approved Node direction against product requirements, security, reliability, operations and cost. Compare alternatives for still-open components; do not reopen the approved primary language without material new evidence or an explicit owner decision.
 
 A technology-neutral discovery process is not a commitment to build every component ourselves. It is a commitment to make each build/buy/adapt decision on evidence.
 
@@ -152,9 +153,9 @@ Work in the following order. Keep each stage's deliverables visible and do not s
 2. **Market and repository landscape:** review products and up to 1,000 relevant repositories using the tiered method above.
 3. **User journeys and UX:** create provisional designs, screen flows and acceptance scenarios; design remains flexible.
 4. **Requirements and domain model:** define entities, roles, permissions, lifecycle rules, data ownership, retention and sync needs without choosing a database.
-5. **Architecture alternatives:** produce multiple viable system designs and build/buy/adapt boundaries. No stack lock-in.
-6. **Proofs of concept:** validate the riskiest assumptions using small disposable experiments. Compare candidates against the same tests.
-7. **Architecture decisions:** record ADRs only after evidence; document rejected alternatives and reversibility.
+5. **Architecture alternatives:** produce viable system designs and build/buy/adapt boundaries around the approved Node.js + TypeScript backend direction; keep all other choices open.
+6. **Proofs of concept:** validate the riskiest assumptions for still-open components and the selected backend's production suitability using focused experiments and comparable tests.
+7. **Architecture decisions:** record ADRs only after evidence; document rejected alternatives and reversibility. ADR-0003 records the approved primary backend direction.
 8. **Implementation plan:** sequence vertical slices, test gates, effort, risks and operating costs.
 9. **Build in small increments:** deliver observable, testable user value; no giant unverified rewrites.
 10. **Release readiness:** security, legal, reliability, performance, backup/restore, support, monitoring and product acceptance gates.
@@ -210,7 +211,7 @@ The assistant is free to propose and iterate the design and research approach. T
 
 The project has completed the first business-plan study gate using the owner's complete supplied text. The verified working baseline is `docs/product/BUSINESS_PLAN_BASELINE.md`. The original PDF is preserved in the repository; exact byte-level text extraction comparison remains outstanding. Repository/branch inventory and broad research are in progress. No backend, language, framework, database, transport, protocol, hosting or UI implementation is selected.
 
-**Next task:** translate the verified business plan into testable product requirements and user journeys; then continue repository landscape research against those requirements. Keep all technology choices open until comparative evidence and risk-focused proofs of concept justify them. Do not implement a production stack merely to start coding.
+**Current next task:** continue the first messenger vertical slice on the approved Node.js + TypeScript direction. Extend the message PoC from one-to-one to group fan-out; verify it in CI; then design production identity/session boundaries before replacing the spoofable test identity. Keep database production suitability, framework, transport, E2EE, deployment and client decisions evidence-gated. Continue repository landscape research against the approved product requirements.
 
 
 ## 16. Independent code review skill
