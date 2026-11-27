@@ -60,8 +60,9 @@ PENDING -> PROCESSING -> COMPLETED
 
 | Input | Required outcome |
 |---|---|
-| Same sender + same operation key + same canonical payload | Resolve to the same message ID and conversation position. |
-| Same sender + same operation key + different payload | Conflict; do not mutate the original or create a second message. |
+| Same sender/account + same operation key + same canonical payload + same conversation | Resolve to the same message ID and conversation position. |
+| Same sender/account + same operation key + different payload | Conflict; do not mutate the original or create a second message. |
+| Same sender/account + same operation key reused in a different conversation | Conflict; one operation key identifies one logical submission and cannot resolve to a message in another conversation. |
 | Same operation key from a different sender/account | Separate scope; no cross-account lookup or disclosure. |
 | Duplicate delivery-work event for same message/recipient | No second logical delivery effect; record/reconcile duplicate processing. |
 | Client retries after unknown timeout | Query/retry by the same operation key; do not mint a new logical operation. |
