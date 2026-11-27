@@ -102,3 +102,13 @@ The first workflow execution is recorded in [ZIZMOR_BASELINE_AUDIT_2026-11-27.md
 - The initial full-repository zizmor scan found legacy workflow debt. The workflow now has a blocking audit scoped to the two new workflow files and a separate advisory full-repository baseline job. This avoids treating inherited findings as new changes while keeping them visible; the full baseline must still be remediated.
 
 These are real first-run results and corrections, not PASS claims. The current head must produce fresh evidence before any updated check is marked PASS.
+
+
+### Confirmed checks on latest inspected head
+
+- PR head: `7739f1160cae76d894ce9175f660a98854509cb4`; workflow run [#46033361622](https://github.com/Elusivedamir/jet/actions/runs/46033361622).
+- Gitleaks: **PASS** — scanned 820 commits / approximately 2.55 MB; no leaks found after the path-and-value-specific RFC 6455 fixture allowlist.
+- Semgrep: **PASS** — 131 rules across 99 files, zero findings; HTTP harness URL-validation regression tests passed.
+- zizmor changed-workflow gate: **PASS** — both new workflow files audited with zero findings.
+- Full-repository zizmor baseline: advisory job still reports legacy findings; it remains open and does not become a clean bill of health.
+- CodeQL Go, JavaScript/TypeScript and Java/Kotlin analyses were still running at the time of this record; do not mark them PASS until the exact run concludes.
