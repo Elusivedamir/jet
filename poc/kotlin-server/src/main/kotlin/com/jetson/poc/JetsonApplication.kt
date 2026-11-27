@@ -149,10 +149,12 @@ class MessageController(private val store:MessageStore) {
         store.history(account,conversation,after)
 
     @GetMapping("/v1/conversations/{conversation}/events",produces=[MediaType.TEXT_EVENT_STREAM_VALUE])
-    fun events(@RequestHeader("X-Test-Account") account:String,@PathVariable conversation:String,@RequestParam(defaultValue="0") after:Long):StreamingResponseBody {
+    fun events(@RequestHeader("X-Test-Account") account:String,@PathVariable conversation:String,@RequestParam(defaultValue="0") after:Long,@RequestHeader(value="Last-Event-ID",required=false) lastEventId:String?):StreamingResponseBody {
         store.inbox(account,conversation,0)
+        val resume=if(lastEventId.isNullOrBlank()) after else lastEventId.toLongOrNull() ?: throw InvalidRequestException()
+        if(resume<0) throw InvalidRequestException()
         return StreamingResponseBody { output ->
-            var cursor=after
+            var cursor=resume
             while(!Thread.currentThread().isInterrupted) {
                 val messages=store.inbox(account,conversation,cursor)
                 for(message in messages) {
