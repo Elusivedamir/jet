@@ -25,6 +25,7 @@ async function body(req:IncomingMessage):Promise<any> {
 }
 const server=createServer(async(req,res)=>{
   try {
+    if(req.method==="GET" && req.url==="/healthz"){res.writeHead(204);res.end();return;}
     const user=account(req);
     if(!user){json(res,401,{error:"missing test identity"});return;}
     const url=new URL(req.url??"/","http://localhost");
