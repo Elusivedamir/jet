@@ -83,3 +83,23 @@ test("parallel workers claim distinct outbox rows and max attempts terminate",as
  const state=await pool.query("SELECT state FROM delivery_outbox WHERE id=$1",[terminal.id]);
  assert.equal(state.rows[0]!.state,"terminal_failure");
 });
+
+
+test("outbox insert failure rolls back message and sequence atomically",async()=>{
+ const before=await pool.query("SELECT coalesce((SELECT last_position FROM conversation_counters WHERE conversation_id='room-a'),0)::bigint AS n");
+ await pool.query(`CREATE OR REPLACE FUNCTION reject_delivery_outbox() RETURNS trigger
+   LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected outbox failure'; END; $$`);
+ await pool.query("CREATE TRIGGER reject_delivery_outbox_trigger BEFORE INSERT ON delivery_outbox FOR EACH ROW EXECUTE FUNCTION reject_delivery_outbox()");
+ try {
+   await assert.rejects(()=>store.send("alice","room-a","rollback-op","must rollback"));
+   const message=await pool.query("SELECT count(*)::int AS n FROM messages WHERE sender_id='alice' AND operation_key='rollback-op'");
+   const outbox=await pool.query("SELECT count(*)::int AS n FROM delivery_outbox o JOIN messages m ON m.id=o.message_id WHERE m.sender_id='alice' AND m.operation_key='rollback-op'");
+   const after=await pool.query("SELECT coalesce((SELECT last_position FROM conversation_counters WHERE conversation_id='room-a'),0)::bigint AS n");
+   assert.equal(message.rows[0]!.n,0);
+   assert.equal(outbox.rows[0]!.n,0);
+   assert.equal(after.rows[0]!.n,before.rows[0]!.n);
+ } finally {
+   await pool.query("DROP TRIGGER IF EXISTS reject_delivery_outbox_trigger ON delivery_outbox");
+   await pool.query("DROP FUNCTION IF EXISTS reject_delivery_outbox()");
+ }
+});
