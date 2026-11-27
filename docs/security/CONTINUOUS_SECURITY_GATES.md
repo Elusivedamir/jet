@@ -1,6 +1,6 @@
 # Jetson continuous security and quality gates
 
-**Status:** owner-requested governance baseline, 2026-11-27. The workflows are committed; their first executions are not yet verified.
+**Status:** active continuous security and quality gates. Exact-head CI evidence is recorded below; results are commit-scoped.
 
 ## Purpose
 
@@ -16,7 +16,7 @@ Run repeatable, evidence-producing checks on every pull request. These checks co
 | Gitleaks | Secret detection in repository history | OCI image pinned by digest: `ghcr.io/gitleaks/gitleaks@sha256:b109bc5f8f76a38196a3e413704fc5b9e3c32360bce4e4b603bd6f45b3721dbb` (linux/amd64) | Finding-free scan does not prove that no secret was ever exposed elsewhere |
 | zizmor | GitHub Actions / CI workflow security | `zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b` (action v0.8.0), zizmor CLI `v1.30.1` | Audits workflow configuration, not application code |
 | CodeQL | Data-flow and semantic source analysis | `github/codeql-action` pinned to `776237d428f23fefc3d9e0fe1962921cbcd53e17` | Build and language extraction coverage must be checked in each run |
-| OpenSSF Scorecard | Repository supply-chain posture | `.github/workflows/scorecard.yml`; action pinned to `df56f2da613afd0cc697279be0dc6885df9bce34`; publication disabled | Runs on pushes to `main`, weekly schedule and manual dispatch; no OIDC write permission or external publication |
+| OpenSSF Scorecard | Repository supply-chain posture | `.github/workflows/scorecard.yml`; action pinned to `df56f2da613afd0cc697279be0dc6885df9bce34`; publication disabled | Runs on pushes to `main` and weekly schedule; no OIDC write permission or external publication |
 | Renovate | Dependency update automation | Conservative root `renovate.json`; automerge disabled | No dependency PRs until the owner installs/authorizes the Renovate GitHub App |
 
 The old `semgrep/semgrep-action` repository is archived/deprecated and MUST NOT be used. The native Semgrep CLI is used instead.
@@ -99,7 +99,7 @@ The first workflow execution is recorded in [ZIZMOR_BASELINE_AUDIT_2026-11-27.md
 - The first Gitleaks run scanned 817 commits and identified the standard public RFC 6455 example nonce in `deploy/juggleim-poc/scripts/probe-websocket-upgrade.sh` (historical commit `e5389461480650126244c86c939d11de0772f041`, line 20). It is a protocol test fixture, not an authentication credential. `.gitleaks.toml` now allowlists only that exact value at that exact path; no broad path or rule suppression is used. A fresh Gitleaks run is still required to confirm the scoped allowlist.
 - Semgrep reported two dynamic-URL findings in test-only HTTP harnesses. The harnesses were changed to use `http.client` after strict validation of HTTP(S) origins; regression tests now reject `file://`, FTP, JavaScript schemes, userinfo, paths, query strings and fragments. The updated Semgrep run is pending.
 - CodeQL Go analysis passed. The first Java/Kotlin autobuild failed because the Maven project is nested under `poc/kotlin-server`; the first JavaScript/TypeScript initialization used an unsupported autobuild mode. The workflow now uses Go autobuild, JavaScript/TypeScript `none`, and an explicit Maven build for Java/Kotlin. Rerun evidence is pending.
-- The initial full-repository zizmor scan found legacy workflow debt. The workflow now has a blocking audit scoped to the two new workflow files and a separate advisory full-repository baseline job. This avoids treating inherited findings as new changes while keeping them visible; the full baseline must still be remediated.
+- The initial full-repository zizmor scan found legacy workflow debt. Those findings were remediated; the full-repository audit is now blocking, alongside the changed-workflow audit.
 
 These are real first-run results and corrections, not PASS claims. The current head must produce fresh evidence before any updated check is marked PASS.
 
@@ -110,7 +110,7 @@ These are real first-run results and corrections, not PASS claims. The current h
 - Gitleaks: **PASS** — scanned 820 commits / approximately 2.55 MB; no leaks found after the path-and-value-specific RFC 6455 fixture allowlist.
 - Semgrep: **PASS** — 131 rules across 99 files, zero findings; HTTP harness URL-validation regression tests passed.
 - zizmor changed-workflow gate: **PASS** — both new workflow files audited with zero findings.
-- Full-repository zizmor baseline: advisory job still reports legacy findings; it remains open and does not become a clean bill of health.
+- Full-repository zizmor audit: the initial legacy findings were remediated. The exact current blocking audit result is recorded in the post-remediation section below.
 - On the later exact-head run below, CodeQL Go, JavaScript/TypeScript and Java/Kotlin all completed successfully. Go analyzed 6/7 `.go` files (all six non-test source files; `store_test.go` was not in the extracted set); TypeScript analyzed 3/3 files; Kotlin analyzed 2/2 files. This is static-analysis coverage, not proof of vulnerability-free code.
 
 
@@ -127,3 +127,18 @@ These are real first-run results and corrections, not PASS claims. The current h
 - CodeQL Java/Kotlin: **PASS**, 2/2 Kotlin files extracted.
 - PostgreSQL image and GitHub Action pins, workflow permissions, checkout credential handling and AI workflow secret environment scoping were remediated before this run.
 - No ASVS certification, production readiness or guarantee of zero vulnerabilities is implied. The check results apply only to this commit and these tool configurations.
+
+
+### Latest blocking security-gate verification — PR #46 head 197f5a1c
+
+- Exact commit: `197f5a1c6270d2e41277077c36d3036a8525a73e`.
+- Workflow run [#46034534649](https://github.com/Elusivedamir/jet/actions/runs/46034534649), run 76: **SUCCESS**.
+- Gitleaks: **PASS**, 837 commits scanned / approximately 2.56 MB; no leaks.
+- Semgrep: **PASS**, 131 rules on 100 files; zero findings; harness URL-validation regression tests passed.
+- zizmor changed-workflow audit: **PASS**.
+- zizmor full-repository audit: **PASS**, all eight workflow files; no findings to report (15 default-ignored rules).
+- CodeQL Go: **PASS**; Go production and test code compiled using `go test ./...` before analysis. This closes the earlier exclusion of `store_test.go` from the autobuild-only extraction.
+- CodeQL JavaScript/TypeScript: **PASS**, 3/3 TypeScript files extracted.
+- CodeQL Java/Kotlin: **PASS**, Maven build and analysis succeeded; 2/2 Kotlin files extracted in the previous exact-head coverage report.
+- The full-repository zizmor job is now blocking; it no longer uses `continue-on-error`.
+- No ASVS certification, production readiness or guarantee of zero vulnerabilities is implied.
