@@ -60,6 +60,8 @@ jobs:
       - name: Hard crash/restart, shared contract and benchmark
         env:
           PORT: "8081"
+          NODE_ENV: test
+          JETSON_ALLOW_TEST_IDENTITY: "true"
         run: |
           python3 ../../poc/shared/crash_recovery_harness.py \
             --database-url "$TEST_DATABASE_URL" \
