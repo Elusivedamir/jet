@@ -41,3 +41,31 @@ jobs:
           cache: maven
       - name: Compile and run PostgreSQL integration tests
         run: mvn -B test
+
+      - name: Install PostgreSQL client and seed black-box fixtures
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+          psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          TRUNCATE delivery_receipts, recipient_inbox, delivery_outbox, messages, conversation_counters, conversation_members, conversations CASCADE;
+          INSERT INTO conversations(id) VALUES ('room-a'), ('room-b');
+          INSERT INTO conversation_members(conversation_id, account_id) VALUES
+           ('room-a','alice'), ('room-a','bob'), ('room-b','alice'), ('room-b','carol');
+          SQL
+      - name: Start Kotlin Spring server
+        env:
+          SERVER_PORT: "8082"
+        run: |
+          nohup mvn -B spring-boot:run >/tmp/jet-kotlin.log 2>&1 &
+          echo $! >/tmp/jet-kotlin.pid
+          for i in {1..90}; do
+            if curl -sf http://127.0.0.1:8082/healthz >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/jet-kotlin.log
+          exit 1
+      - name: Shared HTTP/SSE contract and five-round latency probe
+        run: python3 ../../poc/shared/contract_harness.py --base-url http://127.0.0.1:8082 --rounds 5 --per-round 100 | tee /tmp/kotlin-results.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kotlin-message-poc-results
+          path: /tmp/kotlin-results.json
