@@ -203,3 +203,14 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 ## Runtime pinning — 2026-11-27
 
 GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are pinned in CI: Go 1.26.11, Node.js 22.23.5 via `.nvmrc`, Temurin JDK 21.0.13 and PostgreSQL 17.12.
+
+
+## 2026-11-27 — Loop Code Review skill installed
+
+- Installed upstream `di-sukharev/loop-code-review-skill` into `.agents/skills/loop-code-review/`.
+- Pinned source revision: `23fdbdec6bb211fa55f84da49d58333efe3b09db`; installed `SKILL.md` was fetched again from that exact commit and compared byte-for-byte at the text-content level with the repository copy (matching Git blob SHA `0fc244019a941e3a6b31164ca0f6b49d4b7c0e70`).
+- Preserved upstream MIT license and `agents/openai.yaml` metadata.
+- Added repository inventory/provenance at `docs/governance/AGENT_SKILLS.md`, linked it from README, and added mandatory pre-commit review guidance to `docs/governance/MASTER_PROMPT.md`.
+- Skill invocation: `$loop-code-review` or “используй ревью в цикле”.
+- Capability boundary is documented: only report independent sub-agent review when the active environment actually supports sub-agent orchestration. Otherwise disclose the limitation and label any manual review as a fallback, not an independent review.
+- Installation verification: source and installed SKILL.md blob SHAs match. No application build or CI test is applicable to this documentation/skill-only change; skill discovery should be verified in the target coding-agent runtime.
