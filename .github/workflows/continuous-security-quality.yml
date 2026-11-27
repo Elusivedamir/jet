@@ -72,18 +72,17 @@ jobs:
           persona: auditor
           min-severity: medium
 
-  zizmor-existing-baseline:
-    name: zizmor full-repository baseline (advisory)
+  zizmor-full-repository:
+    name: zizmor full-repository audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: true
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Report existing workflow findings without masking them
+      - name: Audit every repository workflow (blocking)
         uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
         with:
           inputs: .github/workflows/
@@ -105,7 +104,7 @@ jobs:
       matrix:
         include:
           - language: go
-            build-mode: autobuild
+            build-mode: manual
           - language: javascript-typescript
             build-mode: none
           - language: java-kotlin
@@ -114,6 +113,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Set up Go for candidate and test compilation
+        if: matrix.language == 'go'
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.26.11"
+          cache: false
       - name: Set up Java for Kotlin/Spring candidate
         if: matrix.language == 'java-kotlin'
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # pinned commit
@@ -125,6 +130,10 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
+      - name: Compile Go production and test code for CodeQL
+        if: matrix.language == 'go'
+        working-directory: poc/go-server
+        run: go test ./...
       - name: Build Kotlin/Spring candidate for CodeQL
         if: matrix.language == 'java-kotlin'
         run: mvn -B -f poc/kotlin-server/pom.xml -DskipTests package
