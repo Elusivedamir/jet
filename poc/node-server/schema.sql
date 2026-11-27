@@ -65,6 +65,10 @@ CREATE INDEX IF NOT EXISTS recipient_inbox_cursor_idx ON recipient_inbox(recipie
 CREATE INDEX IF NOT EXISTS delivery_outbox_pending_idx ON delivery_outbox(state, available_at, lease_until, id);
 CREATE INDEX IF NOT EXISTS messages_conversation_position_idx ON messages(conversation_id, position);
 
+INSERT INTO conversation_details(conversation_id,kind,title,created_by)
+SELECT dc.conversation_id,'direct',NULL,dc.account_low
+FROM direct_conversations dc
+ON CONFLICT(conversation_id) DO NOTHING;
 CREATE TABLE IF NOT EXISTS contact_requests (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   requester_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
