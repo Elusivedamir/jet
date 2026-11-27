@@ -2,7 +2,7 @@
 
 ## Decision status
 
-**No production stack is selected yet.** The three candidates remain Go + PostgreSQL, Node.js/TypeScript + PostgreSQL, and Kotlin/Spring + PostgreSQL. This scorecard defines the decision method before reading benchmark results, to avoid choosing a favorite after seeing noisy numbers.
+**Provisional v1 recommendation: Node.js/TypeScript + PostgreSQL**, as detailed in ADR-0001. This is not a production release decision. Go remains under evaluation pending patched-toolchain security/checksum evidence and a comparable benchmark; Kotlin remains a valid alternative if framework requirements change.
 
 ## Decision criteria and weights
 
@@ -109,3 +109,24 @@ This is a backend implementation recommendation for the PoC-to-product transitio
 - RSS is sampled only for the server process, not PostgreSQL or the runner; CPU ticks are process ticks, not whole-host CPU.
 - The benchmark is a short 200-write concurrency-16 probe, not a sustained-load test, capacity estimate or SLO.
 - Different hosted runners can vary despite matching OS and logical CPU count. Do not rank candidates from a single run.
+
+
+## Expanded tests and fail-closed CI — 2026-11-27
+
+The shared harness now includes three executable crash scenarios:
+1. SIGKILL during the recipient-inbox dispatch transaction;
+2. SIGKILL after the outbox claim commits while the worker is blocked before inbox insertion;
+3. a client sends a message and closes without reading the acceptance response, then retries after server restart.
+
+Only scenario 1 has historical PASS evidence across all three candidates. Scenarios 2 and 3 await their first CI execution on the latest harness.
+
+All three CI workflows now use read-only repository permissions and branch-scoped push triggers. Security gates were tightened: Node npm audit and license allow-list; Go govulncheck and go-licenses allow-list; Kotlin third-party license inventory; Trivy exits nonzero for HIGH/CRITICAL vulnerabilities. The new fail-closed workflow runs are pending and supersede the earlier non-blocking scan steps for decision purposes.
+
+The current Go checksum file is not yet confirmed against the patched dependency graph; the updated workflow publishes the generated checksum/diff as an artifact for review. Node's lockfile is committed. Kotlin uses strict Maven checksum verification and a resolved dependency tree but still lacks a committed transitive lock.
+
+## Current decision gates
+
+- Node: retain as v1 front-runner pending fresh fail-closed CI and 30-second soak evidence.
+- Go: do not rank until the updated go.sum is committed, govulncheck and Trivy gates pass, and the same three-round + soak benchmark completes.
+- Kotlin: retain as the measured alternative; investigate the memory/CPU premium and commit a dependency-lock strategy before production selection.
+- All candidates: complete remaining crash boundaries, sustained soak beyond 30 seconds, production auth/security, deployment cost and operations comparison.
