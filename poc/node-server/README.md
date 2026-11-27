@@ -45,6 +45,10 @@ The service applies the PoC schema at startup. The legacy `X-Test-Account` ident
 - POST /v1/messages/{id}/reactions with `{"emoji":"👍"}` — add a reaction.
 - DELETE /v1/messages/{id}/reactions with `{"emoji":"👍"}` — remove the caller's reaction.
 - Read receipts are distinct from delivery acknowledgements: an inbox row proves delivery, while a read receipt is written only after the recipient explicitly marks the message read. Reactions are unique per account/message/emoji and visible only to conversation members.
+- PATCH /v1/messages/{id} with `{"payload":"corrected text"}` — sender-only edit; allowed for 15 minutes after sending.
+- DELETE /v1/messages/{id} — sender-only soft delete; allowed for 15 minutes after sending. The message remains in history as a deleted placeholder and its reactions are removed.
+- GET /v1/conversations/{id}/updates?after=0 — durable per-recipient edit/delete event feed with an independent monotonic event cursor. Poll this endpoint after reconnect to synchronize changes without relying on the message-position cursor.
+- Every edit/delete stores the previous payload in message_versions and appends an event for each current conversation member in the same PostgreSQL transaction. Edit/delete events are not conflated with delivery acknowledgements or new message positions.
 
 Direct and multi-recipient conversation fan-out are supported by this PoC. Request bodies are JSON-only, size-limited and validated; malformed JSON and invalid cursors return 400. No production rate limiting, versioned migrations, E2EE, sustained-load evidence or release readiness is claimed. Committed npm v3 `package-lock.json`; CI installs with `npm ci` and checks that package manifests remain unchanged. Dependency vulnerability/license review is generated in CI and must still be reviewed.
 
