@@ -1,12 +1,5 @@
 name: Node TypeScript message PoC
 on:
-  push:
-    branches:
-      - "poc/realtime-delivery-and-polyglot-2026-11-27"
-    paths:
-      - "poc/node-server/**"
-      - "poc/shared/**"
-      - ".github/workflows/node-message-poc.yml"
   pull_request:
     paths:
       - "poc/node-server/**"
@@ -68,12 +61,12 @@ jobs:
             --server-command node dist/src/server.js
       - name: Dependency audit and license inventory
         run: |
-          npm audit --json > /tmp/node-npm-audit.json || true
-          npx --yes license-checker@25.0.1 --json --out /tmp/node-license-report.json
+          npm audit --audit-level=low --json > /tmp/node-npm-audit.json
+          npx --yes license-checker@25.0.1 --onlyAllow "MIT;ISC;Apache-2.0" --json --out /tmp/node-license-report.json
           npx --yes @cyclonedx/cyclonedx-npm@1.19.0 --output-file /tmp/node-sbom.json
       - name: Trivy filesystem vulnerability and license report
         run: |
-          docker run --rm -v "$PWD:/workspace" -v /tmp:/reports aquasec/trivy:0.58.2 fs --scanners vuln,license --format json --output /reports/node-trivy-report.json /workspace
+          docker run --rm -v "$PWD:/workspace" -v /tmp:/reports aquasec/trivy:0.58.2 fs --scanners vuln,license --exit-code 1 --severity HIGH,CRITICAL --format json --output /reports/node-trivy-report.json /workspace
       - uses: actions/upload-artifact@v4
         if: always()
         with:
