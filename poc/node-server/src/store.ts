@@ -134,6 +134,84 @@ export class Store {
     }
   }
 
+  async addReaction(account:string,message:string,emojiInput:string):Promise<void> {
+    const emoji=emojiInput.trim();
+    const length=Array.from(emoji).length;
+    if(!account || !message || length<1 || length>8 || /[\\u0000-\\u001f\\u007f]/u.test(emoji)) throw new InvalidRequestError();
+    const member=await this.pool.query(
+      "SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.id=$1 AND cm.account_id=$2",
+      [message,account]
+    );
+    if(member.rowCount!==1) throw new NotMemberError();
+    await this.pool.query(
+      "INSERT INTO message_reactions(message_id,account_id,emoji) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
+      [message,account,emoji]
+    );
+  }
+
+  async removeReaction(account:string,message:string,emojiInput:string):Promise<void> {
+    const emoji=emojiInput.trim();
+    const length=Array.from(emoji).length;
+    if(!account || !message || length<1 || length>8 || /[\\u0000-\\u001f\\u007f]/u.test(emoji)) throw new InvalidRequestError();
+    const member=await this.pool.query(
+      "SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.id=$1 AND cm.account_id=$2",
+      [message,account]
+    );
+    if(member.rowCount!==1) throw new NotMemberError();
+    await this.pool.query("DELETE FROM message_reactions WHERE message_id=$1 AND account_id=$2 AND emoji=$3",
+      [message,account,emoji]);
+  }
+
+  async listReactions(account:string,message:string):Promise<Array<{emoji:string;count:number;reacted:boolean}>> {
+    if(!account || !message) throw new InvalidRequestError();
+    const result=await this.pool.query<{emoji:string;count:number;reacted:boolean}>(
+      `SELECT r.emoji,count(*)::int AS count,bool_or(r.account_id=$2) AS reacted
+       FROM message_reactions r
+       JOIN messages m ON m.id=r.message_id
+       JOIN conversation_members cm ON cm.conversation_id=m.conversation_id AND cm.account_id=$2
+       WHERE r.message_id=$1 GROUP BY r.emoji ORDER BY r.emoji`,
+      [message,account]
+    );
+    const member=await this.pool.query(
+      "SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.id=$1 AND cm.account_id=$2",
+      [message,account]
+    );
+    if(member.rowCount!==1) throw new NotMemberError();
+    return result.rows;
+  }
+
+  async markRead(account:string,message:string):Promise<void> {
+    if(!account || !message) throw new InvalidRequestError();
+    const inserted=await this.pool.query(
+      `INSERT INTO message_read_receipts(message_id,recipient_id)
+       SELECT message_id,recipient_id FROM recipient_inbox WHERE message_id=$1 AND recipient_id=$2
+       ON CONFLICT(message_id,recipient_id) DO NOTHING`,
+      [message,account]
+    );
+    if(inserted.rowCount===0) {
+      const prior=await this.pool.query(
+        "SELECT 1 FROM message_read_receipts WHERE message_id=$1 AND recipient_id=$2",[message,account]
+      );
+      if(prior.rowCount!==1) throw new NotMemberError();
+    }
+  }
+
+  async readReceipts(account:string,message:string):Promise<Array<{recipient_id:string;delivered:boolean;read_at:string|null}>> {
+    if(!account || !message) throw new InvalidRequestError();
+    const result=await this.pool.query<{recipient_id:string;delivered:boolean;read_at:string|null}>(
+      `SELECT o.recipient_id,(i.message_id IS NOT NULL) AS delivered,r.read_at
+       FROM messages m
+       JOIN delivery_outbox o ON o.message_id=m.id
+       LEFT JOIN recipient_inbox i ON i.message_id=o.message_id AND i.recipient_id=o.recipient_id
+       LEFT JOIN message_read_receipts r ON r.message_id=o.message_id AND r.recipient_id=o.recipient_id
+       WHERE m.id=$1 AND m.sender_id=$2 ORDER BY o.recipient_id`,
+      [message,account]
+    );
+    const own=await this.pool.query("SELECT 1 FROM messages WHERE id=$1 AND sender_id=$2",[message,account]);
+    if(own.rowCount!==1) throw new NotMemberError();
+    return result.rows;
+  }
+
   async runWorker(signal:AbortSignal) {
     while(!signal.aborted) {
       try {
