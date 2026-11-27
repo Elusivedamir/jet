@@ -9,7 +9,7 @@
 
 The initial full-repository scan reported **41 findings total**, of which **15 were ignored** by zizmor's configuration. The active severity summary was **15 high** and **11 medium**. This is a repository baseline, not a finding set introduced by PR #46.
 
-The baseline job is advisory while the existing workflows are triaged. A separate blocking job checks the workflow files changed by the current PR, so new workflow changes cannot inherit the old baseline debt as an unexplained green result.
+At the time of the initial scan, the baseline job was advisory while the existing workflows were triaged. After remediation and a clean full-repository scan, the job was changed to a blocking gate for all workflow files.
 
 ## Confirmed finding families and locations
 
@@ -52,6 +52,6 @@ The 15 ignored entries are zizmor's default ignored rules, not 15 unresolved fin
 3. Pin PostgreSQL service images by verified digest, keeping the intended PostgreSQL 17.12 version.
 4. Set `persist-credentials: false` on checkout steps that do not need authenticated Git operations.
 5. Put sensitive AI-agent execution behind a protected GitHub Environment with required reviewers where practical; preserve the secret names and never expose values in logs.
-6. Rerun the full baseline audit and update this report with exact findings remaining and evidence of remediation.
+6. Rerun the full baseline audit and retain exact-head evidence; this follow-up was completed in run #46034027567 and the blocking full-repository job passed again in run #46034534649.
 
 The original scan was a baseline only. The listed workflow findings were remediated and the exact post-fix repository-wide scan returned no findings. Re-run zizmor on every subsequent workflow change; this result applies only to the exact commit above.
