@@ -235,3 +235,15 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Updated `docs/governance/MASTER_PROMPT.md` with mandatory OpenCommit governance and linked the guide from README.
 - No GitHub Action workflow was added; no local workstation CLI or hook installation is claimed. No API credentials were requested or stored.
 - Documentation only; no application build/test is applicable.
+
+
+## 2026-11-27 — continuous security and quality gate integration (initial)
+
+- Created dedicated branch `governance/continuous-quality-security-gates-2026-11-27`, based on the current PR #44 research branch head; `main` was not modified.
+- Vendored four unmodified Trail of Bits skills from upstream commit `149d7b21f4067765b82e67029730b42d228ef4b4`: differential-review, post-patch-validation, spec-to-code-compliance and supply-chain-risk-auditor. Preserved the upstream CC BY-SA 4.0 license and recorded source blob SHAs. The upstream license is not MIT; do not relicense these files.
+- Added the Jetson continuous security gate policy and an OWASP ASVS 5.0.0 evidence checklist.
+- Added a pull-request/weekly/manual workflow for Semgrep CLI 1.187.0, Gitleaks pinned by OCI digest, zizmor action/CLI pinned, and CodeQL pinned to an immutable commit for Go, JavaScript/TypeScript and Java/Kotlin.
+- Semgrep's archived `semgrep/semgrep-action` was explicitly rejected in favor of the native CLI.
+- OpenSSF Scorecard and Renovate remain documented follow-ups, not active integrations: Scorecard needs a separate least-privilege/publication decision; Renovate requires external GitHub App installation/authorization.
+- Workflow execution, action compatibility, findings and language extraction are **NOT RUN / NOT VERIFIED** at the time of this documentation change. No security PASS, ASVS compliance or production-readiness claim is made.
+- Manual self-review only; no independent sub-agent review was available in this environment.
