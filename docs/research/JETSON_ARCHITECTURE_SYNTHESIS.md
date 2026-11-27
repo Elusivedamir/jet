@@ -93,7 +93,7 @@ This revision withdraws unsupported architecture totals, restores the business-p
 
 ### Stage-boundary discrepancy to track
 
-**Resolved 2026-11-27:** the derivative `PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md` previously listed AI-001/AI-002 under Stage 2, while the canonical business-plan baseline and `USER_JOURNEYS.md` place AI rollout in Stage 3. This PR moves those two requirement rows to Stage 3. AI remains included in the base Business subscription; only the rollout sequencing is corrected. No business-plan text or product scope was changed.
+**Open discrepancy:** the derivative `PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md` lists AI-001/AI-002 under Stage 2, while the canonical business-plan baseline §11 and `USER_JOURNEYS.md` place AI rollout in Stage 3. This synthesis follows the canonical business-plan sequence: AI remains included in the base Business subscription, but rollout is Stage 3. The derivative requirements file is intentionally left unchanged because Agent Task 04 explicitly prohibits modifying product requirements; reconcile it in a separate authorized product-document task before implementation planning.
 
 
 ## Independent verification update — 2026-11-27
