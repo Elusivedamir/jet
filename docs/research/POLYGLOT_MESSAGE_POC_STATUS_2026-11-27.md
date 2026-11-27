@@ -24,15 +24,29 @@ Task 05 requires comparable, disposable candidate implementations before any bac
 
 "Implemented" describes code present, not a passing CI result. See the run table below; never infer pass from workflow configuration.
 
-## CI evidence
+## CI evidence — latest verified revision
 
-At document creation, three workflows had been queued against head commit 3d2f8638ab99aae7c9a7262a0d72f6ccc6efa730:
+All three candidate workflows passed on the same latest implementation revision, `bcc14766b381d9ffe9ef2e81695221a9e500c32c`:
 
-- [Go durable-message PoC](https://github.com/Elusivedamir/jet/actions/runs/46014572078)
-- [Node TypeScript message PoC](https://github.com/Elusivedamir/jet/actions/runs/46014572116)
-- [Kotlin Spring message PoC](https://github.com/Elusivedamir/jet/actions/runs/46014572103)
+- [Go durable-message PoC — run #46016133216](https://github.com/Elusivedamir/jet/actions/runs/46016133216): gofmt, go vet, PostgreSQL 17 integration/race tests with `-count=100`, shared HTTP/SSE contract and latency probe.
+- [Node TypeScript message PoC — run #46016133262](https://github.com/Elusivedamir/jet/actions/runs/46016133262): TypeScript build, five PostgreSQL integration tests, shared HTTP/SSE contract and latency probe.
+- [Kotlin Spring message PoC — run #46016133220](https://github.com/Elusivedamir/jet/actions/runs/46016133220): actual Kotlin main/test compilation, five JUnit integration tests, PostgreSQL 17, shared HTTP/SSE contract and latency probe.
 
-Their final conclusions must be updated after completion. No candidate is scored or selected by this status note.
+The shared black-box contract passed on all three: same two-party fixture, sender idempotency, payload conflict, 12 concurrent duplicate submissions, non-member history denial, SSE recipient delivery, idempotent acknowledgement and cursor reconnect without replaying the consumed message.
+
+### Preliminary latency probe
+
+Each candidate ran five sequential rounds of 100 message submissions on GitHub-hosted Ubuntu with PostgreSQL 17.12. Values below are medians of the five per-round statistics (milliseconds):
+
+| Candidate | p50 | p95 | p99 | Mean |
+|---|---:|---:|---:|---:|
+| Go | 2.139 | 2.616 | 5.854 | 2.318 |
+| Node.js / TypeScript | 2.934 | 3.685 | 5.930 | 3.111 |
+| Kotlin / Spring | 2.465 | 3.654 | 5.238 | 2.656 |
+
+These are preliminary CI microbenchmarks, not capacity tests or SLO evidence. They are sequential client-side HTTP timings; they do not measure server CPU/RSS, throughput under sustained concurrency, queue lag under load, cold start, binary/image size or database connection saturation. Hosted runner noise is visible in outlier rounds (especially Kotlin p99). Do not use this table alone to select a stack.
+
+The first intermediate runs exposed issues in the test harness and Kotlin source/test wiring; those were corrected. The results above refer to the final successful run IDs and exact revision listed above.
 
 ## Important limits
 
