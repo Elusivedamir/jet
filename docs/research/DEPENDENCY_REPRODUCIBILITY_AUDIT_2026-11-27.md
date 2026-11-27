@@ -49,3 +49,8 @@ A zero-finding report is not a security certification. License compatibility and
 6. Review container image tags/digests and continue pinning any new CI actions immutably.
 
 **Overall gate: PARTIALLY COMPLETE.** Go's patched vulnerability scan is clean and its checksums are now committed; the corrected allow-list/Trivy run is pending. Node's audit is clean but its corrected license gate is pending. Kotlin's vulnerability scan is clean, but three SBOM license entries require review and the new version-lock check awaits CI.
+
+
+## Runtime pinning — 2026-11-27
+
+GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are pinned in CI: Go 1.26.11, Node.js 22.23.5 via `.nvmrc`, Temurin JDK 21.0.13 and PostgreSQL 17.12.
