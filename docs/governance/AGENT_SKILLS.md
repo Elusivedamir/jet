@@ -2,13 +2,24 @@
 
 ## Installed: Loop Code Review
 
+- **Skill:** `loop-code-review`
 - **Upstream:** https://github.com/di-sukharev/loop-code-review-skill
 - **Pinned upstream revision:** `23fdbdec6bb211fa55f84da49d58333efe3b09db`
-- **License:** MIT
-- **Path:** `.agents/skills/loop-code-review/`
-- **Trigger:** `$loop-code-review` or “используй ревью в цикле”.
+- **License:** MIT; upstream license preserved.
+- **Installed path:** `.agents/skills/loop-code-review/`
+- **Invocation:** `$loop-code-review` or “используй ревью в цикле”.
 
-The installed skill is versioned with the repository. This ChatGPT environment does not expose sub-agent orchestration; use the mandatory manual self-review fallback in the master prompt and never call it an independent review.
+The skill is copied into the repository, not installed globally on the user's machine. It is available to compatible repository-aware coding agents that discover the `.agents/skills/` convention.
+
+Before committing implementation changes:
+1. Inspect the complete task-scoped diff and untracked files without changing staging.
+2. In a runtime with sub-agent orchestration, start a fresh reviewer without the author's conversation history.
+3. Require concrete findings with location, failure scenario, impact and evidence.
+4. Fix accepted material findings, run relevant tests, and request a fresh review round.
+5. Stop after a clean round or five rounds, whichever comes first.
+6. Record rounds, checks, unresolved risks and exact pass/open status.
+
+This ChatGPT session does not expose sub-agent spawning/orchestration. The required fallback is a separate **manual self-review (not independent)** phase. Never claim an independent reviewer, model or effort that was not actually used. This fallback and its pass criteria are defined in the master prompt.
 
 ## Installed: Trail of Bits security and validation skills
 
@@ -47,3 +58,7 @@ See [CONTINUOUS_SECURITY_GATES.md](../security/CONTINUOUS_SECURITY_GATES.md) for
 - OpenSSF Scorecard is documented as a follow-up only; no new permissions or result publication are enabled.
 - Renovate requires an external GitHub App authorization. A config file alone would not install or activate it.
 - No third-party action receives write permissions unless a documented requirement exists.
+
+## Updating skills and tools
+
+Before an update, inspect the upstream source, exact immutable revision, license and changelog; review the diff and relevant security advisories; update the copied files, provenance and prompt together. Do not silently follow a moving default branch or version tag.
