@@ -2,7 +2,7 @@
 
 ## Decision summary
 
-**Provisional recommendation: Node.js / TypeScript + PostgreSQL for Jetson v1.** See [ADR-0001](../architecture/ADR-0001-backend-stack-node-typescript.md). This is not production-release authorization. Go's post-remediation security and performance evidence is still outstanding.
+**Provisional recommendation: Node.js / TypeScript + PostgreSQL for Jetson v1.** See [ADR-0001](../architecture/ADR-0001-backend-stack-node-typescript.md). This is an architecture recommendation for the first implementation, not production-release authorization. Go's post-remediation security and performance evidence remains outstanding.
 
 ## Correctness and recovery
 
@@ -23,15 +23,15 @@ Runner class: Ubuntu 26.04, Linux 7.0.0-1020-azure, 4 logical CPUs, PostgreSQL 1
 | Kotlin/Spring | 599.28 | 20.612 | 62.050 | 80.862 | 269,716 KiB | 487 |
 | Go baseline* | 341.2 | 15.956 | 380.520 | 384.246 | 17,708 KiB | 64 |
 
-* Go numbers are from an earlier single concurrent probe on the vulnerable baseline and must not be treated as a final apples-to-apples result.
+Node's three throughput rounds were 489.55, 566.14 and 565.87 req/s. Kotlin's were 581.78, 599.28 and 622.78 req/s. Kotlin's approximately 6% median throughput advantage is small relative to hosted-runner and short-test variance; its p95 was close. Node used about one-third the RSS and less CPU.
 
-Node and Kotlin are close on throughput; Kotlin's approximately 6% median advantage is within short-run hosted CI noise. Node uses about one-third the RSS and less CPU. Go is markedly lean in memory, but its available run has a very high concurrent tail and predates remediation.
+* Go numbers are from an earlier single concurrent probe on the pre-remediation toolchain. They are not final apples-to-apples evidence.
 
 ## Dependency and security gates
 
-- **Node:** committed npm v3 lockfile; `npm ci` passes; npm audit = 0 advisories; Trivy = 0 vulnerabilities in scanned npm graph. Project root package is `UNLICENSED`; own licensing decision open.
-- **Kotlin:** Maven `-C verify`, dependency tree and CycloneDX SBOM (42 components) pass; PostgreSQL JDBC 42.7.12; Trivy = 0 vulnerabilities in scanned graph. Full transitive Maven lock remains open.
-- **Go:** first govulncheck scan reported 24 reachable advisories on Go 1.24.13, pgx 5.7.2 and x/text 0.21.0. Remediation committed to Go 1.26.11, pgx 5.9.2 and x/text 0.41.0; post-fix scan and refreshed checksums not yet confirmed.
+- **Node:** committed npm v3 lockfile; clean `npm ci`; npm audit = 0 advisories; Trivy = 0 vulnerabilities in the scanned npm graph. Root package is `UNLICENSED`; own licensing decision open.
+- **Kotlin:** Maven `-C verify`, dependency tree and CycloneDX SBOM (42 components) pass; PostgreSQL JDBC 42.7.12; Trivy = 0 vulnerabilities in the scanned dependency graph. Full transitive Maven lock remains open.
+- **Go:** first govulncheck scan reported 24 reachable advisories on Go 1.24.13, pgx 5.7.2 and x/text 0.21.0. Remediation committed to Go 1.26.11, pgx 5.9.2 and x/text 0.41.0; post-fix scan and refreshed checksums are not yet confirmed.
 
 ## Engineering caveats
 
