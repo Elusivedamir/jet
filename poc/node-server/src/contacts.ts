@@ -278,13 +278,19 @@ export class ContactsStore {
         [accountId,memberIds]
       );
       if(accepted.rows[0]!.n!==memberIds.length) throw new ContactError("not_found");
+      const existing=await c.query<{account_id:string}>(
+        "SELECT account_id FROM conversation_members WHERE conversation_id=$1 AND account_id=ANY($2::text[])",
+        [conversationId,memberIds]
+      );
+      const existingIds=new Set(existing.rows.map(row=>row.account_id));
+      const newMemberIds=memberIds.filter(id=>!existingIds.has(id));
       const current=await c.query<{n:number}>(
         "SELECT count(*)::int AS n FROM conversation_members WHERE conversation_id=$1",[conversationId]
       );
-      if(current.rows[0]!.n+memberIds.length>51) throw new ContactError("invalid");
+      if(current.rows[0]!.n+newMemberIds.length>51) throw new ContactError("invalid");
       const inserted=await c.query(
-        "INSERT INTO conversation_members(conversation_id,account_id,role) SELECT $1,member_id,'member' FROM unnest($2::text[]) AS members(member_id) ON CONFLICT DO NOTHING",
-        [conversationId,memberIds]
+        "INSERT INTO conversation_members(conversation_id,account_id,role) SELECT $1,members.member_id,'member' FROM unnest($2::text[]) AS members(member_id) ON CONFLICT DO NOTHING",
+        [conversationId,newMemberIds]
       );
       const count=await c.query<{n:number}>(
         "SELECT count(*)::int AS n FROM conversation_members WHERE conversation_id=$1",[conversationId]
