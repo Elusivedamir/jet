@@ -72,6 +72,12 @@ export class Store {
 
   async forward(account:string, sourceMessage:string, targetConversation:string, operationKey:string):Promise<Message> {
     if(!account || !sourceMessage || !targetConversation || !operationKey || operationKey.length>200) throw new InvalidRequestError();
+    const prior=await this.pool.query<Message>("SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id,forwarded_from_message_id FROM messages WHERE sender_id=$1 AND operation_key=$2",[account,operationKey]);
+    if(prior.rowCount===1) {
+      const existing=prior.rows[0]!;
+      if(existing.conversation_id!==targetConversation || existing.forwarded_from_message_id!==sourceMessage) throw new ConflictError();
+      return existing;
+    }
     const source=await this.pool.query<{payload:string}>(
       `SELECT m.payload FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id AND cm.account_id=$2
        WHERE m.id=$1 AND m.deleted_at IS NULL`,[sourceMessage,account]);
@@ -205,6 +211,7 @@ export class Store {
         [row.conversation_id,message,JSON.stringify(updated.rows[0])]
       );
       await c.query("DELETE FROM message_reactions WHERE message_id=$1",[message]);
+      await c.query("DELETE FROM conversation_pins WHERE conversation_id=$1 AND message_id=$2",[row.conversation_id,message]);
       await c.query("COMMIT");
     } catch(e) { await c.query("ROLLBACK"); throw e; }
     finally { c.release(); }
