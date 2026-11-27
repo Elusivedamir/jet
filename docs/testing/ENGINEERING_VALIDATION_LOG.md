@@ -76,3 +76,8 @@ Specify and test the outbox dispatch boundary with a fake external transport: re
 - **Result:** job completed successfully. Source/test compilation passed; reference-model suite passed **15 tests**; SQLite adapter suite passed **18 tests**; **33 tests total, 0 failures**.
 - The passing reference-model tests include `test_same_sender_cannot_reuse_operation_key_in_another_conversation` and `test_different_senders_have_separate_idempotency_scopes`. The SQLite suite includes the corresponding two regression tests.
 - This is passing evidence for the in-memory reference model and isolated SQLite adapter only. It is not a production server/client test, network delivery test, host/power-loss test, load test, security review, backup/restore drill or production database selection.
+
+
+## 2026-11-27 — Independent upstream source-path spot check
+
+Five pinned raw files were retrieved and inspected directly: Tinode `server/topic.go`, Synapse `synapse/handlers/message.py`, OpenIM `internal/msgtransfer/online_history_msg_handler.go`, ejabberd `src/mod_offline.erl`, and Listmonk `queries/campaigns.sql`. Detailed source-level observations and caveats are in `docs/research/INDEPENDENT_SOURCE_CHECK_2026-11-27.md`. The check supports only those five path-specific observations. The full source manifest/snapshot directory remains absent from both Jet research branches; no full upstream test/build, SBOM, nested license, security advisory or legal review was performed. No code reuse is approved.
