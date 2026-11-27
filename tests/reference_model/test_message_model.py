@@ -48,6 +48,12 @@ class MessageReliabilityReferenceTests(unittest.TestCase):
         self.assertEqual(1, len(self.store.messages))
         self.assertEqual(1, self.store.conversations["ac"].next_position)
 
+    def test_different_senders_have_separate_idempotency_scopes(self):
+        from_a = self.service.send("A", "ab", "shared-key", "A payload")
+        from_b = self.service.send("B", "ab", "shared-key", "B payload")
+        self.assertNotEqual(from_a.message_id, from_b.message_id)
+        self.assertEqual(2, len(self.store.messages))
+
     def test_concurrent_duplicate_requests_create_one_logical_message(self):
         barrier = threading.Barrier(12)
         results, errors = [], []
