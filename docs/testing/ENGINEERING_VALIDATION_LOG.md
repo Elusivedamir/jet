@@ -235,3 +235,12 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - Updated `docs/governance/MASTER_PROMPT.md` with mandatory OpenCommit governance and linked the guide from README.
 - No GitHub Action workflow was added; no local workstation CLI or hook installation is claimed. No API credentials were requested or stored.
 - Documentation only; no application build/test is applicable.
+
+
+## 2026-11-27 — shared crash-harness regression fixed
+
+- Latest Node candidate run [#46031707670](https://github.com/Elusivedamir/jet/actions/runs/46031707670) passed the clean `npm ci`, TypeScript build and all PostgreSQL integration tests, then failed in the shared Python crash-recovery harness before the lost-acceptance-response case could execute.
+- Root cause was a Python namespace collision: the harness helper function named `http` shadowed the standard-library `http` package, so `http.client.HTTPConnection` resolved against the function and raised `AttributeError`.
+- Fixed by importing `HTTPConnection` directly from `http.client` and using that symbol. Commit: `3a59e4a8cb1ecda6a3501992691414eb876de68b`.
+- This is a test-harness correction shared by Go, Node and Kotlin workflows; it is not an application-code fix and does not establish a passing crash-recovery result.
+- **Verification pending:** a fresh run must execute all crash boundaries, dependency audit, license inventory and Trivy gates on the corrected commit before the evidence is marked PASS.
