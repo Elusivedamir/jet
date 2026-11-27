@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"sync"
 	"testing"
@@ -162,5 +163,93 @@ func TestHistoryIsConversationMemberScoped(t *testing.T) {
 	}
 	if len(messages) != 1 || messages[0].Payload != "private" {
 		t.Fatalf("authorized member did not receive expected history: %+v", messages)
+	}
+}
+
+
+func TestOutboxDispatchIsDurableAndAcknowledgementIsRecipientScoped(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	message, err := store.Send(ctx, "alice", "room-a", "dispatch-op", "durable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := store.ClaimOutbox(ctx, 10, time.Second)
+	if err != nil || len(claimed) != 1 {
+		t.Fatalf("claim: items=%d err=%v", len(claimed), err)
+	}
+	if err := store.Dispatch(ctx, claimed[0]); err != nil {
+		t.Fatal(err)
+	}
+	inbox, err := store.InboxAfter(ctx, "bob", "room-a", 0, 10)
+	if err != nil || len(inbox) != 1 || inbox[0].ID != message.ID {
+		t.Fatalf("inbox: messages=%+v err=%v", inbox, err)
+	}
+	if err := store.Acknowledge(ctx, "mallory", message.ID); err != ErrNotMember {
+		t.Fatalf("unrelated account ack should be forbidden, got %v", err)
+	}
+	if err := store.Acknowledge(ctx, "bob", message.ID); err != nil {
+		t.Fatal(err)
+	}
+	ack, err := store.IsAcknowledged(ctx, "bob", message.ID)
+	if err != nil || !ack {
+		t.Fatalf("acknowledgement not persisted: ack=%v err=%v", ack, err)
+	}
+}
+
+func TestOutboxLeaseFencesStaleWorker(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	if _, err := store.Send(ctx, "alice", "room-a", "lease-op", "fenced"); err != nil {
+		t.Fatal(err)
+	}
+	first, err := store.ClaimOutbox(ctx, 1, time.Second)
+	if err != nil || len(first) != 1 {
+		t.Fatalf("first claim: items=%d err=%v", len(first), err)
+	}
+	if _, err := store.pool.Exec(ctx, "UPDATE delivery_outbox SET lease_until=now()-interval '1 second' WHERE id=$1", first[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.ClaimOutbox(ctx, 1, time.Second)
+	if err != nil || len(second) != 1 {
+		t.Fatalf("reclaim: items=%d err=%v", len(second), err)
+	}
+	if first[0].LeaseToken == second[0].LeaseToken {
+		t.Fatal("reclaimed lease reused the old fencing token")
+	}
+	if err := store.Dispatch(ctx, first[0]); err == nil {
+		t.Fatal("stale worker unexpectedly completed reclaimed work")
+	}
+	var inboxCount int
+	if err := store.pool.QueryRow(ctx, "SELECT count(*) FROM recipient_inbox").Scan(&inboxCount); err != nil {
+		t.Fatal(err)
+	}
+	if inboxCount != 0 {
+		t.Fatalf("stale dispatch leaked inbox record: %d", inboxCount)
+	}
+	if err := store.Dispatch(ctx, second[0]); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOutboxFailureSchedulesRetry(t *testing.T) {
+	store := testStore(t)
+	ctx := context.Background()
+	if _, err := store.Send(ctx, "alice", "room-a", "retry-op", "retry"); err != nil {
+		t.Fatal(err)
+	}
+	items, err := store.ClaimOutbox(ctx, 1, time.Second)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("claim: items=%d err=%v", len(items), err)
+	}
+	if err := store.RetryOutbox(ctx, items[0], errors.New("injected dispatch failure")); err != nil {
+		t.Fatal(err)
+	}
+	var state, lastError string
+	if err := store.pool.QueryRow(ctx, "SELECT state,last_error FROM delivery_outbox WHERE id=$1", items[0].ID).Scan(&state, &lastError); err != nil {
+		t.Fatal(err)
+	}
+	if state != "retry_wait" || lastError != "injected dispatch failure" {
+		t.Fatalf("unexpected retry state: %s %s", state, lastError)
 	}
 }
