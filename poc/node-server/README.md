@@ -38,6 +38,7 @@ The service applies the PoC schema at startup. The legacy `X-Test-Account` ident
 - POST /v1/conversations/{id}/messages — JSON operation_key, payload and optional reply_to_message_id. Reply targets must be active messages in the same conversation; reply metadata is preserved in history and recipient inbox. Idempotent retries must repeat the same reply target.
 - POST /v1/messages/{id}/forward with `{"target_conversation_id":"...","operation_key":"..."}` — forwards an active message the caller can read into a conversation they belong to. The new message is authored by the forwarding user and carries `forwarded_from_message_id`; the original sender is not impersonated. Idempotent retries must repeat the same source, destination and operation key.
 - GET /v1/conversations/{id}/messages?after=0 — history.
+- GET /v1/conversations/{id}/search?q=...&limit=20 — PostgreSQL full-text search within one conversation (2–128 characters, 1–50 results). Only current members can search; deleted messages are excluded. Search uses the `simple` text configuration and ranks matches before newest-position tie-breaking.
 - GET /v1/conversations/{id}/events?after=0 — SSE stream.
 - POST /v1/messages/{id}/ack — recipient acknowledgement.
 - POST /v1/messages/{id}/read — recipient marks a delivered message as read; repeated calls are idempotent.
