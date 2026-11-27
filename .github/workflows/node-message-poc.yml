@@ -57,6 +57,25 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
       - name: Build direct server executable
         run: npm run build
+      - name: Reject spoofed test identity in production mode
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          PORT: "8083"
+          NODE_ENV: production
+          JETSON_ALLOW_TEST_IDENTITY: "true"
+        run: |
+          node dist/src/server.js > /tmp/jet-node-auth-guard.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 40); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8083/healthz; then break; fi
+            sleep 0.25
+          done
+          status=$(curl -sS -o /tmp/jet-node-auth-guard-response.json -w "%{http_code}" \
+            -H "X-Test-Account: alice" \
+            "http://127.0.0.1:8083/v1/conversations/any-room/messages?after=0")
+          test "$status" = "401"
+          grep -q '"authentication required"' /tmp/jet-node-auth-guard-response.json
       - name: Hard crash/restart, shared contract and benchmark
         env:
           PORT: "8081"
@@ -86,6 +105,8 @@ jobs:
           path: |
             /tmp/node-crash-recovery.json
             /tmp/jet-node-server.log
+            /tmp/jet-node-auth-guard.log
+            /tmp/jet-node-auth-guard-response.json
             /tmp/node-npm-audit.json
             /tmp/node-license-report.json
             /tmp/node-sbom.json
