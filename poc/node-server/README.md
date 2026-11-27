@@ -35,7 +35,7 @@ The service applies the PoC schema at startup. The legacy `X-Test-Account` ident
 
 ## Messaging endpoints
 
-- POST /v1/conversations/{id}/messages — JSON operation_key, payload.
+- POST /v1/conversations/{id}/messages — JSON operation_key, payload and optional reply_to_message_id. Reply targets must be active messages in the same conversation; reply metadata is preserved in history and recipient inbox. Idempotent retries must repeat the same reply target.
 - GET /v1/conversations/{id}/messages?after=0 — history.
 - GET /v1/conversations/{id}/events?after=0 — SSE stream.
 - POST /v1/messages/{id}/ack — recipient acknowledgement.
