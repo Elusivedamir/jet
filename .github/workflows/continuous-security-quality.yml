@@ -1,0 +1,94 @@
+name: Continuous security and quality gates
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "governance/continuous-quality-security-gates-2026-11-27"
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jetson-security-gates-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep security rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Semgrep CLI
+        run: python3 -m pip install --disable-pip-version-check --no-input "semgrep==1.187.0"
+      - name: Scan application source
+        env:
+          SEMGREP_SEND_METRICS: "off"
+        run: semgrep scan --config p/security-audit --error --metrics=off .
+
+  gitleaks:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan repository and Git history
+        run: >-
+          docker run --rm
+          -v "$PWD:/repo"
+          -w /repo
+          ghcr.io/gitleaks/gitleaks@sha256:b109bc5f8f76a38196a3e413704fc5b9e3c32360bce4e4b603bd6f45b3721dbb
+          git . --redact --exit-code 1
+
+  zizmor:
+    name: zizmor workflow security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Audit GitHub Actions workflows
+        uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
+        with:
+          advanced-security: false
+          version: "v1.30.1"
+          persona: auditor
+          min-severity: medium
+
+  codeql:
+    name: CodeQL source analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["go", "javascript-typescript", "java-kotlin"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@776237d428f23fefc3d9e0fe1962921cbcd53e17 # pinned commit
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: autobuild
+      - name: Analyze
+        uses: github/codeql-action/analyze@776237d428f23fefc3d9e0fe1962921cbcd53e17 # pinned commit
+        with:
+          category: "/language:${{ matrix.language }}"
