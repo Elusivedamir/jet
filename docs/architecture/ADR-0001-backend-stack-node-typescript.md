@@ -1,6 +1,6 @@
 # ADR-0001: Backend language for Jetson v1
 
-- **Status:** Proposed decision — Node.js / TypeScript
+- **Status:** Superseded by ADR-0002 (Go + PostgreSQL); retained as decision history
 - **Date:** 2026-11-27
 - **Scope:** First backend implementation; does not select mobile/web UI frameworks or authorize production release.
 
