@@ -82,8 +82,8 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           govulncheck ./... > /tmp/go-vulnerability-scan.txt
           go install github.com/google/go-licenses@v1.6.0
-          go-licenses check ./... --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,0BSD
-          go-licenses report ./... > /tmp/go-license-report.csv
+          go-licenses check ./... --ignore=github.com/elusivedamir/jet/poc/go-server --allowed_licenses=MIT,Apache-2.0,BSD-2-Clause,BSD-3-Clause,ISC,0BSD
+          go-licenses report ./... --ignore=github.com/elusivedamir/jet/poc/go-server > /tmp/go-license-report.csv
           go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.8.0
           cyclonedx-gomod mod -json -output /tmp/go-sbom.json
       - name: Trivy filesystem vulnerability and license report
