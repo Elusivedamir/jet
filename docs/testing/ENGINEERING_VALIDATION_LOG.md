@@ -270,3 +270,10 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 
 
 - Gitleaks follow-up: verbose redacted output identified the only hit as the public RFC 6455 example `Sec-WebSocket-Key` nonce in `deploy/juggleim-poc/scripts/probe-websocket-upgrade.sh:20`, historical commit `e5389461480650126244c86c939d11de0772f041`. It is a protocol test fixture, not an account/API credential. Added `.gitleaks.toml` allowlisting only the exact known example value at that exact path. The next Gitleaks run must confirm that no other findings remain; until then the gate is not marked PASS.
+
+
+## 2026-11-27 — security gates verified on head 7739f116
+
+- Workflow run [#46033361622](https://github.com/Elusivedamir/jet/actions/runs/46033361622): Gitleaks PASS (820 commits, approximately 2.55 MB, no leaks after the narrowly scoped RFC6455 fixture allowlist); Semgrep PASS (131 rules, 99 files, zero findings; URL validation unit tests PASS); blocking zizmor audit of both newly added workflow files PASS (zero findings).
+- The separate full-repository zizmor advisory job continues to report pre-existing workflow debt and remains open; it is not represented as a clean scan.
+- CodeQL Go, JavaScript/TypeScript and Java/Kotlin jobs were still in progress at the time of this entry. No PASS is claimed for CodeQL until all three exact-head jobs complete.
