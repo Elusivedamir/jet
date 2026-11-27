@@ -105,6 +105,37 @@ test("outbox insert failure rolls back message and sequence atomically",async()=
 });
 
 
+test("reactions are member-scoped and read receipts distinguish delivery from reading",async()=>{
+ const sent=await store.send("alice","room-a","reaction-read","hello");
+ await store.addReaction("bob",sent.message_id,"👍");
+ await store.addReaction("alice",sent.message_id,"👍");
+ await store.addReaction("bob",sent.message_id,"❤️");
+ await store.addReaction("bob",sent.message_id,"👍");
+ assert.deepEqual(await store.listReactions("alice",sent.message_id),[
+  {emoji:"❤️",count:1,reacted:false},
+  {emoji:"👍",count:2,reacted:true}
+ ]);
+ await assert.rejects(()=>store.addReaction("mallory",sent.message_id,"👍"),NotMemberError);
+ await store.removeReaction("bob",sent.message_id,"❤️");
+ assert.deepEqual(await store.listReactions("bob",sent.message_id),[
+  {emoji:"👍",count:2,reacted:true}
+ ]);
+ const claimed=await store.claim(200,5000);
+ const delivery=claimed.find(item=>item.message_id===sent.message_id);
+ assert.ok(delivery);
+ await store.dispatch(delivery);
+ const beforeRead=await store.readReceipts("alice",sent.message_id);
+ assert.equal(beforeRead.length,1);
+ assert.equal(beforeRead[0]!.delivered,true);
+ assert.equal(beforeRead[0]!.read_at,null);
+ await store.markRead("bob",sent.message_id);
+ await store.markRead("bob",sent.message_id);
+ const afterRead=await store.readReceipts("alice",sent.message_id);
+ assert.equal(afterRead[0]!.read_at!==null,true);
+ await assert.rejects(()=>store.readReceipts("bob",sent.message_id),NotMemberError);
+ await assert.rejects(()=>store.markRead("mallory",sent.message_id),NotMemberError);
+});
+
 test("group message creates one durable delivery per other member",async()=>{
  const sent=await store.send("alice","room-group","group-1","hello group");
  const outbox=await pool.query("SELECT recipient_id FROM delivery_outbox WHERE message_id=$1 ORDER BY recipient_id",[sent.message_id]);
