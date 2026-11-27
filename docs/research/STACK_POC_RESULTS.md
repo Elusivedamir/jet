@@ -61,3 +61,8 @@ Go is the best measured backend candidate on throughput, tail latency, memory an
 - [Dependency reproducibility and supply-chain audit](DEPENDENCY_REPRODUCIBILITY_AUDIT_2026-11-27.md)
 - [Hard crash/recovery test plan and execution record](../testing/HARD_CRASH_RECOVERY_TEST_PLAN_2026-11-27.md)
 - [Engineering validation log](../testing/ENGINEERING_VALIDATION_LOG.md)
+
+
+## Runtime pinning — 2026-11-27
+
+GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are pinned in CI: Go 1.26.11, Node.js 22.23.5 via `.nvmrc`, Temurin JDK 21.0.13 and PostgreSQL 17.12.
