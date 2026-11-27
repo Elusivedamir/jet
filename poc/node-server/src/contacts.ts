@@ -114,6 +114,7 @@ export class ContactsStore {
         await c.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES($1,$2),($1,$3) ON CONFLICT DO NOTHING",
           [directId, request.requester_id, request.recipient_id]);
       }
+      await c.query("INSERT INTO conversation_details(conversation_id,kind,title,created_by) VALUES($1,'direct',NULL,$2) ON CONFLICT(conversation_id) DO NOTHING", [directId, accountId]);
       await c.query("UPDATE contact_requests SET status='accepted',responded_at=now() WHERE id=$1", [requestId]);
       const otherId = request.requester_id;
       const profile = await c.query<UserPreview>("SELECT id,username,display_name FROM accounts WHERE id=$1", [otherId]);
@@ -164,35 +165,78 @@ export class ContactsStore {
   }
 
   async conversations(accountId: string): Promise<Array<{
-    conversation_id: string; peer: UserPreview; last_message: string | null;
+    conversation_id: string; kind: "direct" | "group" | "channel"; title: string | null;
+    peer: UserPreview | null; members_count: number; last_message: string | null;
     last_message_at: Date | null; last_position: string;
   }>> {
     const result = await this.pool.query<{
-      conversation_id:string; peer_id:string; username:string; display_name:string;
-      last_message:string|null; last_message_at:Date|null; last_position:string;
+      conversation_id:string; kind:"direct"|"group"|"channel"; title:string|null;
+      peer_id:string|null; peer_username:string|null; peer_display_name:string|null;
+      members_count:number; last_message:string|null; last_message_at:Date|null; last_position:string;
     }>(
-      `SELECT dc.conversation_id,a.id AS peer_id,a.username,a.display_name,
-              latest.payload AS last_message,latest.created_at AS last_message_at,
-              COALESCE(cc.last_position,0)::text AS last_position
-       FROM direct_conversations dc
-       JOIN accounts a ON a.id=CASE WHEN dc.account_low=$1 THEN dc.account_high ELSE dc.account_low END
-       LEFT JOIN conversation_counters cc ON cc.conversation_id=dc.conversation_id
-       LEFT JOIN LATERAL (
-         SELECT payload,created_at FROM messages
-         WHERE conversation_id=dc.conversation_id ORDER BY position DESC LIMIT 1
-       ) latest ON true
-       WHERE dc.account_low=$1 OR dc.account_high=$1
-       ORDER BY COALESCE(latest.created_at,dc.created_at) DESC
-       LIMIT 100`,
+      "SELECT d.conversation_id,d.kind,d.title,a.id AS peer_id,a.username AS peer_username,a.display_name AS peer_display_name," +
+      "(SELECT count(*)::int FROM conversation_members cm WHERE cm.conversation_id=d.conversation_id) AS members_count," +
+      "latest.payload AS last_message,latest.created_at AS last_message_at,COALESCE(cc.last_position,0)::text AS last_position " +
+      "FROM conversation_details d " +
+      "JOIN conversation_members mine ON mine.conversation_id=d.conversation_id AND mine.account_id=$1 " +
+      "LEFT JOIN direct_conversations dc ON dc.conversation_id=d.conversation_id " +
+      "LEFT JOIN accounts a ON d.kind='direct' AND a.id=CASE WHEN dc.account_low=$1 THEN dc.account_high ELSE dc.account_low END " +
+      "LEFT JOIN conversation_counters cc ON cc.conversation_id=d.conversation_id " +
+      "LEFT JOIN LATERAL (SELECT payload,created_at FROM messages WHERE conversation_id=d.conversation_id ORDER BY position DESC LIMIT 1) latest ON true " +
+      "ORDER BY COALESCE(latest.created_at,d.created_at) DESC LIMIT 100",
       [accountId]
     );
     return result.rows.map(row => ({
       conversation_id:row.conversation_id,
-      peer:{id:row.peer_id,username:row.username,display_name:row.display_name},
+      kind:row.kind,
+      title:row.title,
+      peer:row.peer_id ? {id:row.peer_id,username:row.peer_username!,display_name:row.peer_display_name!} : null,
+      members_count:row.members_count,
       last_message:row.last_message,
       last_message_at:row.last_message_at,
       last_position:row.last_position
     }));
+  }
+
+  async createGroup(accountId: string, titleInput: string, usernamesInput: string[]): Promise<{conversation_id:string;title:string;members_count:number}> {
+    const title = titleInput.trim();
+    if (!accountId || title.length < 1 || title.length > 80 || !Array.isArray(usernamesInput) ||
+        usernamesInput.length < 1 || usernamesInput.length > 50) throw new ContactError("invalid");
+    const usernames = usernamesInput.map(value => typeof value === "string" ? value.trim().toLowerCase() : "");
+    if (usernames.some(value => !/^[a-z0-9_]{3,24}$/.test(value)) || new Set(usernames).size !== usernames.length) {
+      throw new ContactError("invalid");
+    }
+    const targetRows = await this.pool.query<{id:string;username:string}>(
+      "SELECT id,username FROM accounts WHERE username=ANY($1::text[])",
+      [usernames]
+    );
+    if (targetRows.rowCount !== usernames.length || targetRows.rows.some(row => row.id === accountId)) {
+      throw new ContactError("not_found");
+    }
+    const memberIds = targetRows.rows.map(row => row.id);
+    const pairCount = await this.pool.query<{n:number}>(
+      "SELECT count(*)::int AS n FROM contacts " +
+      "WHERE (account_low=$1 AND account_high=ANY($2::text[])) " +
+      "OR (account_high=$1 AND account_low=ANY($2::text[]))",
+      [accountId,memberIds]
+    );
+    if (pairCount.rows[0]!.n !== memberIds.length) throw new ContactError("not_found");
+
+    const conversationId = randomUUID();
+    const c = await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      await c.query("INSERT INTO conversations(id) VALUES($1)", [conversationId]);
+      await c.query("INSERT INTO conversation_details(conversation_id,kind,title,created_by) VALUES($1,'group',$2,$3)",
+        [conversationId,title,accountId]);
+      await c.query("INSERT INTO conversation_members(conversation_id,account_id) SELECT $1,unnest($2::text[])",
+        [conversationId,[accountId,...memberIds]]);
+      await c.query("COMMIT");
+      return {conversation_id:conversationId,title,members_count:memberIds.length+1};
+    } catch (error) {
+      await c.query("ROLLBACK");
+      throw error;
+    } finally { c.release(); }
   }
 
   async directConversation(accountId: string, usernameInput: string): Promise<string> {
