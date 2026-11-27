@@ -1,5 +1,6 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
-import { Pool } from "pg";
+import pg from "pg";
+const { Pool } = pg;
 import { Store, ConflictError, NotMemberError, InvalidRequestError } from "./store.js";
 
 const pool = new Pool({connectionString:process.env.DATABASE_URL});
