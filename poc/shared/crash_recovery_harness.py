@@ -16,10 +16,27 @@ import signal
 import subprocess
 import sys
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 import uuid
+
+
+def validate_base_url(base):
+    parsed = urllib.parse.urlsplit(base)
+    if (
+        parsed.scheme not in ("http", "https")
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in ("", "/")
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("base URL must be an http(s) origin without credentials, path, query or fragment")
+    try:
+        _ = parsed.port
+    except ValueError as error:
+        raise ValueError("base URL contains an invalid port") from error
+    return parsed
 
 
 def psql(database_url, sql, capture=True):
@@ -32,18 +49,20 @@ def psql(database_url, sql, capture=True):
 
 
 def http(base, method, path, account=None, payload=None, timeout=5):
+    parsed = validate_base_url(base)
     data = None if payload is None else json.dumps(payload).encode()
     headers = {"Content-Type": "application/json"}
     if account:
         headers["X-Test-Account"] = account
-    req = urllib.request.Request(base.rstrip("/") + path, data=data, method=method, headers=headers)
+    connection_type = http.client.HTTPSConnection if parsed.scheme == "https" else http.client.HTTPConnection
+    connection = connection_type(parsed.hostname, parsed.port, timeout=timeout)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            raw = response.read()
-            return response.status, json.loads(raw) if raw else None
-    except urllib.error.HTTPError as error:
-        raw = error.read()
-        return error.code, json.loads(raw) if raw else None
+        connection.request(method, path, body=data, headers=headers)
+        response = connection.getresponse()
+        raw = response.read()
+        return response.status, json.loads(raw) if raw else None
+    finally:
+        connection.close()
 
 
 def wait_health(base, process, log_path, timeout=45):
@@ -177,6 +196,7 @@ def main():
     parser.add_argument("--log", default="crash-recovery-server.log")
     parser.add_argument("--server-command", nargs=argparse.REMAINDER, required=True)
     args = parser.parse_args()
+    validate_base_url(args.base_url)
     command = args.server_command
     if command and command[0] == "--":
         command = command[1:]
