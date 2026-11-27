@@ -61,7 +61,10 @@ jobs:
             --server-command java -jar target/kotlin-message-server-0.1.0.jar
       - name: Generate CycloneDX SBOM
         run: mvn -B -C org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeBom -DoutputFormat=json -DoutputName=kotlin-sbom -DoutputDirectory=/tmp
-      - uses: aquasecurity/setup-trivy@v0.2.3
+      - name: Install pinned Trivy scanner
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.58.2/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.58.2
+          trivy --version
       - name: Trivy filesystem vulnerability and license report
         run: trivy fs --scanners vuln,license --format json --output /tmp/kotlin-trivy-report.json .
       - uses: actions/upload-artifact@v4
