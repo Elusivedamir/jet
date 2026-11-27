@@ -11,8 +11,8 @@ before(async()=>{
  const schema=await readFile(new URL("../schema.sql",import.meta.url),"utf8");
  for(const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
  await pool.query("TRUNCATE delivery_receipts,recipient_inbox,delivery_outbox,messages,conversation_counters,conversation_members,conversations CASCADE");
- await pool.query("INSERT INTO conversations(id) VALUES('room-a'),('room-b'),('room-group')");
- await pool.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES('room-a','alice'),('room-a','bob'),('room-b','alice'),('room-b','carol'),('room-group','alice'),('room-group','bob'),('room-group','carol')");
+ await pool.query("INSERT INTO conversations(id) VALUES('room-a'),('room-b'),('room-group'),('room-c')");
+ await pool.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES('room-a','alice'),('room-a','bob'),('room-b','alice'),('room-b','carol'),('room-group','alice'),('room-group','bob'),('room-group','carol'),('room-c','bob'),('room-c','carol')");
 });
 after(async()=>pool.end());
 
@@ -215,7 +215,7 @@ test("forwarding creates a new sender-owned message and is idempotent",async()=>
  await assert.rejects(()=>store.forward("alice",source.message_id,"room-a","forward-op"),ConflictError);
  const other=await store.send("bob","room-a","forward-other","private to room-a");
  await assert.rejects(()=>store.forward("carol",other.message_id,"room-b","forward-denied"),NotMemberError);
- await assert.rejects(()=>store.forward("alice",source.message_id,"room-a","forward-not-member"),NotMemberError);
+ await assert.rejects(()=>store.forward("alice",source.message_id,"room-c","forward-not-member"),NotMemberError);
  const history=await store.history("carol","room-b",0);
  assert.equal(history.find(row=>row.message_id===forwarded.message_id)?.forwarded_from_message_id,source.message_id);
 });
