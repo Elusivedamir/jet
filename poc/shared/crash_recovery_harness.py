@@ -204,6 +204,7 @@ def run_contract_and_sample(args, process):
         "server_cpu_percent_host": round(cpu_percent_one_core / logical_cpus, 2) if cpu_percent_one_core is not None else None,
         "kernel_clock_ticks_per_second": clock_ticks,
         "runtime_environment": {"platform": platform.platform(), "logical_cpus": logical_cpus},
+        "contract_and_latency_probe": probes[0] if probes else {},
         "repeated_contract_and_capacity_probes": probes,
         "resource_metric_note": "Linux /proc sampling of the direct server PID every 200ms across all repetitions; excludes PostgreSQL and is runner-specific. CPU percentage is derived from process CPU ticks divided by elapsed wall time; one-core and whole-host-normalized figures are both reported.",
     }
