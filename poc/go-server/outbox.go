@@ -87,7 +87,7 @@ func (s *Store) Dispatch(ctx context.Context, item ClaimedDelivery) error {
 	tag, err := tx.Exec(ctx, `
 		UPDATE delivery_outbox
 		SET state='completed', completed_at=now(), lease_until=NULL, lease_token=NULL
-		WHERE id=$1 AND state='processing' AND lease_token=$2
+		WHERE id=$1 AND state='processing' AND lease_token=$2 AND lease_until > now()
 	`, item.ID, item.LeaseToken)
 	if err != nil {
 		return fmt.Errorf("complete outbox item: %w", err)
