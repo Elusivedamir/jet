@@ -267,3 +267,6 @@ GitHub Actions are pinned to immutable commit SHAs. Runtime/service versions are
 - CodeQL Go analysis passed on the first run. Java/Kotlin autobuild failed because the Maven project is nested; JavaScript/TypeScript does not support CodeQL autobuild. Workflow corrected to Go autobuild, JS/TS no-build extraction, and explicit Maven build for Java/Kotlin. Rerun pending.
 - zizmor reported legacy workflow findings across the repository. New PR workflows now run a blocking scan on the two newly added workflow files and a separate advisory full-workflow baseline scan. No legacy findings were silently suppressed.
 - Gitleaks now runs with verbose redacted reporting so the single detected historical leak can be located without printing the secret value. The location remains unknown pending a fresh run.
+
+
+- Gitleaks follow-up: verbose redacted output identified the only hit as the public RFC 6455 example `Sec-WebSocket-Key` nonce in `deploy/juggleim-poc/scripts/probe-websocket-upgrade.sh:20`, historical commit `e5389461480650126244c86c939d11de0772f041`. It is a protocol test fixture, not an account/API credential. Added `.gitleaks.toml` allowlisting only the exact known example value at that exact path. The next Gitleaks run must confirm that no other findings remain; until then the gate is not marked PASS.
