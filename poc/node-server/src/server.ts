@@ -52,7 +52,7 @@ const server=createServer(async(req,res)=>{
           if(!messages.length)res.write(": keepalive\n\n");
         } catch { clearInterval(timer);res.end(); }
       },750);
-      req.on("close",()=>clearInterval(timer));
+      res.on("close",()=>clearInterval(timer));
       return;
     }
     const ack=url.pathname.match(/^\/v1\/messages\/([^/]+)\/ack$/);
