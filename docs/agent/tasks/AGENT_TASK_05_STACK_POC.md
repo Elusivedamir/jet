@@ -113,3 +113,10 @@ No production adoption, merge to `main`, deployment or release. A final producti
 - Required recovery assertions include committed message/outbox survival, rollback of in-flight inbox insertion, lease expiry/reclaim after restart, exactly-one durable inbox delivery, completed outbox state and idempotent sender retry.
 - **Status: specification only. No executable crash harness has been added and no hard process-kill test has run.** Existing lease-expiry and transaction-rollback tests must not be described as process-kill evidence.
 - Next implementation step: add a shared harness and direct-process launch/termination to each CI workflow; run all three and record exact run IDs/SHA. Keep stack decision Open.
+
+
+## Parallel execution workstreams — 2026-11-27
+
+- Added `docs/agent/PARALLEL_ENGINEERING_WORKSTREAMS_2026-11-27.md` defining seven logical workstreams: reliability, Go, Node.js, Kotlin, supply-chain, performance and product/security architecture.
+- Tooling transparency: the connected toolset does not expose a direct Copilot/Codex coding-agent launch/assignment action for this repository. No separate autonomous coding agents are claimed to be running. Use independent candidate CI workflows and evidence-backed review workstreams until a dedicated runner is available.
+- Current PR head is documentation-only; no new CI run is expected from the docs-only path filters. The current head has no status checks reported. Prior code-level green CI results remain tied to implementation SHA `f86d25e755b17fcc7509b90288ae5c55f05f14e0`.
