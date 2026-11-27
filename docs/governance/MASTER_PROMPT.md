@@ -239,3 +239,15 @@ High-risk changes (authentication, authorization, stored data, migrations, crypt
 If a future coding runtime genuinely provides independent sub-agent orchestration, the original fresh-reviewer loop may be used there; clearly distinguish that evidence from this environment's manual reviews. Never fabricate reviewer identity, model, effort, scores, rounds, test output or a successful result.
 
 The skill is a quality workflow, not permission to commit, push, merge, deploy, alter shared data, or change product scope. Existing Git/branch governance and owner approval requirements remain in force.
+
+
+## 17. OpenCommit commit-message tooling
+
+The optional OpenCommit integration is governed by [OPENCOMMIT.md](OPENCOMMIT.md). Treat generated commit messages as editable suggestions, never as evidence of correctness or a replacement for tests and the mandatory review process.
+
+- Preferred option: developers may install the pinned OpenCommit CLI on their own workstations and run `oco hook set` in their local clone to use the `prepare-commit-msg` hook from IDE source control. The local hook is not installed by a GitHub repository file; do not claim it was enabled on a workstation unless verified there.
+- Keep provider credentials outside the repository. Never commit API keys, `~/.opencommit`, or local secrets.
+- Do not enable the upstream GitHub Action by default. It is marked beta and rewrites commit history/SHA on push. Do not configure it on `main`, release/shared branches, or collaborator branches.
+- Any future GitHub Action rollout requires explicit owner approval after immutable source/action revision audit, least-privilege permission review, branch-protection/recovery design, secret/provider approval, and a documented test on a disposable isolated branch.
+- Do not enable automatic commit acceptance (`oco --yes`) as a project-wide default. Developers must inspect generated messages and remain responsible for their accuracy.
+- OpenCommit does not authorize committing, pushing, rebasing, force-pushing, merging or deploying. Existing branch and owner-approval rules remain controlling.
