@@ -72,34 +72,36 @@ The eventual decision may choose one backend language while keeping TypeScript f
 - No final stack ranking or production selection is made in this document.
 
 
-## First comparable CI evidence — 2026-11-27
+## Repeated concurrent CI evidence — 2026-11-27
 
-All three candidates have at least one successful hard SIGKILL/restart run with the shared harness. The latest Node and Kotlin results below are from the same runner class (Ubuntu 26.04, Linux kernel 7.0.0-1020-azure, 4 logical CPUs, PostgreSQL 17). Go's currently available run is an earlier baseline and used the pre-remediation Go toolchain; it must be repeated after the dependency update.
+The shared harness now performs three independent rounds of 200 writes at concurrency 16. The latest Node and Kotlin runs use the same runner class (Ubuntu 26.04, Linux kernel 7.0.0-1020-azure, 4 logical CPUs, PostgreSQL 17). Go's available result remains an earlier single-probe baseline on the pre-remediation toolchain.
 
-| Candidate / run | Crash recovery | Sampled peak RSS | Server CPU ticks / 100 Hz | Concurrent writes | Concurrent p50 / p95 / p99 |
+| Candidate / run | Crash recovery | Sampled peak RSS | CPU ticks / 100 Hz | Median throughput | Median concurrent p50 / p95 / p99 |
 |---|---|---:|---:|---:|---:|
-| Go, run 87 [46025003199](https://github.com/Elusivedamir/jet/actions/runs/46025003199) | PASS | 17,708 KiB | 64 (0.64 s) | 341.2 req/s | 15.956 / 380.520 / 384.246 ms |
-| Node, run 96 [46026159379](https://github.com/Elusivedamir/jet/actions/runs/46026159379) | PASS | 85,572 KiB | 84 (0.84 s) | 755.12 req/s | 14.363 / 48.446 / 68.062 ms |
-| Kotlin, run 96 [46026159044](https://github.com/Elusivedamir/jet/actions/runs/46026159044) | PASS | 274,064 KiB | 392 (3.92 s) | 535.21 req/s | 23.137 / 69.054 / 103.798 ms |
+| Go baseline, run 87 [46025003199](https://github.com/Elusivedamir/jet/actions/runs/46025003199) | PASS | 17,708 KiB | 64 (0.64 s) | 341.2 req/s (one probe) | 15.956 / 380.520 / 384.246 ms |
+| Node, run 101 [46026586747](https://github.com/Elusivedamir/jet/actions/runs/46026586747) | PASS | 87,252 KiB | 179 (1.79 s) | 565.87 req/s | 21.127 / 64.592 / 94.321 ms |
+| Kotlin, run 101 [46026586769](https://github.com/Elusivedamir/jet/actions/runs/46026586769) | PASS | 269,716 KiB | 487 (4.87 s) | 599.28 req/s | 20.612 / 62.050 / 80.862 ms |
 
-Sequential p50 values across the five rounds:
-- Go baseline: approximately 1.63–1.69 ms in four rounds, with one noisy round.
-- Node run 96: 1.639–2.005 ms.
-- Kotlin run 96: 2.192–3.769 ms.
+Node's three throughput rounds were 489.55, 566.14 and 565.87 req/s. Kotlin's were 581.78, 599.28 and 622.78 req/s. Kotlin's approximately 6% median throughput advantage is small enough to be within expected hosted-runner and short-test variance; its p95 was also close. Kotlin used about 3.1× Node's sampled RSS and 2.7× its process CPU ticks during the probe.
 
 ### Security and reproducibility observations
 
-- Node run 96: committed npm lockfile passed `npm ci`; npm audit reported zero advisories; Trivy found no vulnerabilities in the scanned npm dependency graph. License inventory contained MIT/ISC/Apache-2.0 packages and the project root package is marked `UNLICENSED` (project licensing decision remains open).
-- Kotlin run 96: Maven strict-checksum verification, dependency tree and CycloneDX SBOM succeeded; after overriding PostgreSQL JDBC to 42.7.12, Trivy reported no vulnerabilities in the scanned dependency graph. SBOM contains 42 components.
-- Go run 87: hard crash recovery and shared contract passed, but govulncheck reported 24 reachable advisories on Go 1.24.13, pgx 5.7.2 and x/text 0.21.0. Remediation is committed (Go 1.26.11, pgx 5.9.2, x/text 0.41.0); the remediated Go CI/security result and refreshed go.sum are not yet confirmed.
+- Node run 101: committed npm v3 lockfile passed `npm ci`; npm audit reported zero advisories; Trivy found zero vulnerabilities in the scanned npm dependency graph. The license inventory includes MIT/ISC/Apache-2.0 dependencies; the root project package is `UNLICENSED`, so the product's own licensing decision remains open.
+- Kotlin run 101: Maven strict-checksum verification, dependency tree and CycloneDX SBOM succeeded; after PostgreSQL JDBC was raised to 42.7.12, Trivy reported zero vulnerabilities in the scanned dependency graph. SBOM contains 42 components.
+- Go run 87: hard crash recovery and shared contract passed, but govulncheck reported 24 reachable advisories on Go 1.24.13, pgx 5.7.2 and x/text 0.21.0. Remediation is committed (Go 1.26.11, pgx 5.9.2, x/text 0.41.0); a confirmed post-remediation Go run, refreshed go.sum and clean security report are still outstanding.
 
-### Preliminary interpretation (not a final decision)
+### Decision
 
-- Go has a major memory-footprint advantage in the observed run (about 17 MiB versus 84 MiB Node and 268 MiB Kotlin) and low CPU use, but its concurrent p95/p99 in the only available baseline run were poor and its security gate failed. The patched Go version must be retested before it can be ranked.
-- Node currently has the best observed concurrent throughput and tail latency, with substantially lower memory use than Kotlin. It also offers a shared TypeScript ecosystem for web/admin clients and fast iteration on CRM, campaigns, KPI and AI-facing product features.
-- Kotlin has a strong framework and enterprise ecosystem, but in this PoC it used roughly 3.2× Node's RSS and had lower throughput. It remains viable if enterprise framework capabilities materially reduce future engineering cost.
+**Recommend Node.js/TypeScript for Jetson's first backend implementation**, as a provisional architecture decision:
+- Node is close to Kotlin on the repeated concurrency probe (566 versus 599 req/s) and tail latency, while using roughly one-third of Kotlin's server memory and CPU in this workload.
+- The npm lockfile is committed and clean-install CI passes; current npm audit and Trivy reports are clean.
+- TypeScript supports fast end-to-end product iteration across messenger, CRM, campaigns, KPI and AI-facing modules, and can share types/tooling with web/admin clients.
+- Kotlin's framework strengths do not currently justify its materially higher runtime footprint for this first product stage.
+- Go's low memory footprint remains compelling, but the currently available Go baseline has poor concurrent tail latency and failed its first vulnerability scan. The remediation is committed but not yet evidenced by a visible post-fix Go CI result.
 
-**Provisional front-runner: Node.js/TypeScript for the first Jetson backend**, because it currently leads the measured concurrent write probe, has clean npm/Trivy results, and aligns with fast product iteration. This is not a production-stack selection: Go remains a serious alternative if the patched Go run removes the security findings and improves concurrent tail latency. Repeat at least three concurrent probes per candidate before locking the decision.
+Go remains the preferred candidate for a future isolated high-volume delivery worker only if a patched-toolchain run is clean and repeated benchmarks show a material advantage. Do not introduce a polyglot backend in v1 without that evidence.
+
+This is a backend implementation recommendation for the PoC-to-product transition, not production release authorization. The current benchmark is still a short microbenchmark; load, soak, memory under sustained concurrency and deployment costs remain open.
 
 ### Measurement caveats
 
