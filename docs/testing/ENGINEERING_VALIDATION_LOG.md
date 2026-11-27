@@ -127,3 +127,14 @@ Independently retrieved three exact upstream Git blobs cited by the existing mes
 - Earlier intermediate CI failures were not hidden: Go formatting and HTTP error-body parsing were corrected; Node CommonJS import and test isolation were corrected; Kotlin Maven source roots, misplaced test method and DB URL were corrected. The latest exact revision above passed all gates.
 - Remaining: hard process-kill injection at commit/claim/dispatch/ack boundaries; production identity/security; lockfiles/checksums and dependency SBOM/license inventory; equivalent sustained-load and resource measurements; maintenance-task comparison. Stack choice remains Open.
 - Governance unchanged: no production adoption, deployment, merge to `main`, or product/business-plan edits.
+
+
+## 2026-11-27 — three-candidate lease/cursor hardening and atomic failure tests
+
+- Exact shared head `f86d25e755b17fcc7509b90288ae5c55f05f14e0` passed all three GitHub Actions workflows: [Go #46021008920](https://github.com/Elusivedamir/jet/actions/runs/46021008920), [Node #46021008197](https://github.com/Elusivedamir/jet/actions/runs/46021008197), [Kotlin #46021008199](https://github.com/Elusivedamir/jet/actions/runs/46021008199).
+- Go: gofmt, go vet, PostgreSQL 17, race detector and 12 integration test functions with `-count=100` passed. Node: TypeScript build and 8 PostgreSQL tests passed. Kotlin: Kotlin main/test compilation and 8 JUnit/PostgreSQL tests passed.
+- Shared contract on the same head passed send/retry identity, payload conflict, 12 concurrent duplicate submissions, non-member denial, negative history/SSE cursor rejection, SSE delivery, idempotent acknowledgement, Last-Event-ID precedence and reconnect without replay.
+- New tests verified active lease expiry rejection before reclaim, stale-token fencing after reclaim, parallel claims without duplicate row ownership, retry exhaustion and atomic rollback when outbox insertion is forced to fail.
+- The current exact-head CI is green. Earlier intermediate Go formatting and Kotlin test-placement failures were fixed and retained in Actions history. Do not treat those intermediate failures as the current status.
+- Remaining evidence gaps: hard process-kill injection at transaction/claim/dispatch/ack boundaries; complete committed lockfiles/checksums; dependency SBOM/license inventory; production identity/session/security; sustained-load/resource benchmarks and timed maintenance-task comparison. No stack decision or capacity/SLO claim.
+- Governance unchanged: Draft PR #44 stacked on Draft PR #43; `main`, business plan and product requirements unchanged; no deployment or merge.
