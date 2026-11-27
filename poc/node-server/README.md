@@ -13,7 +13,7 @@
 
 ## Run
 
-Requires Node.js 22+, PostgreSQL 17+.
+Requires Node.js 22.23.5, PostgreSQL 17+. The exact Node patch is pinned in `.nvmrc` and consumed by CI.
 
     export DATABASE_URL='postgres://jetson:jetson_test_only@localhost:5432/jetson_poc?sslmode=disable'
     npm ci
