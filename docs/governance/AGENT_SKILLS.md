@@ -55,7 +55,7 @@ See [CONTINUOUS_SECURITY_GATES.md](../security/CONTINUOUS_SECURITY_GATES.md) for
 ### Deprecated or not activated
 
 - `semgrep/semgrep-action` is archived/deprecated. Do not use it; the native Semgrep CLI is configured instead.
-- OpenSSF Scorecard is configured for default-branch pushes, weekly schedule and manual dispatch; result publication is disabled and no OIDC write permission is granted.
+- OpenSSF Scorecard is configured for default-branch pushes and weekly schedule; result publication is disabled and no OIDC write permission is granted.
 - Renovate configuration is committed with automerge disabled. It remains inactive until the repository owner installs/authorizes the GitHub App.
 - No third-party action receives write permissions unless a documented requirement exists.
 
