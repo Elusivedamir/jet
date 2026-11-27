@@ -32,6 +32,10 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Deep dive 03 — popular messaging platforms](docs/research/DEEP_DIVE_POPULAR_PRODUCTS_03.md)
 - [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
 
+## Developer tooling
+
+- [OpenCommit: local IDE commit-message hook and GitHub Action safety policy](docs/governance/OPENCOMMIT.md)
+
 ## Current status
 
 **Requirements and discovery.** The owner's full business-plan text has been structured into staged requirements and user journeys. Repository landscape research continues. Isolated Go, Node.js/TypeScript and Kotlin/Spring message-core prototypes now pass the same PostgreSQL-backed delivery/reconnect contract and preliminary CI latency probe. These are comparison experiments only: no backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. Detailed UI remains iterative.
