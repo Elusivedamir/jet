@@ -15,6 +15,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: jetson-poc-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   integration:
     runs-on: ubuntu-latest
