@@ -46,6 +46,21 @@ test("audience preview includes only contacts with both recipient-controlled gat
  assert.equal(byId.get(archived)?.exclusion_reason,"crm_customer_archived");
  assert.ok(!preview.recipients.some(row=>row.person_id===outsider));
 });
+test("campaign status summary is tenant-scoped and reports durable job states",async()=>{
+ const draft=await campaigns.createDraft(business,"Status summary","Read-only KPI");
+ const empty=await campaigns.statusSummary(business,draft.id);
+ assert.equal(empty.jobs.total,0);
+ await assert.rejects(()=>campaigns.statusSummary(outsider,draft.id),e=>e instanceof CampaignError&&e.code==="not_found");
+ const queued=await campaigns.enqueueDraft(business,draft.id,"status-summary");
+ assert.equal(queued.queued,1);
+ const summary=await campaigns.statusSummary(business,draft.id);
+ assert.equal(summary.campaign.status,"queued");
+ assert.equal(summary.jobs.total,1);
+ assert.equal(summary.jobs.queued,1);
+ assert.equal(summary.jobs.sent,0);
+ assert.ok(summary.updated_at instanceof Date);
+});
+
 test("campaign enqueue fails closed without entitlement and is idempotent per recipient",async()=>{
  const second=await campaigns.createDraft(business,"No entitlement","Draft");
  await pool.query("DELETE FROM business_entitlements WHERE business_account_id=$1",[business]);
