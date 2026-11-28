@@ -79,6 +79,9 @@ export class CampaignStore {
    const current=result.rows[0]!.status;
    if(current==="completed")throw new CampaignError("conflict");
    if(current==="cancelled"){
+    // Replays also sweep leases that expired after the first cancellation call.
+    await client.query("UPDATE business_campaign_jobs j SET status='delivery_pending',message_id=m.id,lease_until=NULL,lease_token=NULL,updated_at=now() FROM messages m WHERE j.campaign_id=$1 AND j.status='processing' AND j.lease_until<=clock_timestamp() AND m.sender_id=j.business_account_id AND m.operation_key=j.operation_key",[campaignId]);
+    await client.query("UPDATE business_campaign_jobs SET status='cancelled',skip_reason='campaign_cancelled',completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() WHERE campaign_id=$1 AND status='processing' AND lease_until<=clock_timestamp()",[campaignId]);
     const counts=await client.query<{cancelled:number;in_flight:number}>("SELECT count(*) FILTER(WHERE status='cancelled')::int AS cancelled,count(*) FILTER(WHERE status IN ('processing','delivery_pending'))::int AS in_flight FROM business_campaign_jobs WHERE campaign_id=$1",[campaignId]);
     await client.query("COMMIT");
     return {campaign_id:campaignId,cancelled:counts.rows[0]!.cancelled,in_flight:counts.rows[0]!.in_flight,replayed:true};
