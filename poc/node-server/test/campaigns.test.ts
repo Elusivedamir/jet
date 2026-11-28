@@ -91,7 +91,7 @@ test("campaign cancellation is owner-scoped, idempotent and fences not-yet-start
  const lease=(await campaigns.claimJobs(1))[0]!;assert.ok(lease);
  const inFlight=await campaigns.cancelCampaign(business,leasedDraft.id);
  assert.equal(inFlight.cancelled,0);assert.equal(inFlight.in_flight,1);
- assert.equal(await campaigns.mayDispatch(lease),false);
+ assert.equal(await campaigns.mayDispatch(lease),"cancelled");
  await assert.rejects(()=>store.send(lease.business_account_id,lease.conversation_id,lease.operation_key,lease.body,null,null,"business_offer"),/campaign is cancelled or unavailable/);
  const fenced=await pool.query("SELECT status FROM business_campaign_jobs WHERE id=$1",[lease.id]);
  assert.equal(fenced.rows[0]!.status,"cancelled");
