@@ -71,7 +71,7 @@ export class CampaignStore {
   const status=state==="completed"?"sent":state==="cancelled"?"skipped":"failed",reason=state==="cancelled"?"delivery_cancelled":null;
   const r=await this.pool.query("UPDATE business_campaign_jobs SET status=$3,skip_reason=$4,completed_at=now(),updated_at=now() WHERE id=$1 AND message_id=$2 AND status='delivery_pending'",[jobId,messageId,status,reason]);if(r.rowCount!==1)throw new CampaignError("conflict");
  }
- async processBatch(store:Store,limit=20):Promise<{claimed:number;submitted:number;skipped:number;retried:number}> {
+ async processBatch(store:Store,limit=20):Promise<{claimed:number;submitted:number;skipped:number;retried:number;failed:number}> {
   const jobs=await this.claimJobs(limit,60000);let submitted=0,skipped=0,retried=0,failed=0;
   for(const job of jobs){
    try{
