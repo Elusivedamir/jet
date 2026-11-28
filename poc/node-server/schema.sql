@@ -197,7 +197,7 @@ CREATE INDEX IF NOT EXISTS crm_notes_customer_idx
 
 
 -- Recipient-controlled business offer gate and auditable per-business consent.
--- Global preference is a master switch; it never grants consent to any business.
+-- Global preference is a master switch and never grants consent to any business.
 CREATE TABLE IF NOT EXISTS business_offer_preferences (
   account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
   enabled BOOLEAN NOT NULL DEFAULT FALSE,
