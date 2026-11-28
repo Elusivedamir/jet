@@ -33,7 +33,8 @@ test("business offers are off by default and global opt-in alone grants no sende
     ()=>consent.setBusinessConsent(recipient,business,true),
     error=>error instanceof ConsentError && error.code==="preference_disabled"
   );
-  await consent.setOfferPreference(recipient,true);
+  const enabled=await consent.setOfferPreference(recipient,true);
+  assert.equal(typeof enabled.version,"number");
   assert.equal(await consent.isEligibleForBusinessOffers(business,recipient),false);
 });
 
@@ -42,7 +43,17 @@ test("only recipient can grant/revoke per-business consent and dispatch eligibil
   const granted=await consent.setBusinessConsent(recipient,business,true);
   assert.equal(granted.status,"granted");
   assert.equal(await consent.isEligibleForBusinessOffers(business,recipient),true);
+  assert.equal(typeof granted.version,"number");
   assert.equal((await consent.listBusinessConsents(recipient)).length,1);
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    assert.equal(await consent.lockEligibilityForDispatch(client,business,recipient),true);
+    await client.query("COMMIT");
+  } catch(error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally { client.release(); }
   await assert.rejects(
     ()=>consent.setBusinessConsent(outsider,business,true),
     error=>error instanceof ConsentError && error.code==="not_found"
