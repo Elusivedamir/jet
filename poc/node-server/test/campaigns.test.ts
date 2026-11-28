@@ -112,3 +112,21 @@ test("campaign worker crash after message commit reuses the same message on the 
  const counts=await pool.query("SELECT (SELECT count(*) FROM messages WHERE sender_id=$1 AND operation_key=$2)::int AS messages,(SELECT count(*) FROM delivery_outbox WHERE message_id=$3)::int AS outbox",[business,second.operation_key,original.message_id]);
  assert.equal(counts.rows[0]!.messages,1);assert.equal(counts.rows[0]!.outbox,1);
 });
+
+test("campaign worker stops retrying after eight transient failures",async()=>{
+ const draft=await campaigns.createDraft(business,"Retry cap","Bounded retry test");
+ await campaigns.enqueueDraft(business,draft.id,"retry-cap");
+ const row=await pool.query("SELECT id,conversation_id FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id]);
+ const jobId=row.rows[0]!.id,conversation=row.rows[0]!.conversation_id;
+ await pool.query("DELETE FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,business]);
+ let last:{claimed:number;submitted:number;skipped:number;retried:number;failed:number}|null=null;
+ for(let attempt=1;attempt<=8;attempt++){
+  await pool.query("UPDATE business_campaign_jobs SET available_at=now() WHERE id=$1",[jobId]);
+  last=await campaigns.processBatch(store,1);
+  const state=await pool.query("SELECT status,attempt_count FROM business_campaign_jobs WHERE id=$1",[jobId]);
+  assert.equal(state.rows[0]!.attempt_count,attempt);
+  assert.equal(state.rows[0]!.status,attempt===8?"failed":"queued");
+ }
+ assert.equal(last!.failed,1);
+ await pool.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES($1,$2)",[conversation,business]);
+});
