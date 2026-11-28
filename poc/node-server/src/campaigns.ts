@@ -115,7 +115,8 @@ export class CampaignStore {
   const jobs=await this.claimJobs(limit,60000);let submitted=0,skipped=0,retried=0,failed=0;
   for(const job of jobs){
    try{
-    const dispatchState=await this.mayDispatch(job);if(dispatchState!=="ready"){if(dispatchState==="cancelled")skipped++;continue;}\n    const message=await store.send(job.business_account_id,job.conversation_id,job.operation_key,job.body,null,null,"business_offer");
+    const dispatchState=await this.mayDispatch(job);if(dispatchState!=="ready"){if(dispatchState==="cancelled")skipped++;continue;}
+    const message=await store.send(job.business_account_id,job.conversation_id,job.operation_key,job.body,null,null,"business_offer");
     await this.attachMessage(job.id,job.lease_token,message.message_id);submitted++;
    }catch(error){
     if(error instanceof ForbiddenError){
