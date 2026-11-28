@@ -188,6 +188,17 @@ CREATE TABLE IF NOT EXISTS crm_customers (
 );
 CREATE INDEX IF NOT EXISTS crm_customers_account_status_idx
   ON crm_customers(business_account_id,status,updated_at DESC);
+CREATE TABLE IF NOT EXISTS business_campaigns (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  title TEXT NOT NULL CHECK (char_length(title) BETWEEN 1 AND 100),
+  body TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 4000),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS business_campaigns_owner_idx ON business_campaigns(business_account_id,updated_at DESC);
+
 CREATE TABLE IF NOT EXISTS crm_notes (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   customer_id TEXT NOT NULL REFERENCES crm_customers(id) ON DELETE CASCADE,
