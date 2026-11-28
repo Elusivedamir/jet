@@ -84,6 +84,9 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_class TEXT NOT NULL DEFAUL
 ALTER TABLE recipient_inbox ADD COLUMN IF NOT EXISTS folder TEXT NOT NULL DEFAULT 'primary' CHECK (folder IN ('primary','business_offers'));
 CREATE INDEX IF NOT EXISTS recipient_inbox_cursor_idx ON recipient_inbox(recipient_id, conversation_id, position);
 CREATE INDEX IF NOT EXISTS recipient_inbox_folder_cursor_idx ON recipient_inbox(recipient_id,folder,created_at DESC,message_id DESC);
+ALTER TABLE delivery_outbox DROP CONSTRAINT IF EXISTS delivery_outbox_state_check;
+ALTER TABLE delivery_outbox ADD CONSTRAINT delivery_outbox_state_check
+  CHECK (state IN ('pending','processing','retry_wait','completed','cancelled','terminal_failure'));
 CREATE INDEX IF NOT EXISTS delivery_outbox_pending_idx ON delivery_outbox(state, available_at, lease_until, id);
 CREATE INDEX IF NOT EXISTS messages_conversation_position_idx ON messages(conversation_id, position);
 
