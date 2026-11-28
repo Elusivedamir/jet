@@ -78,6 +78,12 @@ export class ConsentStore {
     const c=await this.pool.connect();
     try {
       await c.query("BEGIN");
+      const low=recipientId<businessAccountId?recipientId:businessAccountId;
+      const high=recipientId<businessAccountId?businessAccountId:recipientId;
+      const contact=await c.query(
+        "SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2 FOR KEY SHARE",[low,high]
+      );
+      if(!contact.rowCount) throw new ConsentError("not_found");
       if(granted) {
         const preference=await c.query(
           "SELECT 1 FROM business_offer_preferences WHERE account_id=$1 AND enabled=TRUE FOR SHARE",
@@ -85,12 +91,6 @@ export class ConsentStore {
         );
         if(!preference.rowCount) throw new ConsentError("preference_disabled");
       }
-      const low=recipientId<businessAccountId?recipientId:businessAccountId;
-      const high=recipientId<businessAccountId?businessAccountId:recipientId;
-      const contact=await c.query(
-        "SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2 FOR KEY SHARE",[low,high]
-      );
-      if(!contact.rowCount) throw new ConsentError("not_found");
       const status=granted?"granted":"revoked";
       const source="user_settings";
       const state=await c.query<{version:string}>(
