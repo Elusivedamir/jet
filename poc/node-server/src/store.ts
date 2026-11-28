@@ -83,8 +83,10 @@ export class Store {
           [sender,recipient]
         );
         if (!lockedContact.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
-        const crmCustomer = await c.query("SELECT 1 FROM crm_customers WHERE business_account_id=$1 AND person_id=$2 AND status<>'archived' FOR SHARE",[sender,recipient]);
-        if (!crmCustomer.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
+        if(key.startsWith("campaign:")) {
+          const crmCustomer = await c.query("SELECT 1 FROM crm_customers WHERE business_account_id=$1 AND person_id=$2 AND status<>'archived' FOR SHARE",[sender,recipient]);
+          if (!crmCustomer.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
+        }
       }
       const counter = await c.query<{last_position:string}>(
         "INSERT INTO conversation_counters(conversation_id,last_position) VALUES($1,1) ON CONFLICT(conversation_id) DO UPDATE SET last_position=conversation_counters.last_position+1 RETURNING last_position",
@@ -178,7 +180,7 @@ export class Store {
       );
       if(lease.rowCount!==1) throw new Error("outbox lease lost");
       const message=await c.query<{sender_id:string;conversation_id:string;message_class:string;deleted_at:Date|null}>(
-        "SELECT sender_id,conversation_id,message_class,deleted_at FROM messages WHERE id=$1 FOR SHARE",
+        "SELECT sender_id,conversation_id,message_class,deleted_at,operation_key FROM messages WHERE id=$1 FOR SHARE",
         [item.message_id]
       );
       if(message.rowCount!==1) throw new Error("outbox message missing");
@@ -207,8 +209,10 @@ export class Store {
             );
             if(!contact.rowCount) cancelReason="business_offer_contact_removed";
             else {
-              const crmCustomer=await c.query("SELECT 1 FROM crm_customers WHERE business_account_id=$1 AND person_id=$2 AND status<>'archived' FOR SHARE",[row.sender_id,item.recipient_id]);
-              if(!crmCustomer.rowCount) cancelReason="business_offer_customer_archived";
+              if(message.rows[0]!.operation_key.startsWith("campaign:")) {
+                const crmCustomer=await c.query("SELECT 1 FROM crm_customers WHERE business_account_id=$1 AND person_id=$2 AND status<>'archived' FOR SHARE",[row.sender_id,item.recipient_id]);
+                if(!crmCustomer.rowCount) cancelReason="business_offer_customer_archived";
+              }
             }
           }
         }
