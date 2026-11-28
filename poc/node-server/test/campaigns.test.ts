@@ -74,6 +74,7 @@ test("campaign drafts are editable only by their owner and only before enqueue",
  await assert.rejects(()=>campaigns.updateDraft(business,draft.id,"Too late","No mutation"),e=>e instanceof CampaignError&&e.code==="conflict");
  const unchanged=await campaigns.statusSummary(business,draft.id);
  assert.equal(unchanged.campaign.title,"Updated title");assert.equal(unchanged.campaign.body,"Updated body");
+ await campaigns.cancelCampaign(business,draft.id);
 });
 
 test("campaign cancellation is owner-scoped, idempotent and fences not-yet-started work",async()=>{
@@ -97,7 +98,9 @@ test("campaign cancellation is owner-scoped, idempotent and fences not-yet-start
  assert.equal(fenced.rows[0]!.status,"cancelled");
  const campaign=await pool.query("SELECT status FROM business_campaigns WHERE id=$1",[leasedDraft.id]);
  assert.equal(campaign.rows[0]!.status,"cancelled");
- await assert.rejects(()=>campaigns.cancelCampaign(business,campaignId),e=>e instanceof CampaignError&&e.code==="conflict");
+ const completedDraft=await campaigns.createDraft(business,"Already completed","Terminal campaign");
+ await pool.query("UPDATE business_campaigns SET status='completed' WHERE id=$1",[completedDraft.id]);
+ await assert.rejects(()=>campaigns.cancelCampaign(business,completedDraft.id),e=>e instanceof CampaignError&&e.code==="conflict");
 });
 
 test("campaign enqueue fails closed without entitlement and is idempotent per recipient",async()=>{
