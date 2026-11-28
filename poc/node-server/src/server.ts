@@ -5,12 +5,14 @@ import { Store, ConflictError, NotMemberError, ForbiddenError, InvalidRequestErr
 import { AuthStore, AuthError } from "./auth.js";
 import { ContactsStore, ContactError } from "./contacts.js";
 import { ChannelsStore, ChannelError } from "./channels.js";
+import { CrmStore, CrmError } from "./crm.js";
 
 const pool = new Pool({connectionString:process.env.DATABASE_URL});
 const store = new Store(pool);
 const auth = new AuthStore(pool);
 const contacts = new ContactsStore(pool);
 const channels = new ChannelsStore(pool);
+const crm = new CrmStore(pool);
 const schema = await (await import("node:fs/promises")).readFile(new URL("../schema.sql",import.meta.url),"utf8");
 for (const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
 const abort = new AbortController();
@@ -81,6 +83,26 @@ const server=createServer(async(req,res)=>{
       const token=bearer(req);
       if(token)await auth.logout(token);
       res.writeHead(204,{"cache-control":"no-store"});res.end();return;
+    }
+    if(req.method==="GET" && url.pathname==="/v1/business/customers") {
+      json(res,200,await crm.listCustomers(user));return;
+    }
+    if(req.method==="POST" && url.pathname==="/v1/business/customers") {
+      const input=await body(req);
+      json(res,201,await crm.createCustomer(user,requiredString(input,"username",24)));return;
+    }
+    const crmNotes=url.pathname.match(/^\\/v1\\/business\\/customers\\/([^/]+)\\/notes$/);
+    if(req.method==="GET" && crmNotes) {
+      json(res,200,await crm.listNotes(user,decodeURIComponent(crmNotes[1]!)));return;
+    }
+    if(req.method==="POST" && crmNotes) {
+      const input=await body(req);
+      json(res,201,await crm.addNote(user,decodeURIComponent(crmNotes[1]!),requiredString(input,"body",4000)));return;
+    }
+    const crmCustomer=url.pathname.match(/^\\/v1\\/business\\/customers\\/([^/]+)$/);
+    if(req.method==="PATCH" && crmCustomer) {
+      const input=await body(req);
+      json(res,200,await crm.updateStatus(user,decodeURIComponent(crmCustomer[1]!),requiredString(input,"status",24)));return;
     }
     if(req.method==="GET" && url.pathname==="/v1/users/search") {
       const q=url.searchParams.get("q")??"";
@@ -275,6 +297,12 @@ const server=createServer(async(req,res)=>{
     }
     json(res,404,{error:"not found"});
   } catch(e) {
+    if(e instanceof CrmError) {
+      if(e.code==="invalid") json(res,400,{error:"invalid CRM request"});
+      else if(e.code==="forbidden") json(res,403,{error:"CRM operation not permitted"});
+      else json(res,404,{error:"CRM customer not found"});
+    }
+    else if(e instanceof ChannelError) {
     if(e instanceof ChannelError) {
       if(e.code==="invalid") json(res,400,{error:"invalid channel data"});
       else if(e.code==="exists") json(res,409,{error:"channel slug unavailable"});
