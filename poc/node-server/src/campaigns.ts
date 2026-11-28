@@ -32,7 +32,7 @@ export class CampaignStore {
    if(q.rowCount!==1)throw new CampaignError("not_found");
    const campaign=q.rows[0]!;
    if(campaign.status!=="draft"){
-    if(campaign.status==="queued"&&campaign.enqueue_key===key){
+    if(["queued","sending","completed"].includes(campaign.status)&&campaign.enqueue_key===key){
      const n=await c.query<{queued:number;skipped:number}>("SELECT count(*) FILTER(WHERE status IN ('queued','processing','delivery_pending','sent'))::int AS queued,count(*) FILTER(WHERE status='skipped')::int AS skipped FROM business_campaign_jobs WHERE campaign_id=$1",[campaignId]);
      await c.query("COMMIT");return {campaign_id:campaignId,queued:n.rows[0]!.queued,skipped:n.rows[0]!.skipped,replayed:true};
     }throw new CampaignError("conflict");

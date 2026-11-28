@@ -2,7 +2,7 @@
 
 **Draft — internal worker implementation exists; no public enqueue/send endpoint is authorized.**
 
-**Status:** partial implementation in Node.js/TypeScript PoC; not production-ready.  
+**Status:** partial implementation in Node.js/TypeScript PoC; not production-ready. Sections 3–6 describe the original proposal; the dated implementation progress below records the current behavior and supersedes proposal statements that conflict.  
 **Primary implementation target:** Node.js + TypeScript with PostgreSQL.  
 **Current product/API boundary:** drafts and audience preview are public; enqueue and dispatch are internal primitives only. No public mass-send endpoint exists.
 

@@ -130,3 +130,16 @@ test("campaign worker stops retrying after eight transient failures",async()=>{
  assert.equal(last!.failed,1);
  await pool.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES($1,$2)",[conversation,business]);
 });
+
+test("campaign enqueue idempotency key remains replayable after worker claims the job",async()=>{
+ const draft=await campaigns.createDraft(business,"Replay while sending","Idempotency across state transitions");
+ const first=await campaigns.enqueueDraft(business,draft.id,"stable-enqueue-key");
+ assert.equal(first.queued,1);
+ const claimed=await campaigns.claimJobs(1);
+ assert.equal(claimed.length,1);
+ const replay=await campaigns.enqueueDraft(business,draft.id,"stable-enqueue-key");
+ assert.equal(replay.replayed,true);
+ assert.equal(replay.queued,1);
+ const jobs=await pool.query("SELECT count(*)::int AS n FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id]);
+ assert.equal(jobs.rows[0]!.n,1);
+});
