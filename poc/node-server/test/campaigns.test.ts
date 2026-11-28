@@ -143,6 +143,17 @@ test("campaign leases fence stale workers and reconcile only a delivery-pending 
  const state=await pool.query("SELECT status FROM business_campaign_jobs WHERE id=$1",[job.id]);assert.equal(state.rows[0]!.status,"sent");
 });
 
+test("current lease token may attach a committed message after expiry unless a new worker took over",async()=>{
+ const draft=await campaigns.createDraft(business,"Attach after expiry","Token remains the fencing authority");
+ await campaigns.enqueueDraft(business,draft.id,"attach-after-expiry");
+ const job=(await campaigns.claimJobs(1,1000))[0]!;assert.ok(job);
+ const message=await store.send(job.business_account_id,job.conversation_id,job.operation_key,job.body,null,null,"business_offer");
+ await pool.query("UPDATE business_campaign_jobs SET lease_until=now()-interval '1 second' WHERE id=$1",[job.id]);
+ await campaigns.attachMessage(job.id,job.lease_token,message.message_id);
+ const state=await pool.query("SELECT status,message_id FROM business_campaign_jobs WHERE id=$1",[job.id]);
+ assert.equal(state.rows[0]!.status,"delivery_pending");assert.equal(state.rows[0]!.message_id,message.message_id);
+});
+
 test("campaign worker sends through the message outbox and reconciles after inbox delivery",async()=>{
  const draft=await campaigns.createDraft(business,"Worker integration","Campaign message");
  const queued=await campaigns.enqueueDraft(business,draft.id,"worker-once");
