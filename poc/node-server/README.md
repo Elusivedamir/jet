@@ -77,6 +77,14 @@ Direct and multi-recipient conversation fan-out are supported by this PoC. Reque
 - Customer cards can only be created for accepted contacts. Customer and note queries are scoped to the authenticated business account; another account cannot read or modify the card.
 - This is the first CRM data slice only. Business subscription entitlement, team roles, custom fields, segmentation, campaigns and billing are not implemented. Consent and recipient preference controls are documented separately below. No campaign dispatch is exposed by this API.
 
+## Business campaign drafts and audience preview (PoC)
+
+- Create a draft only: `POST /v1/business/campaigns` with JSON `{"title":"Spring update","body":"Draft message text"}`. Title is 1–100 characters; body is 1–4000 characters.
+- List drafts owned by the authenticated business account: `GET /v1/business/campaigns`.
+- Preview a draft's CRM audience: `GET /v1/business/campaigns/{campaign_id}/preview`. The response separates eligible and excluded recipients and gives exclusion reasons: `global_preference_off`, `business_consent_missing`, or `contact_not_accepted`.
+- Preview is a point-in-time estimate, not a reservation or send authorization. Consent may change immediately afterward; any future dispatcher must recheck and lock eligibility inside the same transaction that creates durable delivery intents.
+- Campaigns are draft-only. There is deliberately no edit, schedule, enqueue, send, retry or external-channel endpoint yet. No message is sent by creating or previewing a draft. Subscription entitlement and billing are not enforced in this PoC.
+
 ## Contacts and personal conversations
 
 - Search users by username or display-name prefix: `GET /v1/users/search?q=bo` (minimum two characters; results are limited to 20 and exclude the current account).
