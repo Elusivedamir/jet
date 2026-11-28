@@ -1,0 +1,208 @@
+import { after, before, test } from "node:test";
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import pg from "pg";
+const { Pool } = pg;
+import { ContactsStore, ContactError } from "../src/contacts.js";
+import { Store, ForbiddenError } from "../src/store.js";
+import { ChannelsStore, ChannelError } from "../src/channels.js";
+
+const pool = new Pool({ connectionString: process.env.TEST_DATABASE_URL });
+const contacts = new ContactsStore(pool);
+const alice = randomUUID();
+const bob = randomUUID();
+const carol = randomUUID();
+const dave = randomUUID();
+
+before(async () => {
+  const schema = await readFile(new URL("../schema.sql", import.meta.url), "utf8");
+  for (const statement of schema.split(";").map(s => s.trim()).filter(Boolean)) await pool.query(statement);
+  await pool.query("TRUNCATE contact_requests,contacts,direct_conversations,delivery_receipts,recipient_inbox,delivery_outbox,messages,conversation_counters,conversation_members,conversations,sessions,accounts CASCADE");
+  await pool.query(
+    "INSERT INTO accounts(id,username,password_hash,display_name) VALUES($1,'alice','test-hash','Alice Example'),($2,'bob','test-hash','Bob Example'),($3,'carol','test-hash','Carol Example'),($4,'dave','test-hash','Dave Example')",
+    [alice,bob,carol,dave]
+  );
+});
+after(async () => pool.end());
+
+test("user search, contact request, acceptance and direct conversation lifecycle", async () => {
+  const search = await contacts.search(alice, "bo");
+  assert.deepEqual(search.map(user => user.username), ["bob"]);
+  await assert.rejects(() => contacts.search(alice, "b"), error => error instanceof ContactError && error.code === "invalid");
+
+  const request = await contacts.request(alice, "BOB");
+  assert.equal(request.requester_id, alice);
+  assert.equal(request.recipient_id, bob);
+  const incoming = await contacts.requests(bob);
+  assert.equal(incoming.incoming.length, 1);
+  assert.equal(incoming.outgoing.length, 0);
+  await assert.rejects(() => contacts.request(bob, "alice"), error => error instanceof ContactError && error.code === "reverse_pending");
+  await assert.rejects(() => contacts.accept(alice, request.id), error => error instanceof ContactError && error.code === "not_recipient");
+
+  const accepted = await contacts.accept(bob, request.id);
+  assert.equal(accepted.contact.id, alice);
+  assert.ok(accepted.conversation_id);
+  assert.deepEqual((await contacts.list(alice)).map(user => user.id), [bob]);
+  assert.deepEqual((await contacts.list(bob)).map(user => user.id), [alice]);
+  assert.equal(await contacts.directConversation(alice, "bob"), accepted.conversation_id);
+  assert.equal(await contacts.directConversation(bob, "alice"), accepted.conversation_id);
+
+  const members = await pool.query(
+    "SELECT account_id FROM conversation_members WHERE conversation_id=$1 ORDER BY account_id",
+    [accepted.conversation_id]
+  );
+  assert.deepEqual(members.rows.map(row => row.account_id), [alice,bob].sort());
+  await new Store(pool).send(alice, accepted.conversation_id, "inbox-preview-1", "Hello from Alice");
+  const inbox = await contacts.conversations(bob);
+  assert.equal(inbox.length, 1);
+  assert.equal(inbox[0]!.conversation_id, accepted.conversation_id);
+  const peer = inbox[0]!.peer;
+  assert.ok(peer);
+  assert.equal(peer.username, "alice");
+  assert.equal(inbox[0]!.last_message, "Hello from Alice");
+  assert.equal(inbox[0]!.last_position, "1");
+
+  const carolRequest = await contacts.request(alice, "carol");
+  const carolAccepted = await contacts.accept(carol, carolRequest.id);
+  // A cancelled business offer has a message row but no recipient-inbox row.
+  // It must not appear in the recipient's latest-message conversation preview.
+  const offerPosition = await pool.query<{last_position:string}>(
+    "INSERT INTO conversation_counters(conversation_id,last_position) VALUES($1,1) ON CONFLICT(conversation_id) DO UPDATE SET last_position=conversation_counters.last_position+1 RETURNING last_position",
+    [carolAccepted.conversation_id]
+  );
+  const cancelledOfferId = randomUUID();
+  await pool.query(
+    "INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position,message_class) VALUES($1,$2,$3,$4,$5,$6,'business_offer')",
+    [cancelledOfferId,carolAccepted.conversation_id,alice,"cancelled-preview-offer","must stay hidden",offerPosition.rows[0]!.last_position]
+  );
+  await pool.query(
+    "INSERT INTO delivery_outbox(message_id,recipient_id,state,last_error,completed_at) VALUES($1,$2,'cancelled','business_offer_consent_revoked',now())",
+    [cancelledOfferId,carol]
+  );
+  const carolDirectPreview = (await contacts.conversations(carol)).find(row=>row.conversation_id===carolAccepted.conversation_id);
+  assert.equal(carolDirectPreview?.last_message,null);
+  assert.equal(carolDirectPreview?.last_position,"0");
+  const group = await contacts.createGroup(alice, "Project team", ["bob","carol"]);
+  assert.equal(group.title, "Project team");
+  assert.equal(group.members_count, 3);
+  await assert.rejects(
+    () => contacts.createGroup(alice, "Not allowed", ["dave"]),
+    error => error instanceof ContactError && error.code === "not_found"
+  );
+  const groupMessage = await new Store(pool).send(alice, group.conversation_id, "group-message-1", "Hello team");
+  const groupMembers = await pool.query(
+    "SELECT account_id FROM conversation_members WHERE conversation_id=$1 ORDER BY account_id",
+    [group.conversation_id]
+  );
+  assert.deepEqual(groupMembers.rows.map(row => row.account_id), [alice,bob,carol].sort());
+  const conversations = await contacts.conversations(alice);
+  const groupEntry = conversations.find(row => row.conversation_id === group.conversation_id);
+  assert.equal(groupEntry?.kind, "group");
+  assert.equal(groupEntry?.title, "Project team");
+  assert.equal(groupEntry?.peer, null);
+  assert.equal(groupEntry?.members_count, 3);
+  const pendingDeliveries = await new Store(pool).claim(20,5000);
+  for (const item of pendingDeliveries) await new Store(pool).dispatch(item);
+  assert.ok((await new Store(pool).inbox(bob,group.conversation_id,0)).some(row => row.message_id === groupMessage.message_id));
+  assert.ok((await new Store(pool).inbox(carol,group.conversation_id,0)).some(row => row.message_id === groupMessage.message_id));
+
+  const daveRequest = await contacts.request(alice, "dave");
+  await contacts.accept(dave, daveRequest.id);
+  const added = await contacts.addGroupMembers(alice, group.conversation_id, ["dave"]);
+  assert.deepEqual(added, {added:1,members_count:4});
+  assert.deepEqual(await contacts.addGroupMembers(alice, group.conversation_id, ["dave"]), {added:0,members_count:4});
+  await assert.rejects(
+    () => contacts.addGroupMembers(bob, group.conversation_id, ["dave"]),
+    error => error instanceof ContactError && error.code === "forbidden"
+  );
+  await assert.rejects(
+    () => contacts.removeGroupMember(bob, group.conversation_id, "dave"),
+    error => error instanceof ContactError && error.code === "forbidden"
+  );
+  await assert.rejects(
+    () => contacts.renameGroup(bob, group.conversation_id, "Hijacked"),
+    error => error instanceof ContactError && error.code === "forbidden"
+  );
+  await contacts.removeGroupMember(alice, group.conversation_id, "dave");
+  await contacts.renameGroup(alice, group.conversation_id, "Project team v2");
+  await assert.rejects(
+    () => contacts.leaveGroup(alice, group.conversation_id),
+    error => error instanceof ContactError && error.code === "forbidden"
+  );
+  await contacts.leaveGroup(carol, group.conversation_id);
+  assert.ok(!(await contacts.conversations(carol)).some(row => row.conversation_id === group.conversation_id));
+  const remainingMembers = await pool.query(
+    "SELECT account_id FROM conversation_members WHERE conversation_id=$1 ORDER BY account_id",
+    [group.conversation_id]
+  );
+  assert.deepEqual(remainingMembers.rows.map(row => row.account_id), [alice,bob].sort());
+  assert.equal((await contacts.conversations(alice)).find(row => row.conversation_id===group.conversation_id)?.title,"Project team v2");
+
+  const channelStore = new ChannelsStore(pool);
+  const publicChannel = await channelStore.create(alice, "Jetson updates", "jetson_updates", "public", "Official project updates");
+  assert.equal(publicChannel.invite_code, null);
+  assert.ok((await channelStore.search("jet")).some(row => row.conversation_id === publicChannel.conversation_id));
+  await assert.rejects(
+    () => channelStore.leave(alice, "jetson_updates"),
+    error => error instanceof ChannelError && error.code === "forbidden"
+  );
+  const joined = await channelStore.join(bob, "jetson_updates");
+  assert.equal(joined.role, "subscriber");
+  await assert.rejects(
+    () => new Store(pool).send(bob, publicChannel.conversation_id, "subscriber-post", "I should not publish"),
+    error => error instanceof ForbiddenError
+  );
+  await assert.rejects(
+    () => channelStore.addAdmin(bob, "jetson_updates", "carol"),
+    error => error instanceof ChannelError && error.code === "forbidden"
+  );
+  await channelStore.addAdmin(alice, "jetson_updates", "bob");
+  const adminMessage = await new Store(pool).send(bob, publicChannel.conversation_id, "admin-post-1", "Admin announcement");
+  const channelMessage = await new Store(pool).send(alice, publicChannel.conversation_id, "channel-post-1", "Official announcement");
+  const channelDeliveries = await new Store(pool).claim(20,5000);
+  for (const item of channelDeliveries) await new Store(pool).dispatch(item);
+  assert.ok((await new Store(pool).inbox(bob,publicChannel.conversation_id,0)).some(row => row.message_id === channelMessage.message_id));
+  assert.ok((await new Store(pool).inbox(alice,publicChannel.conversation_id,0)).some(row => row.message_id === adminMessage.message_id));
+  const channelInbox = await contacts.conversations(bob);
+  const channelEntry = channelInbox.find(row => row.conversation_id === publicChannel.conversation_id);
+  assert.equal(channelEntry?.kind, "channel");
+  assert.equal(channelEntry?.title, "Jetson updates");
+  assert.equal(channelEntry?.members_count, 2);
+
+  const privateChannel = await channelStore.create(alice, "Private notes", "private_notes", "private", "Invite only");
+  assert.ok(privateChannel.invite_code);
+  assert.ok(!(await channelStore.search("pri")).some(row => row.conversation_id === privateChannel.conversation_id));
+  await assert.rejects(
+    () => channelStore.join(carol, "private_notes"),
+    error => error instanceof ChannelError && error.code === "not_found"
+  );
+  const privateJoin = await channelStore.join(carol, "private_notes", privateChannel.invite_code!);
+  assert.equal(privateJoin.role, "subscriber");
+  await channelStore.leave(carol, "private_notes");
+  assert.ok(!(await contacts.conversations(carol)).some(row => row.conversation_id === privateChannel.conversation_id));
+  await assert.rejects(
+    () => channelStore.leave(carol, "private_notes"),
+    error => error instanceof ChannelError && error.code === "not_found"
+  );
+  await assert.rejects(() => contacts.request(alice, "bob"), error => error instanceof ContactError && error.code === "already_contact");
+  assert.equal(await contacts.directConversation(carol, "alice"), carolAccepted.conversation_id);
+
+  const reciprocal = await Promise.allSettled([
+    contacts.request(carol, "dave"),
+    contacts.request(dave, "carol")
+  ]);
+  assert.equal(reciprocal.filter(result => result.status === "fulfilled").length, 1);
+  const rejected = reciprocal.find(result => result.status === "rejected");
+  assert.ok(rejected && rejected.status === "rejected");
+  assert.ok(rejected.reason instanceof ContactError && rejected.reason.code === "reverse_pending");
+  const pendingRequest = reciprocal.find(result => result.status === "fulfilled");
+  assert.ok(pendingRequest && pendingRequest.status === "fulfilled");
+  await assert.rejects(
+    () => contacts.decline(pendingRequest.value.requester_id, pendingRequest.value.id),
+    error => error instanceof ContactError && error.code === "not_recipient"
+  );
+  await contacts.decline(pendingRequest.value.recipient_id, pendingRequest.value.id);
+  assert.equal((await contacts.requests(pendingRequest.value.requester_id)).outgoing.length, 0);
+  assert.equal((await contacts.requests(pendingRequest.value.recipient_id)).incoming.length, 0);
+});

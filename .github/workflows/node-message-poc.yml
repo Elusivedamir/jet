@@ -1,0 +1,114 @@
+name: Node TypeScript message PoC
+on:
+  push:
+    branches:
+      - "poc/realtime-delivery-and-polyglot-2026-11-27"
+    paths:
+      - "poc/node-server/**"
+      - "poc/shared/**"
+      - ".github/workflows/node-message-poc.yml"
+  pull_request:
+    paths:
+      - "poc/node-server/**"
+      - "poc/shared/**"
+      - ".github/workflows/node-message-poc.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: jetson-poc-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17.12
+        env:
+          POSTGRES_USER: jetson
+          POSTGRES_PASSWORD: jetson_test_only
+          POSTGRES_DB: jetson_poc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jetson -d jetson_poc"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: poc/node-server
+    env:
+      TEST_DATABASE_URL: postgres://jetson:jetson_test_only@localhost:5432/jetson_poc?sslmode=disable
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: poc/node-server/.nvmrc
+      - name: Reproducible clean install from committed lockfile
+        run: |
+          test -s package-lock.json
+          npm ci --no-audit --no-fund
+          git diff --exit-code -- package.json package-lock.json
+      - name: Build and PostgreSQL integration tests
+        run: npm test
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Build direct server executable
+        run: npm run build
+      - name: Reject spoofed test identity in production mode
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          PORT: "8083"
+          NODE_ENV: production
+          JETSON_ALLOW_TEST_IDENTITY: "true"
+        run: |
+          node dist/src/server.js > /tmp/jet-node-auth-guard.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 40); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8083/healthz; then break; fi
+            sleep 0.25
+          done
+          status=$(curl -sS -o /tmp/jet-node-auth-guard-response.json -w "%{http_code}" \
+            -H "X-Test-Account: alice" \
+            "http://127.0.0.1:8083/v1/conversations/any-room/messages?after=0")
+          test "$status" = "401"
+          grep -q '"authentication required"' /tmp/jet-node-auth-guard-response.json
+      - name: Hard crash/restart, shared contract and benchmark
+        env:
+          PORT: "8081"
+          NODE_ENV: test
+          JETSON_ALLOW_TEST_IDENTITY: "true"
+        run: |
+          python3 ../../poc/shared/crash_recovery_harness.py \
+            --database-url "$TEST_DATABASE_URL" \
+            --base-url http://127.0.0.1:8081 \
+            --contract-harness ../../poc/shared/contract_harness.py \
+            --output /tmp/node-crash-recovery.json \
+            --log /tmp/jet-node-server.log \
+            --rounds 5 --per-round 100 \
+            --server-command node dist/src/server.js
+      - name: Dependency audit and license inventory
+        run: |
+          npm audit --audit-level=low --json > /tmp/node-npm-audit.json
+          npx --yes license-checker@25.0.1 --onlyAllow "MIT;ISC;Apache-2.0" --excludePackages "jetson-node-message-poc@0.1.0" --json --out /tmp/node-license-report.json
+          npx --yes @cyclonedx/cyclonedx-npm@1.19.0 --output-file /tmp/node-sbom.json
+      - name: Trivy filesystem vulnerability and license report
+        run: |
+          docker run --rm -v "$PWD:/workspace" -v /tmp:/reports aquasec/trivy:0.58.2 fs --scanners vuln,license --exit-code 1 --severity HIGH,CRITICAL --format json --output /reports/node-trivy-report.json /workspace
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: node-message-poc-evidence
+          path: |
+            /tmp/node-crash-recovery.json
+            /tmp/jet-node-server.log
+            /tmp/jet-node-auth-guard.log
+            /tmp/jet-node-auth-guard-response.json
+            /tmp/node-npm-audit.json
+            /tmp/node-license-report.json
+            /tmp/node-sbom.json
+            /tmp/node-trivy-report.json
+            poc/node-server/package-lock.json

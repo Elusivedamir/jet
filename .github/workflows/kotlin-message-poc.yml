@@ -1,0 +1,98 @@
+name: Kotlin Spring message PoC
+on:
+  push:
+    branches:
+      - "poc/realtime-delivery-and-polyglot-2026-11-27"
+    paths:
+      - "poc/kotlin-server/**"
+      - "poc/shared/**"
+      - ".github/workflows/kotlin-message-poc.yml"
+  pull_request:
+    paths:
+      - "poc/kotlin-server/**"
+      - "poc/shared/**"
+      - ".github/workflows/kotlin-message-poc.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: jetson-poc-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:17.12
+        env:
+          POSTGRES_USER: jetson
+          POSTGRES_PASSWORD: jetson_test_only
+          POSTGRES_DB: jetson_poc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jetson -d jetson_poc"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: poc/kotlin-server
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/jetson_poc
+      SPRING_DATASOURCE_USERNAME: jetson
+      SPRING_DATASOURCE_PASSWORD: jetson_test_only
+      TEST_DATABASE_URL: postgres://jetson:jetson_test_only@localhost:5432/jetson_poc?sslmode=disable
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "21.0.13"
+          cache: maven
+      - name: Compile, verify checksums and run PostgreSQL integration tests
+        run: mvn -B -C verify
+      - name: Capture resolved dependency graph
+        run: mvn -B -C org.apache.maven.plugins:maven-dependency-plugin:3.8.1:tree -DoutputType=json -DoutputFile=/tmp/kotlin-dependency-tree.json
+      - name: Enforce committed Maven dependency graph
+        run: python3 ../../poc/shared/check_maven_dependency_lock.py --tree /tmp/kotlin-dependency-tree.json --lock dependency-versions.lock
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Hard crash/restart, shared contract and benchmark
+        env:
+          SERVER_PORT: "8082"
+        run: |
+          python3 ../../poc/shared/crash_recovery_harness.py \
+            --database-url "$TEST_DATABASE_URL" \
+            --base-url http://127.0.0.1:8082 \
+            --contract-harness ../../poc/shared/contract_harness.py \
+            --output /tmp/kotlin-crash-recovery.json \
+            --log /tmp/jet-kotlin-server.log \
+            --rounds 5 --per-round 100 \
+            --server-command java -jar target/kotlin-message-server-0.1.0.jar
+      - name: Generate third-party license inventory
+        run: |
+          mvn -B -C org.codehaus.mojo:license-maven-plugin:2.5.0:aggregate-third-party-report -Dlicense.outputDirectory=/tmp/kotlin-licenses
+          mkdir -p /tmp/kotlin-licenses
+          find target -type f \( -iname 'THIRD-PARTY.txt' -o -iname '*third-party*.txt' \) -exec cp {} /tmp/kotlin-licenses/ \;
+          find /tmp/kotlin-licenses -type f -print
+      - name: Generate CycloneDX SBOM
+        run: mvn -B -C org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeBom -DoutputFormat=json -DoutputName=kotlin-sbom -DoutputDirectory=/tmp
+      - name: Trivy filesystem vulnerability and license report
+        run: |
+          docker run --rm -v "$PWD:/workspace" -v /tmp:/reports aquasec/trivy:0.58.2 fs --scanners vuln,license --exit-code 1 --severity HIGH,CRITICAL --format json --output /reports/kotlin-trivy-report.json /workspace
+      - name: Enforce conservative CycloneDX license policy
+        run: python3 ../../poc/shared/license_policy_check.py --sbom /tmp/kotlin-sbom.json --output /tmp/kotlin-license-policy.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: kotlin-message-poc-evidence
+          path: |
+            /tmp/kotlin-crash-recovery.json
+            /tmp/jet-kotlin-server.log
+            /tmp/kotlin-dependency-tree.json
+            /tmp/kotlin-sbom.json
+            /tmp/kotlin-licenses/**
+            /tmp/kotlin-license-policy.json
+            /tmp/kotlin-trivy-report.json

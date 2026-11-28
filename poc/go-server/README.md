@@ -5,6 +5,7 @@
 ## What this slice implements
 
 - PostgreSQL schema for direct conversations, membership, ordered messages and durable per-recipient outbox intents.
+- Committed `go.sum`; CI verifies it with `go mod tidy -diff` and `go mod verify` without changing the dependency graph.
 - Sender-scoped idempotency key serialized with a PostgreSQL transaction advisory lock.
 - Atomic transaction for message identity, conversation position and delivery intent.
 - HTTP acceptance response only after commit.
@@ -15,7 +16,7 @@
 ## What it deliberately does not implement
 
 - Real authentication, password/session management or authorization policy beyond test membership.
-- WebSocket/SSE delivery, outbox worker/lease fencing, device acknowledgement or reconnect client.
+- Real authentication, password/session management, production authorization policy or device-level push.
 - Production migrations, schema versioning, encryption/E2EE, rate limiting, abuse controls, observability or deployment.
 - Group conversations; a send is rejected unless there is exactly one recipient besides the sender.
 
@@ -23,7 +24,7 @@ Do not expose this service to the public internet. The test identity header is t
 
 ## Run locally
 
-Requires Go 1.24+ and PostgreSQL 17 (or compatible PostgreSQL).
+Requires Go 1.26.11+ and PostgreSQL 17 (or compatible PostgreSQL). The current candidate pins `pgx/v5` 5.9.2 and `golang.org/x/text` 0.41.0 to address advisories found by the first govulncheck pass.
 
 ```sh
 export DATABASE_URL='postgres://jetson:jetson_test_only@localhost:5432/jetson_poc?sslmode=disable'
@@ -55,4 +56,14 @@ Test fixtures must create the conversation and membership rows first. The integr
 
 An HTTP 202 is emitted only after the transaction commits message + sequence + outbox rows. If the connection drops after commit but before the response, retrying the same sender/key/payload/conversation returns the original message. Reusing the same sender/key with another payload or conversation conflicts. Different senders have independent key scopes.
 
-The outbox is durable but not yet consumed. This prototype therefore proves persistence and recoverable delivery intent, **not recipient delivery**.
+The worker consumes the durable outbox into a PostgreSQL recipient inbox. This proves durable server-side inbox creation and resumable SSE retrieval, **not device display or push notification delivery**.
+
+
+## Recipient delivery extension
+
+The worker claims pending/expired items with SKIP LOCKED, assigns an expiring lease and fencing token, and writes a durable recipient_inbox row in the same transaction that marks the outbox item completed. A worker can write only while its fencing token is current and its lease has not expired; an expired or replaced lease cannot complete or reschedule the item. Failures are rescheduled with bounded exponential delay; after eight attempts the item enters terminal_failure.
+
+- GET /v1/conversations/{id}/events?after=0 — polling-backed SSE stream, resumable by cursor (Last-Event-ID is also accepted).
+- POST /v1/messages/{id}/ack — idempotent recipient acknowledgement.
+
+SSE delivery is at-least-once from a durable cursor and clients must de-duplicate by message_id/position. Outbox completion confirms durable inbox creation, not device display. The worker currently uses the recipient inbox as the dispatch destination; no external broker or mobile push is involved.

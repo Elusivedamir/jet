@@ -52,16 +52,17 @@ Use these labels consistently:
 
 Maintain a decision log. Do not rewrite history to make an earlier technical choice appear approved.
 
-## 4. No predetermined technical foundation
+## 4. Evidence-based technical decisions
 
-This is mandatory:
-- Do not select a backend, language, framework, database, transport, protocol, cloud, hosting provider, SDK, identity provider, cryptographic library, analytics platform or deployment topology in advance.
+The owner has explicitly selected **Node.js + TypeScript as the primary backend direction** on 2026-11-27; this is recorded in ADR-0003. This approved decision supersedes the earlier technology-neutral prohibition only for the primary backend language/runtime. It does not predetermine the remaining architecture.
+
+Still open and evidence-gated: database choice for production, framework, transport/protocol, cloud/hosting, SDKs, identity/session provider, cryptographic library, analytics platform, deployment topology, service boundaries and E2EE scope. Do not silently decide these.
 - Do not treat JuggleIM, Matrix, LansetSpBot, Chatwoot, Zulip, or any other named project as the foundation, template or required dependency.
 - Do not assume a greenfield implementation is automatically superior to an existing standard or component. Equally, do not assume a popular project is suitable.
 - Existing repositories are evidence and learning material only. Extract patterns, compare alternatives, inspect failure modes, licensing, maintenance, security and operational cost. Adopt a component or pattern only after a documented, requirement-based decision.
 - Avoid vendor lock-in and single-project lock-in where practical, but do not add abstraction layers without a demonstrated need.
 - Keep architecture and implementation choices reversible while evidence is incomplete.
-- Do not write production code merely to validate a previously chosen stack. First establish the requirement and compare credible alternatives.
+- Do not treat the current Node/PostgreSQL message PoC as production code. Continue validating the approved Node direction against product requirements, security, reliability, operations and cost. Compare alternatives for still-open components; do not reopen the approved primary language without material new evidence or an explicit owner decision.
 
 A technology-neutral discovery process is not a commitment to build every component ourselves. It is a commitment to make each build/buy/adapt decision on evidence.
 
@@ -152,9 +153,9 @@ Work in the following order. Keep each stage's deliverables visible and do not s
 2. **Market and repository landscape:** review products and up to 1,000 relevant repositories using the tiered method above.
 3. **User journeys and UX:** create provisional designs, screen flows and acceptance scenarios; design remains flexible.
 4. **Requirements and domain model:** define entities, roles, permissions, lifecycle rules, data ownership, retention and sync needs without choosing a database.
-5. **Architecture alternatives:** produce multiple viable system designs and build/buy/adapt boundaries. No stack lock-in.
-6. **Proofs of concept:** validate the riskiest assumptions using small disposable experiments. Compare candidates against the same tests.
-7. **Architecture decisions:** record ADRs only after evidence; document rejected alternatives and reversibility.
+5. **Architecture alternatives:** produce viable system designs and build/buy/adapt boundaries around the approved Node.js + TypeScript backend direction; keep all other choices open.
+6. **Proofs of concept:** validate the riskiest assumptions for still-open components and the selected backend's production suitability using focused experiments and comparable tests.
+7. **Architecture decisions:** record ADRs only after evidence; document rejected alternatives and reversibility. ADR-0003 records the approved primary backend direction.
 8. **Implementation plan:** sequence vertical slices, test gates, effort, risks and operating costs.
 9. **Build in small increments:** deliver observable, testable user value; no giant unverified rewrites.
 10. **Release readiness:** security, legal, reliability, performance, backup/restore, support, monitoring and product acceptance gates.
@@ -210,4 +211,44 @@ The assistant is free to propose and iterate the design and research approach. T
 
 The project has completed the first business-plan study gate using the owner's complete supplied text. The verified working baseline is `docs/product/BUSINESS_PLAN_BASELINE.md`. The original PDF is preserved in the repository; exact byte-level text extraction comparison remains outstanding. Repository/branch inventory and broad research are in progress. No backend, language, framework, database, transport, protocol, hosting or UI implementation is selected.
 
-**Next task:** translate the verified business plan into testable product requirements and user journeys; then continue repository landscape research against those requirements. Keep all technology choices open until comparative evidence and risk-focused proofs of concept justify them. Do not implement a production stack merely to start coding.
+**Current next task:** continue the first messenger vertical slice on the approved Node.js + TypeScript direction. Extend the message PoC from one-to-one to group fan-out; verify it in CI; then design production identity/session boundaries before replacing the spoofable test identity. Keep database production suitability, framework, transport, E2EE, deployment and client decisions evidence-gated. Continue repository landscape research against the approved product requirements.
+
+
+## 16. Independent code review skill
+
+The repository installs the MIT-licensed [Loop Code Review skill](../../.agents/skills/loop-code-review/SKILL.md), sourced from `di-sukharev/loop-code-review-skill` at pinned upstream commit `23fdbdec6bb211fa55f84da49d58333efe3b09db`.
+
+For implementation changes, invoke `$loop-code-review` (or the equivalent skill trigger) before committing, unless the owner explicitly waives the review for a narrowly scoped change. Follow the installed skill's review loop:
+- review the complete task-scoped diff and untracked files without changing staging;
+- use a fresh reviewer with no author conversation history for each review round;
+- require evidence-backed findings with file/location, failure scenario and impact;
+- accept only material correctness, requirement, security, data-safety, reliability, performance, build/deployment or regression findings;
+- fix accepted findings, run relevant tests, and repeat review for up to five rounds;
+- report score history, rounds, checks, unresolved risks and exact pass/open status.
+
+High-risk changes (authentication, authorization, stored data, migrations, cryptography, concurrency, external contracts and cross-module failure handling) require the strongest available reviewer at high effort. Do not mark the review passed if required independent review or validation is unavailable.
+
+**Operating mode in this ChatGPT environment — mandatory manual review:** this session does not expose a sub-agent spawning/orchestration mechanism. Therefore, do not claim or imply that an independent reviewer/sub-agent was launched. Apply the skill's review rules directly as a separate, explicit review phase after implementation and before committing:
+1. Finish implementation, then switch deliberately from authoring to reviewer mode. Re-read the approved requirements and acceptance criteria; do not rely on the implementation explanation as proof.
+2. Inspect the complete task-scoped diff against the target base/HEAD, all changed files and relevant surrounding code, plus untracked files. Do not stage, reset or discard the user's unrelated work.
+3. Independently trace each requirement to code and tests. Challenge assumptions and inspect realistic invalid-input, empty-state, failure, retry, concurrency, authorization, data-integrity, compatibility, configuration and deployment cases as relevant.
+4. Run relevant automated checks. Where a material regression is plausible, add a regression test that fails before the fix and passes after it, when practical.
+5. Record each finding with file/line, evidence, reproducible or realistic failure scenario, impact and accepted/rejected status. Fix accepted material findings only, rerun checks, and perform another complete manual review pass. Use up to five rounds.
+6. Label every result **manual self-review (not independent)**. A score may be recorded only as a self-assessed implementation score, never as an independent reviewer score. Record round count, score history, checks and versions, accepted/rejected findings, unresolved risks and missing validations.
+7. Report `passed` only if no accepted material findings remain and all applicable checks for this task pass. If any check is unavailable, material risk remains, or five rounds end without a clean result, report `open` and explain why.
+
+If a future coding runtime genuinely provides independent sub-agent orchestration, the original fresh-reviewer loop may be used there; clearly distinguish that evidence from this environment's manual reviews. Never fabricate reviewer identity, model, effort, scores, rounds, test output or a successful result.
+
+The skill is a quality workflow, not permission to commit, push, merge, deploy, alter shared data, or change product scope. Existing Git/branch governance and owner approval requirements remain in force.
+
+
+## 17. OpenCommit commit-message tooling
+
+The optional OpenCommit integration is governed by [OPENCOMMIT.md](OPENCOMMIT.md). Treat generated commit messages as editable suggestions, never as evidence of correctness or a replacement for tests and the mandatory review process.
+
+- Preferred option: developers may install the pinned OpenCommit CLI on their own workstations and run `oco hook set` in their local clone to use the `prepare-commit-msg` hook from IDE source control. The local hook is not installed by a GitHub repository file; do not claim it was enabled on a workstation unless verified there.
+- Keep provider credentials outside the repository. Never commit API keys, `~/.opencommit`, or local secrets.
+- Do not enable the upstream GitHub Action by default. It is marked beta and rewrites commit history/SHA on push. Do not configure it on `main`, release/shared branches, or collaborator branches.
+- Any future GitHub Action rollout requires explicit owner approval after immutable source/action revision audit, least-privilege permission review, branch-protection/recovery design, secret/provider approval, and a documented test on a disposable isolated branch.
+- Do not enable automatic commit acceptance (`oco --yes`) as a project-wide default. Developers must inspect generated messages and remain responsible for their accuracy.
+- OpenCommit does not authorize committing, pushing, rebasing, force-pushing, merging or deploying. Existing branch and owner-approval rules remain controlling.

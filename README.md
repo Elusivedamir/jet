@@ -1,6 +1,6 @@
 # Jetson Messenger
 
-Jetson Messenger is restarting from a technology-neutral discovery baseline. The **original business-plan PDF is the canonical product source** and must be preserved without edits.
+Jetson Messenger is being developed from the approved product baseline. The owner selected Node.js + TypeScript as the primary backend direction; detailed architecture and security decisions remain evidence-gated. The **original business-plan PDF is the canonical product source** and must be preserved without edits.
 
 ## Canonical product source
 
@@ -9,6 +9,8 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Product requirements and acceptance framework](docs/product/PRODUCT_REQUIREMENTS_AND_ACCEPTANCE.md) — staged requirements and release gates.
 - [User journeys](docs/product/USER_JOURNEYS.md) — personal user, business owner and recipient flows.
 - [Master prompt](docs/governance/MASTER_PROMPT.md)
+- [Installed agent skills and provenance](docs/governance/AGENT_SKILLS.md)
+- [Loop Code Review skill](.agents/skills/loop-code-review/SKILL.md) — iterative independent code-review workflow
 - [Branch strategy](docs/governance/BRANCHING_STRATEGY.md)
 - [Repository and branch inventory](docs/governance/REPOSITORY_INVENTORY.md)
 - [Repository landscape research method and progress](docs/research/REPOSITORY_LANDSCAPE_METHOD.md)
@@ -17,9 +19,12 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Stack candidate screen and PoC gate](docs/research/STACK_CANDIDATE_SCREEN_AND_POC_GATE_2026-11-27.md)
 - [Agent task 05 — comparable server-stack PoC](docs/agent/tasks/AGENT_TASK_05_STACK_POC.md)
 - [Go durable-message core PoC report](docs/research/GO_DURABLE_MESSAGE_POC_REPORT_2026-11-27.md)
+- [Three-stack delivery PoC status and preliminary benchmark](docs/research/POLYGLOT_MESSAGE_POC_STATUS_2026-11-27.md)
 - [Agent task 01 — message reliability](docs/agent/tasks/AGENT_TASK_01_MESSAGE_RELIABILITY.md)
 - [Agent task 02 — CRM and campaigns](docs/agent/tasks/AGENT_TASK_02_CRM_CAMPAIGNS.md)
 - [Agent task 03 — security, licenses and operations](docs/agent/tasks/AGENT_TASK_03_SECURITY_LICENSES_OPERATIONS.md)
+- [Business-offer consent, dispatch and recipient visibility invariants](docs/architecture/BUSINESS_OFFER_CONSENT_AND_DELIVERY.md)
+- [Campaign dispatch queue design draft — not implemented](docs/architecture/CAMPAIGN_DISPATCH_DRAFT.md)
 - [Consolidated discovery index — 1,185 candidates](docs/research/CONSOLIDATED_DISCOVERY_INDEX.md)
 - [Initial README screening](docs/research/INITIAL_README_SCREENING.md)
 - [Deep-dive backend comparison](docs/research/DEEP_DIVE_BACKEND_COMPARISON_01.md)
@@ -29,9 +34,13 @@ Jetson Messenger is restarting from a technology-neutral discovery baseline. The
 - [Deep dive 03 — popular messaging platforms](docs/research/DEEP_DIVE_POPULAR_PRODUCTS_03.md)
 - [Provisional visual direction](docs/design/VISUAL_DIRECTION_WORKING.md)
 
+## Developer tooling
+
+- [OpenCommit: local IDE commit-message hook and GitHub Action safety policy](docs/governance/OPENCOMMIT.md)
+
 ## Current status
 
-**Requirements and discovery.** The owner's full business-plan text has been structured into staged requirements and user journeys. Repository landscape research continues; no backend, language, framework, database, realtime transport, protocol, hosting provider, cryptographic library or client framework is selected. Detailed UI remains iterative.
+**Implementation and verification.** The owner-approved primary backend direction is Node.js + TypeScript (ADR-0003). On 2026-11-28, Node run [#46118309749](https://github.com/Elusivedamir/jet/actions/runs/46118309749) passed on revision `cd6012f`, including clean install, TypeScript build, PostgreSQL integration, production test-identity guard, crash/restart and shared contract/benchmark harness, npm audit/license inventory, Trivy and artifact upload. Latest exact-head CI on `21da0f3a94425e1ac2944cbb0818a9e7a6556a80`: Node [#46120065775](https://github.com/Elusivedamir/jet/actions/runs/46120065775) and Go [#46120065807](https://github.com/Elusivedamir/jet/actions/runs/46120065807) passed all checks, including build, PostgreSQL integration, crash/restart, shared contract/benchmark, dependency/license audit and Trivy. Kotlin [#46120065781](https://github.com/Elusivedamir/jet/actions/runs/46120065781) passed compilation, integration and crash/contract but failed the conservative license gate: `logback-classic` 1.5.18 (EPL-1.0/LGPL), `logback-core` 1.5.18 (EPL-1.0/LGPL), and `jakarta.annotation-api` 2.1.1 (EPL-2.0/GPL-2.0-with-classpath-exception) require review. The license gate remains fail-closed. Campaign queue design is documented as a draft only; no send endpoint exists. Go run [#46118309728](https://github.com/Elusivedamir/jet/actions/runs/46118309728) failed in the shared crash-recovery harness while waiting for the lost-response message row within 20 seconds. Kotlin run [#46118309731](https://github.com/Elusivedamir/jet/actions/runs/46118309731) passed compilation, PostgreSQL integration and crash/contract steps but failed the conservative license gate with 3 components marked `REVIEW_REQUIRED`. Go and Kotlin remain comparison evidence, not alternate approved primary stacks. This remains a research PoC, not production-ready. Production authentication, versioned migrations, multi-device semantics, E2EE scope, backup/restore, sustained-load evidence and client implementation remain open. Detailed UI remains iterative.
 
 Research up to 1,000 relevant public repositories in transparent tiers. No repository is adopted wholesale. Existing projects are learning sources only; choices require evidence and comparison against the business plan.
 

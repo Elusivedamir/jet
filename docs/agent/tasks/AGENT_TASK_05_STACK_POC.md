@@ -74,3 +74,84 @@ No production adoption, merge to `main`, deployment or release. A final producti
 - Go candidate remains **incomplete**: realtime delivery, outbox worker/lease recovery, recipient acknowledgement, reconnect and hard-crash fault injection remain open.
 - Node/TypeScript and Kotlin/Spring comparable implementations have not started; no score or production selection is permitted.
 - The current implementation PR is Draft #43, stacked on Draft research PR #42. Do not merge or deploy without owner approval.
+
+
+## Progress update — 2026-11-27 (three-candidate delivery slice)
+
+- Implemented matching Go, Node.js/TypeScript and Kotlin/Spring two-party message cores on PostgreSQL 17.
+- All three now have sender-scoped idempotency, transactional message/sequence/outbox writes, leased SKIP LOCKED claims, lease fencing, recipient inbox, bounded retries, cursor history, polling-backed SSE and recipient acknowledgement.
+- Added a shared black-box harness covering idempotent retry, changed-payload conflict, 12 concurrent duplicate submissions, non-member history denial, SSE delivery, repeated ack and cursor reconnect.
+- Latest exact head `bcc14766b381d9ffe9ef2e81695221a9e500c32c` passed all three workflows: [Go #46016133216](https://github.com/Elusivedamir/jet/actions/runs/46016133216), [Node #46016133262](https://github.com/Elusivedamir/jet/actions/runs/46016133262), [Kotlin #46016133220](https://github.com/Elusivedamir/jet/actions/runs/46016133220).
+- Go ran eight PostgreSQL integration test functions 100 times with the race detector; the final package run passed. Node and Kotlin each ran five integration tests; Kotlin now compiles actual main and test Kotlin sources (earlier Maven config that compiled zero Kotlin sources was corrected).
+- Shared harness ran five 100-message sequential latency rounds per candidate and uploaded JSON artifacts. Median-of-round metrics and caveats are in `docs/research/POLYGLOT_MESSAGE_POC_STATUS_2026-11-27.md`. This is not a capacity/SLO test and no CPU/RSS metrics were gathered.
+- Stack decision remains **Open**. No production selection, scorecard, deployment or merge authorization. Hard process-kill fault injection, real auth/session, security/privacy review, lockfiles/checksums/SBOM/license inventory and sustained-load/resource benchmarks remain open.
+- PR #44 remains Draft and stacked on Draft PR #43. `main`, business-plan PDF and product requirements unchanged.
+
+
+## Progress update — 2026-11-27 (lease correctness hardening)
+
+- Reviewed the lease expiry boundary across all three candidates. A stale fencing token check alone was not enough: an expired lease must be rejected even before another worker reclaims it.
+- Go, Node and Kotlin dispatch-completion and retry updates now require `lease_until > clock_timestamp()`; this avoids PostgreSQL `now()` retaining the transaction-start timestamp during a long transaction.
+- Added matching tests in all three candidates for expired-lease rejection. Added parallel multi-worker claim uniqueness and terminal retry-limit tests across all candidates.
+- Intermediate CI failures were found and corrected: Go formatting check reported `store_test.go`; Kotlin compilation found tests appended outside the test class. Final verification is pending on the current head; do not cite earlier passing runs as validation of these changes.
+- Remaining Task 05 blockers: hard process-kill fault injection at commit/acceptance/claim/dispatch/ack boundaries; complete committed lockfiles/checksums; dependency SBOM/license review; controlled resource and sustained-load tests; timed maintenance-task comparison. Keep all scores Unknown where evidence is absent and keep stack decision Open.
+
+
+## Verification update — 2026-11-27 (final lease/cursor hardening)
+
+- Exact shared head `f86d25e755b17fcc7509b90288ae5c55f05f14e0` passed all three workflows: [Go #46021008920](https://github.com/Elusivedamir/jet/actions/runs/46021008920), [Node #46021008197](https://github.com/Elusivedamir/jet/actions/runs/46021008197), [Kotlin #46021008199](https://github.com/Elusivedamir/jet/actions/runs/46021008199).
+- Go: 12 PostgreSQL integration test functions repeated 100 times with the race detector; gofmt and go vet passed. Node: 8 PostgreSQL integration tests and TypeScript build passed. Kotlin: 8 JUnit/PostgreSQL tests and actual Kotlin main/test compilation passed.
+- Shared harness passed negative cursor rejection and Last-Event-ID precedence over stale query cursor, in addition to the prior retry/concurrency/member/SSE/ack/reconnect checks.
+- Added deterministic outbox-insert fault injection and verified message, sequence counter and outbox all roll back together. Parallel worker claims and retry terminal state are covered in each candidate.
+- Candidate implementation remains a research PoC. Hard process-kill tests at commit/claim/dispatch/ack boundaries, production identity/security, complete committed lockfiles/checksums, SBOM/license inventory, sustained-load/resource benchmarking and owner/agent maintenance-task comparison remain open. No weighted score or stack choice is allowed yet; status remains Open.
+
+
+## Hard crash/restart test specification — 2026-11-27
+
+- Added `docs/testing/HARD_CRASH_RECOVERY_TEST_PLAN_2026-11-27.md` defining an equivalent SIGKILL/restart scenario for all three candidates.
+- The first fault boundary is after outbox claim commit and during the recipient-inbox dispatch transaction, using an ephemeral PostgreSQL trigger/marker to prove the process reached the intended point before SIGKILL.
+- Required recovery assertions include committed message/outbox survival, rollback of in-flight inbox insertion, lease expiry/reclaim after restart, exactly-one durable inbox delivery, completed outbox state and idempotent sender retry.
+- **Status: specification only. No executable crash harness has been added and no hard process-kill test has run.** Existing lease-expiry and transaction-rollback tests must not be described as process-kill evidence.
+- Next implementation step: add a shared harness and direct-process launch/termination to each CI workflow; run all three and record exact run IDs/SHA. Keep stack decision Open.
+
+
+## Parallel execution workstreams — 2026-11-27
+
+- Added `docs/agent/PARALLEL_ENGINEERING_WORKSTREAMS_2026-11-27.md` defining seven logical workstreams: reliability, Go, Node.js, Kotlin, supply-chain, performance and product/security architecture.
+- Tooling transparency: the connected toolset does not expose a direct Copilot/Codex coding-agent launch/assignment action for this repository. No separate autonomous coding agents are claimed to be running. Use independent candidate CI workflows and evidence-backed review workstreams until a dedicated runner is available.
+- Current PR head is documentation-only; no new CI run is expected from the docs-only path filters. The current head has no status checks reported. Prior code-level green CI results remain tied to implementation SHA `f86d25e755b17fcc7509b90288ae5c55f05f14e0`.
+
+
+## Dependency reproducibility audit — 2026-11-27
+
+- Added `docs/research/DEPENDENCY_REPRODUCIBILITY_AUDIT_2026-11-27.md` based on committed manifests.
+- Findings: Go `go.sum` absent; Node `package-lock.json` absent and CI currently uses `npm install`; Kotlin versions are declared through Maven parent/properties/plugins but no full transitive lock/checksum enforcement is committed.
+- All three dependency-reproducibility gates remain OPEN. This was a manifest-level inspection only, not a vulnerability scan, SBOM or license audit.
+- Remediation is defined per candidate, including clean-checkout verification and exact-SHA SBOM/vulnerability/license reports.
+
+
+## Current execution status — 2026-11-27 (latest)
+
+Historical progress notes above describe earlier stages and are retained as a timeline. Current state:
+
+- Three comparable two-party delivery PoCs exist: Go, Node.js/TypeScript and Kotlin/Spring, all using PostgreSQL.
+- The shared hard-crash harness is executable and connected to all three candidate workflows. It kills the direct server process during a recipient-inbox transaction while the lease is still valid, verifies rollback, waits for lease expiry, restarts and checks one durable inbox row plus idempotent retry.
+- Hard-crash scenario passed for all three: Go baseline [46025003199](https://github.com/Elusivedamir/jet/actions/runs/46025003199), Node [46026586747](https://github.com/Elusivedamir/jet/actions/runs/46026586747), Kotlin [46026586769](https://github.com/Elusivedamir/jet/actions/runs/46026586769).
+- The shared performance probe now runs five sequential rounds and three concurrent rounds (200 writes each, concurrency 16), with server-process RSS and CPU sampling.
+- Node: committed npm lockfile; clean `npm ci`; npm audit and Trivy report zero vulnerabilities in the scanned dependency graph.
+- Kotlin: Maven strict-checksum verification, dependency tree and CycloneDX SBOM; PostgreSQL JDBC 42.7.12; latest Trivy report zero vulnerabilities in the scanned graph. Maven still has no full committed transitive lockfile.
+- Go: first govulncheck scan found 24 reachable advisories on Go 1.24.13, pgx 5.7.2 and x/text 0.21.0. Remediation committed to Go 1.26.11, pgx 5.9.2 and x/text 0.41.0. Post-remediation Go scan and refreshed checksums are not yet confirmed.
+- Latest repeated benchmark and recommendation are in `docs/research/STACK_SELECTION_SCORECARD_2026-11-27.md`. ADR-0001 proposes Node.js/TypeScript for v1; this is a provisional architecture recommendation, not release authorization.
+- The original STACK-001..012 plan is not fully complete. Only one hard-crash boundary is currently covered. Lost acceptance response, claim-before-dispatch, after-inbox-before-completion, after-dispatch and ack-response loss tests remain.
+- Maintenance-task/DX comparison, cold-start/build-time/image-size, open-socket/connection metrics, sustained load/soak and deployment cost are still outstanding.
+- Production auth/session, migrations, E2EE, rate limits/abuse controls, device model and observability are not implemented. Test identity remains spoofable; do not expose any PoC publicly.
+- PR #44 remains Draft; no merge to main, deployment or business-plan modification is authorized.
+
+
+## Updated decision evidence — 2026-11-27
+
+The patched Go comparison changes the provisional v1 recommendation: ADR-0002 now proposes Go + PostgreSQL, superseding the earlier Node proposal. Same-runner evidence: Go 723.39 req/s median, p95 26.873 ms, p99 30.586 ms, RSS 18,420 KiB, 115 CPU ticks; Node 576.98 req/s, p95 69.909 ms, p99 138.041 ms, RSS 85,384 KiB, 141 ticks; Kotlin 703.05 req/s, p95 52.171 ms, p99 66.678 ms, RSS 265,864 KiB, 527 ticks. Go's patched govulncheck reported no vulnerabilities; the first third-party license check failed only because the first-party module has no declared license. The workflow now excludes the first-party module from third-party scanning, and the project's own license remains an owner decision.
+
+Two hard crash/recovery scenarios passed on all three candidates. The third lost-acceptance-response scenario and 30-second concurrent soak are implemented but await CI. Go module metadata is committed and a no-drift gate is enabled. Node's npm audit reported zero advisories but the first license gate caught its root UNLICENSED declaration; that root is now excluded from third-party allow-list checking. Kotlin's 42-component SBOM has three components requiring license review; its 72-coordinate Maven version lock is committed.
+
+Current latest three-candidate runs 46029865456 (Go), 46029865368 (Kotlin), and 46029865303 (Node) were created but were queued at last check. Do not mark the latest gates or expanded harness as passed until those jobs complete.
