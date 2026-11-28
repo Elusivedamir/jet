@@ -107,6 +107,16 @@ test("campaign cancellation is owner-scoped, idempotent and fences not-yet-start
  assert.equal(recovered.cancelled,0);assert.equal(recovered.in_flight,1);
  const recoveredJob=await pool.query("SELECT status,message_id FROM business_campaign_jobs WHERE id=$1",[committedLease.id]);
  assert.equal(recoveredJob.rows[0]!.status,"delivery_pending");assert.equal(recoveredJob.rows[0]!.message_id,committedMessage.message_id);
+ const staleDraft=await campaigns.createDraft(business,"Cancel stale worker","Worker stopped before send");
+ await campaigns.enqueueDraft(business,staleDraft.id,"cancel-stale-worker");
+ const staleLease=(await campaigns.claimJobs(1))[0]!;assert.ok(staleLease);
+ const firstCancel=await campaigns.cancelCampaign(business,staleDraft.id);
+ assert.equal(firstCancel.in_flight,1);
+ await pool.query("UPDATE business_campaign_jobs SET lease_until=now()-interval '1 second' WHERE id=$1",[staleLease.id]);
+ const replayedCancel=await campaigns.cancelCampaign(business,staleDraft.id);
+ assert.equal(replayedCancel.replayed,true);assert.equal(replayedCancel.cancelled,1);assert.equal(replayedCancel.in_flight,0);
+ const staleState=await pool.query("SELECT status FROM business_campaign_jobs WHERE id=$1",[staleLease.id]);
+ assert.equal(staleState.rows[0]!.status,"cancelled");
  const completedDraft=await campaigns.createDraft(business,"Already completed","Terminal campaign");
  await pool.query("UPDATE business_campaigns SET status='completed' WHERE id=$1",[completedDraft.id]);
  await assert.rejects(()=>campaigns.cancelCampaign(business,completedDraft.id),e=>e instanceof CampaignError&&e.code==="conflict");
