@@ -65,6 +65,24 @@ test("user search, contact request, acceptance and direct conversation lifecycle
 
   const carolRequest = await contacts.request(alice, "carol");
   const carolAccepted = await contacts.accept(carol, carolRequest.id);
+  // A cancelled business offer has a message row but no recipient-inbox row.
+  // It must not appear in the recipient's latest-message conversation preview.
+  const offerPosition = await pool.query<{last_position:string}>(
+    "INSERT INTO conversation_counters(conversation_id,last_position) VALUES($1,1) ON CONFLICT(conversation_id) DO UPDATE SET last_position=conversation_counters.last_position+1 RETURNING last_position",
+    [carolAccepted.conversation_id]
+  );
+  const cancelledOfferId = randomUUID();
+  await pool.query(
+    "INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position,message_class) VALUES($1,$2,$3,$4,$5,$6,'business_offer')",
+    [cancelledOfferId,carolAccepted.conversation_id,alice,"cancelled-preview-offer","must stay hidden",offerPosition.rows[0]!.last_position]
+  );
+  await pool.query(
+    "INSERT INTO delivery_outbox(message_id,recipient_id,state,last_error,completed_at) VALUES($1,$2,'cancelled','business_offer_consent_revoked',now())",
+    [cancelledOfferId,carol]
+  );
+  const carolDirectPreview = (await contacts.conversations(carol)).find(row=>row.conversation_id===carolAccepted.conversation_id);
+  assert.equal(carolDirectPreview?.last_message,null);
+  assert.equal(carolDirectPreview?.last_position,"0");
   const group = await contacts.createGroup(alice, "Project team", ["bob","carol"]);
   assert.equal(group.title, "Project team");
   assert.equal(group.members_count, 3);

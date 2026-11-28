@@ -310,6 +310,13 @@ test("queued business offers are cancelled when consent or the master preference
  assert.equal(revokedState.rows[0]!.state,"cancelled");
  assert.equal(revokedState.rows[0]!.last_error,"business_offer_consent_revoked");
  // A cancelled offer must be invisible through recipient-facing read surfaces.
+ await store.editMessage("alice",revoked.message_id,"edited cancelled offer hidden");
+ await store.pinMessage("alice","room-a",revoked.message_id);
+ const senderEvents=await store.events("alice","room-a",0);
+ assert.ok(senderEvents.some(event=>event.message_id===revoked.message_id));
+ const recipientEvents=await store.events("bob","room-a",0);
+ assert.ok(!recipientEvents.some(event=>event.message_id===revoked.message_id));
+ assert.ok((await store.pinnedMessages("alice","room-a")).some(row=>row.message_id===revoked.message_id));
  const historyAfterRevoke=await store.history("bob","room-a",0);
  assert.ok(!historyAfterRevoke.some(row=>row.message_id===revoked.message_id));
  const searchAfterRevoke=await store.searchMessages("bob","room-a","queued before revocation");

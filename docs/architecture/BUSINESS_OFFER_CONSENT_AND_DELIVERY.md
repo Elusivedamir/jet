@@ -1,7 +1,7 @@
 # Business-offer consent and delivery boundary
 
 **Status:** implemented in the Node.js/TypeScript research PoC; not production-ready.  
-**Last verified Node revision before this follow-up:** `cd6012f5d213e2ccb18f3e835b63ff028d2aedb0`. The recipient-visibility hardening in the current branch head requires fresh CI evidence.
+**Last verified Node revision before this follow-up:** `cd6012f5d213e2ccb18f3e835b63ff028d2aedb0`. The recipient-visibility hardening at revision `5902e6aaa68b1b62ffafa1f21651ab036e56954e` passed the full Node CI run #46119403621. Additional event-feed and conversation-preview regression tests are being added in the next revision.
 
 ## Purpose
 
@@ -63,4 +63,4 @@ This is a research PoC, not a legal compliance determination or production conse
 
 Existing tests cover master preference default-off, explicit per-business grants, accepted-contact requirements, recipient-only authorization, revocation on master opt-out, no automatic restoration, transaction-locked eligibility, rejection of ineligible direct sends, group rejection, idempotent retry after revocation, and cancellation when consent or the master preference is revoked before dispatch.
 
-The recipient-visibility regression test additionally asserts that a cancelled offer is absent from recipient history and search, cannot be forwarded or reacted to, and is absent from recipient pin results. The exact current-head CI run is the authority for pass/fail status; do not infer a green build from this document.
+The recipient-visibility regression tests additionally assert that a cancelled offer is absent from recipient history, search, event feed and conversation preview; cannot be forwarded or reacted to; and is absent from recipient pin results even when the sender has pinned it. The exact current-head CI run is the authority for pass/fail status; do not infer a green build from this document.
