@@ -59,6 +59,8 @@ test("campaign status summary is tenant-scoped and reports durable job states",a
  assert.equal(summary.jobs.queued,1);
  assert.equal(summary.jobs.sent,0);
  assert.ok(summary.updated_at instanceof Date);
+ await pool.query("UPDATE business_campaign_jobs SET status='skipped',completed_at=now(),updated_at=now() WHERE campaign_id=$1",[draft.id]);
+ await pool.query("UPDATE business_campaigns SET status='completed',updated_at=now() WHERE id=$1",[draft.id]);
 });
 
 test("campaign enqueue fails closed without entitlement and is idempotent per recipient",async()=>{
