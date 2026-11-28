@@ -90,11 +90,11 @@ export class CampaignStore {
    return {campaign_id:campaignId,cancelled:changed.rowCount??0,in_flight:active.rows[0]!.n,replayed:false};
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
  }
- async mayDispatch(job:CampaignJob):Promise<boolean>{
+ async mayDispatch(job:CampaignJob):Promise<"ready"|"cancelled"|"stale">{
   const r=await this.pool.query<{campaign_status:string}>("SELECT c.status AS campaign_status FROM business_campaign_jobs j JOIN business_campaigns c ON c.id=j.campaign_id WHERE j.id=$1 AND j.status='processing' AND j.lease_token=$2 AND j.lease_until>clock_timestamp()",[job.id,job.lease_token]);
-  if(r.rowCount===1&&["queued","sending"].includes(r.rows[0]!.campaign_status))return true;
-  await this.pool.query("UPDATE business_campaign_jobs j SET status='cancelled',skip_reason='campaign_cancelled',completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() FROM business_campaigns c WHERE j.id=$1 AND j.campaign_id=c.id AND j.status='processing' AND j.lease_token=$2 AND c.status='cancelled'",[job.id,job.lease_token]);
-  return false;
+  if(r.rowCount===1&&["queued","sending"].includes(r.rows[0]!.campaign_status))return "ready";
+  const cancelled=await this.pool.query("UPDATE business_campaign_jobs j SET status='cancelled',skip_reason='campaign_cancelled',completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() FROM business_campaigns c WHERE j.id=$1 AND j.campaign_id=c.id AND j.status='processing' AND j.lease_token=$2 AND c.status='cancelled' RETURNING j.id",[job.id,job.lease_token]);
+  return cancelled.rowCount===1?"cancelled":"stale";
  }
  async claimJobs(limit=20,leaseMs=60000):Promise<CampaignJob[]>{
   if(!Number.isSafeInteger(limit)||limit<1||limit>100||!Number.isSafeInteger(leaseMs)||leaseMs<1000||leaseMs>120000)throw new CampaignError("invalid");
@@ -115,7 +115,7 @@ export class CampaignStore {
   const jobs=await this.claimJobs(limit,60000);let submitted=0,skipped=0,retried=0,failed=0;
   for(const job of jobs){
    try{
-    if(!(await this.mayDispatch(job))){skipped++;continue;}\n    const message=await store.send(job.business_account_id,job.conversation_id,job.operation_key,job.body,null,null,"business_offer");
+    const dispatchState=await this.mayDispatch(job);if(dispatchState!=="ready"){if(dispatchState==="cancelled")skipped++;continue;}\n    const message=await store.send(job.business_account_id,job.conversation_id,job.operation_key,job.body,null,null,"business_offer");
     await this.attachMessage(job.id,job.lease_token,message.message_id);submitted++;
    }catch(error){
     if(error instanceof ForbiddenError){
