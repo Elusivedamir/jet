@@ -212,6 +212,14 @@ CREATE TABLE IF NOT EXISTS business_entitlements (
  campaigns_enabled BOOLEAN NOT NULL DEFAULT FALSE,
  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS business_campaign_dispatch_limits (
+ business_account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+ tokens NUMERIC(12,4) NOT NULL DEFAULT 10 CHECK(tokens>=0),
+ capacity NUMERIC(12,4) NOT NULL DEFAULT 10 CHECK(capacity>=1),
+ refill_per_second NUMERIC(12,4) NOT NULL DEFAULT 1 CHECK(refill_per_second>0),
+ refilled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS business_campaign_jobs (
  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
  campaign_id TEXT NOT NULL REFERENCES business_campaigns(id) ON DELETE CASCADE,
