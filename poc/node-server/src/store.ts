@@ -170,7 +170,7 @@ export class Store {
   async listInbox(account:string,folder:"primary"|"business_offers",beforeCreatedAt:string|null=null,beforeMessageId:string|null=null,limit=50) {
     if(!account || !["primary","business_offers"].includes(folder) || !Number.isSafeInteger(limit) || limit<1 || limit>100 || ((beforeCreatedAt===null)!==(beforeMessageId===null))) throw new InvalidRequestError();
     if(beforeCreatedAt!==null && (!Number.isFinite(Date.parse(beforeCreatedAt)) || !beforeMessageId || beforeMessageId.length>128)) throw new InvalidRequestError();
-    const result=await this.pool.query(`SELECT m.id AS message_id,m.conversation_id,m.sender_id,a.username AS sender_username,a.display_name AS sender_display_name,m.payload,m.position,m.created_at,m.edited_at,m.deleted_at,m.reply_to_message_id,m.forwarded_from_message_id,i.folder FROM recipient_inbox i JOIN messages m ON m.id=i.message_id JOIN accounts a ON a.id=m.sender_id WHERE i.recipient_id=$1 AND i.folder=$2 AND ($3::timestamptz IS NULL OR (m.created_at,m.id)<($3::timestamptz,$4::text)) ORDER BY m.created_at DESC,m.id DESC LIMIT $5`,[account,folder,beforeCreatedAt,beforeMessageId,limit]);
+    const result=await this.pool.query(`SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.payload,m.position,m.created_at,m.edited_at,m.deleted_at,m.reply_to_message_id,m.forwarded_from_message_id,i.folder FROM recipient_inbox i JOIN messages m ON m.id=i.message_id WHERE i.recipient_id=$1 AND i.folder=$2 AND ($3::timestamptz IS NULL OR (m.created_at,m.id)<($3::timestamptz,$4::text)) ORDER BY m.created_at DESC,m.id DESC LIMIT $5`,[account,folder,beforeCreatedAt,beforeMessageId,limit]);
     return result.rows;
   }
 
