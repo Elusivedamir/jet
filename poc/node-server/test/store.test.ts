@@ -268,9 +268,9 @@ test("business offers are isolated in their own inbox folder with stable paginat
 });
 
 test("global inbox cursor uses timestamp and message id together",async()=>{
- await store.send("alice","room-a","folder-page-a","first",null,null,"business_offer"); await store.send("alice","room-a","folder-page-b","second",null,null,"business_offer");
+ await store.send("bob","room-c","folder-page-a","first",null,null,"business_offer"); await store.send("bob","room-c","folder-page-b","second",null,null,"business_offer");
  const claimed=await store.claim(200,5000); for(const item of claimed) await store.dispatch(item);
- const page=await store.listInbox("bob","business_offers",null,null,1); assert.equal(page.length,1);
- const next=await store.listInbox("bob","business_offers",page[0]!.created_at.toISOString(),page[0]!.message_id,10); assert.equal(next.length,1); assert.notEqual(page[0]!.message_id,next[0]!.message_id);
- await assert.rejects(()=>store.listInbox("bob","business_offers",page[0]!.created_at.toISOString(),null,10),InvalidRequestError);
+ const page=await store.listInbox("carol","business_offers",null,null,1); assert.equal(page.length,1);
+ const next=await store.listInbox("carol","business_offers",page[0]!.created_at.toISOString(),page[0]!.message_id,10); assert.equal(next.length,1); assert.notEqual(page[0]!.message_id,next[0]!.message_id);
+ await assert.rejects(()=>store.listInbox("carol","business_offers",page[0]!.created_at.toISOString(),null,10),InvalidRequestError);
 });
