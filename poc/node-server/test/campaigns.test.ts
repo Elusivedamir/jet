@@ -56,6 +56,7 @@ test("campaign enqueue fails closed without entitlement and is idempotent per re
 });
 test("campaign leases fence stale workers and reconcile only a delivery-pending job",async()=>{
  const jobs=await campaigns.claimJobs(10,15000);assert.equal(jobs.length,1);const job=jobs[0]!;
+ const activeCampaign=await pool.query("SELECT status FROM business_campaigns WHERE id=$1",[campaignId]);assert.equal(activeCampaign.rows[0]!.status,"sending");
  const messageId=randomUUID();
  const draft=await pool.query("SELECT conversation_id FROM business_campaign_jobs WHERE id=$1",[job.id]);
  await pool.query("INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position) VALUES($1,$2,$3,$4,'campaign test',1)",[messageId,draft.rows[0]!.conversation_id,business,"test:"+messageId]);

@@ -196,10 +196,10 @@ The Node PoC now has a fail-closed internal queue foundation:
 - business_campaign_jobs stores one durable row per campaign/recipient with a unique pair and stable operation key.
 - enqueueDraft locks the campaign, requires an active internal entitlement, recomputes CRM candidates and locks recipient preference -> per-business consent -> contact before inserting jobs.
 - Enqueue is idempotent for the same campaign key.
-- claimJobs uses FOR UPDATE SKIP LOCKED, expiring leases and a per-claim fencing token.
+- claimJobs uses FOR UPDATE SKIP LOCKED, expiring per-job fencing tokens and marks campaigns as sending when work is claimed.
 - attachMessage rejects stale leases; reconcileDelivery maps outbox completion/cancellation/terminal failure to sent/skipped/failed.
 
-This is not yet a usable campaign-send feature. There is no HTTP enqueue route, no entitlement activation/billing path, no campaign worker calling the message store, no bounded campaign retry loop and no campaign cancellation UI. The existing delivery worker still owns the final consent re-check and inbox insertion. These are explicit release blockers.
+This is not yet a usable campaign-send feature. At that stage there was no HTTP enqueue route, entitlement activation/billing path, campaign sender or bounded retry loop. The later implementation section supersedes those historical notes: an internal worker now calls the message store and uses bounded retries. Public enqueue, entitlement activation/billing, cancellation UI, rate caps and abuse controls remain release blockers. The existing delivery worker still owns the final consent re-check and inbox insertion. These are explicit release blockers.
 
 New tests cover fail-closed entitlement, recipient-level job creation, idempotent enqueue, lease fencing and delivery reconciliation.
 
@@ -211,7 +211,7 @@ Implemented in the Node TypeScript branch:
 - Idempotent enqueue and per-job lease/fencing token.
 - Internal campaign worker calls the existing Store.send business_offer path with a stable campaign/recipient operation key. If the worker crashes after message commit, the same operation key returns the original message on retry.
 - Consent/contact is checked in the message transaction and again by the delivery worker immediately before recipient inbox insertion. Ineligible jobs are skipped; cancelled outbox deliveries reconcile as skipped.
-- Transient campaign-worker errors use bounded exponential retry, terminal after eight attempts. Delivery-pending jobs reconcile against recipient-specific outbox state; a campaign completes only when all jobs are terminal.
+- Transient campaign-worker errors use bounded exponential retry, terminal after eight attempts. The worker processes one job per iteration, uses a 60-second lease and backs off up to 15 seconds after infrastructure errors. Delivery-pending jobs reconcile against recipient-specific outbox state; a campaign completes only when all jobs are terminal.
 - The server starts the internal campaign worker alongside the message delivery worker. There is still no public enqueue route, no billing/entitlement activation path, no campaign cancellation UI, no rate-cap/abuse-control layer and no production readiness claim.
 
 Audience preview and enqueue now explicitly classify CRM contacts without a direct conversation as excluded, with the reason direct_conversation_missing; they are included in excluded counts and never silently omitted.
