@@ -24,6 +24,7 @@ before(async()=>{
   await pool.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES($1,$2),($1,$3)",[conversation,business,person]);
  }
  await pool.query("INSERT INTO business_entitlements(business_account_id,campaigns_enabled) VALUES($1,TRUE)",[business]);
+ await pool.query("INSERT INTO business_campaign_dispatch_limits(business_account_id,tokens,capacity,refill_per_second) VALUES($1,100,100,1)",[business]);
  await consent.setOfferPreference(globalOff,false);await consent.setOfferPreference(noGrant,true);await consent.setOfferPreference(noConversation,true);await consent.setBusinessConsent(noConversation,business,true);await consent.setOfferPreference(archived,true);await consent.setBusinessConsent(archived,business,true);await pool.query("UPDATE crm_customers SET status=$3 WHERE business_account_id=$1 AND person_id=$2",[business,archived,"archived"]);
  const draft=await campaigns.createDraft(business,"Update","Draft body");campaignId=draft.id;
 });
@@ -72,6 +73,15 @@ test("campaign enqueue fails closed without entitlement and is idempotent per re
  const replay=await campaigns.enqueueDraft(business,campaignId,"enqueue-once");assert.equal(replay.replayed,true);assert.equal(replay.queued,1);
  const jobs=await pool.query("SELECT recipient_id,operation_key FROM business_campaign_jobs WHERE campaign_id=$1",[campaignId]);assert.equal(jobs.rowCount,1);assert.equal(jobs.rows[0]!.recipient_id,optedIn);assert.equal(jobs.rows[0]!.operation_key,"campaign:"+campaignId+":"+optedIn);
 });
+test("campaign claims stop when the shared business dispatch budget is empty",async()=>{
+ await pool.query("UPDATE business_campaign_dispatch_limits SET tokens=0,capacity=1,refill_per_second=0.0001,refilled_at=clock_timestamp() WHERE business_account_id=$1",[business]);
+ const blocked=await campaigns.claimJobs(10,15000);
+ assert.equal(blocked.length,0);
+ const budget=await pool.query("SELECT tokens FROM business_campaign_dispatch_limits WHERE business_account_id=$1",[business]);
+ assert.ok(Number(budget.rows[0]!.tokens)<1);
+ await pool.query("UPDATE business_campaign_dispatch_limits SET tokens=100,capacity=100,refill_per_second=1,refilled_at=clock_timestamp() WHERE business_account_id=$1",[business]);
+});
+
 test("campaign leases fence stale workers and reconcile only a delivery-pending job",async()=>{
  const jobs=await campaigns.claimJobs(10,15000);assert.equal(jobs.length,1);const job=jobs[0]!;
  const activeCampaign=await pool.query("SELECT status FROM business_campaigns WHERE id=$1",[campaignId]);assert.equal(activeCampaign.rows[0]!.status,"sending");
