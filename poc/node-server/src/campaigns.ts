@@ -97,6 +97,20 @@ export class CampaignStore {
   await this.pool.query("UPDATE business_campaigns c SET status='completed',updated_at=now() WHERE c.status IN ('queued','sending') AND NOT EXISTS(SELECT 1 FROM business_campaign_jobs j WHERE j.campaign_id=c.id AND j.status NOT IN ('sent','skipped','failed','cancelled'))");
   return r.rowCount??0;
  }
+ async statusSummary(businessAccountId:string,campaignId:string):Promise<{campaign:CampaignDraft;jobs:{queued:number;processing:number;delivery_pending:number;sent:number;skipped:number;failed:number;cancelled:number;total:number};updated_at:Date|null}>{
+  if(!businessAccountId||!campaignId)throw new CampaignError("invalid");
+  const campaign=await this.pool.query<CampaignDraft>("SELECT id,business_account_id,title,body,status,created_at,updated_at FROM business_campaigns WHERE id=$1 AND business_account_id=$2",[campaignId,businessAccountId]);
+  if(!campaign.rows[0])throw new CampaignError("not_found");
+  const counts=await this.pool.query<{status:string;count:number;updated_at:Date|null}>("SELECT status,count(*)::int AS count,max(updated_at) AS updated_at FROM business_campaign_jobs WHERE campaign_id=$1 AND business_account_id=$2 GROUP BY status",[campaignId,businessAccountId]);
+  const jobs={queued:0,processing:0,delivery_pending:0,sent:0,skipped:0,failed:0,cancelled:0,total:0};
+  let updatedAt:Date|null=null;
+  for(const row of counts.rows){
+   if(row.status in jobs && row.status!=="total") jobs[row.status as keyof Omit<typeof jobs,"total">]=row.count;
+   jobs.total+=row.count;
+   if(row.updated_at&&(!updatedAt||row.updated_at>updatedAt))updatedAt=row.updated_at;
+  }
+  return {campaign:campaign.rows[0],jobs,updated_at:updatedAt};
+ }
  async runWorker(store:Store,signal:AbortSignal):Promise<void>{
   let delayMs=500;
   while(!signal.aborted){
