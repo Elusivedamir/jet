@@ -64,6 +64,29 @@ test("campaign status summary is tenant-scoped and reports durable job states",a
  await pool.query("UPDATE business_campaigns SET status='completed',updated_at=now() WHERE id=$1",[draft.id]);
 });
 
+test("campaign cancellation is owner-scoped, idempotent and fences not-yet-started work",async()=>{
+ const queuedDraft=await campaigns.createDraft(business,"Cancel queued campaign","No recipient should be dispatched");
+ await campaigns.enqueueDraft(business,queuedDraft.id,"cancel-queued");
+ await assert.rejects(()=>campaigns.cancelCampaign(outsider,queuedDraft.id),e=>e instanceof CampaignError&&e.code==="not_found");
+ const cancelled=await campaigns.cancelCampaign(business,queuedDraft.id);
+ assert.equal(cancelled.cancelled,1);assert.equal(cancelled.in_flight,0);assert.equal(cancelled.replayed,false);
+ const replay=await campaigns.cancelCampaign(business,queuedDraft.id);
+ assert.equal(replay.replayed,true);assert.equal(replay.cancelled,1);
+ const queuedState=await pool.query("SELECT status,skip_reason FROM business_campaign_jobs WHERE campaign_id=$1",[queuedDraft.id]);
+ assert.equal(queuedState.rows[0]!.status,"cancelled");assert.equal(queuedState.rows[0]!.skip_reason,"campaign_cancelled");
+ const leasedDraft=await campaigns.createDraft(business,"Cancel leased campaign","A claimed but not yet dispatched job");
+ await campaigns.enqueueDraft(business,leasedDraft.id,"cancel-leased");
+ const lease=(await campaigns.claimJobs(1))[0]!;assert.ok(lease);
+ const inFlight=await campaigns.cancelCampaign(business,leasedDraft.id);
+ assert.equal(inFlight.cancelled,0);assert.equal(inFlight.in_flight,1);
+ assert.equal(await campaigns.mayDispatch(lease),false);
+ const fenced=await pool.query("SELECT status FROM business_campaign_jobs WHERE id=$1",[lease.id]);
+ assert.equal(fenced.rows[0]!.status,"cancelled");
+ const campaign=await pool.query("SELECT status FROM business_campaigns WHERE id=$1",[leasedDraft.id]);
+ assert.equal(campaign.rows[0]!.status,"cancelled");
+ await assert.rejects(()=>campaigns.cancelCampaign(business,campaignId),e=>e instanceof CampaignError&&e.code==="conflict");
+});
+
 test("campaign enqueue fails closed without entitlement and is idempotent per recipient",async()=>{
  const second=await campaigns.createDraft(business,"No entitlement","Draft");
  await pool.query("DELETE FROM business_entitlements WHERE business_account_id=$1",[business]);
