@@ -98,6 +98,15 @@ test("campaign cancellation is owner-scoped, idempotent and fences not-yet-start
  assert.equal(fenced.rows[0]!.status,"cancelled");
  const campaign=await pool.query("SELECT status FROM business_campaigns WHERE id=$1",[leasedDraft.id]);
  assert.equal(campaign.rows[0]!.status,"cancelled");
+ const committedDraft=await campaigns.createDraft(business,"Cancel after message commit","Recover outbox link after worker crash");
+ await campaigns.enqueueDraft(business,committedDraft.id,"cancel-after-commit");
+ const committedLease=(await campaigns.claimJobs(1))[0]!;assert.ok(committedLease);
+ const committedMessage=await store.send(committedLease.business_account_id,committedLease.conversation_id,committedLease.operation_key,committedLease.body,null,null,"business_offer");
+ await pool.query("UPDATE business_campaign_jobs SET lease_until=now()-interval '1 second' WHERE id=$1",[committedLease.id]);
+ const recovered=await campaigns.cancelCampaign(business,committedDraft.id);
+ assert.equal(recovered.cancelled,0);assert.equal(recovered.in_flight,1);
+ const recoveredJob=await pool.query("SELECT status,message_id FROM business_campaign_jobs WHERE id=$1",[committedLease.id]);
+ assert.equal(recoveredJob.rows[0]!.status,"delivery_pending");assert.equal(recoveredJob.rows[0]!.message_id,committedMessage.message_id);
  const completedDraft=await campaigns.createDraft(business,"Already completed","Terminal campaign");
  await pool.query("UPDATE business_campaigns SET status='completed' WHERE id=$1",[completedDraft.id]);
  await assert.rejects(()=>campaigns.cancelCampaign(business,completedDraft.id),e=>e instanceof CampaignError&&e.code==="conflict");
