@@ -110,7 +110,7 @@ export class CampaignStore {
   return r.rows;
  }
  async attachMessage(jobId:string,token:string,messageId:string):Promise<void>{
-  const r=await this.pool.query("UPDATE business_campaign_jobs SET status='delivery_pending',message_id=$3,lease_until=NULL,lease_token=NULL,updated_at=now() WHERE id=$1 AND status='processing' AND lease_token=$2 AND lease_until>clock_timestamp()",[jobId,token,messageId]);if(r.rowCount!==1)throw new CampaignError("conflict");
+  const r=await this.pool.query("UPDATE business_campaign_jobs SET status='delivery_pending',message_id=$3,lease_until=NULL,lease_token=NULL,updated_at=now() WHERE id=$1 AND status='processing' AND lease_token=$2",[jobId,token,messageId]);if(r.rowCount!==1)throw new CampaignError("conflict");
  }
  async reconcileDelivery(jobId:string,messageId:string,state:"completed"|"cancelled"|"terminal_failure"):Promise<void>{
   const status=state==="completed"?"sent":state==="cancelled"?"skipped":"failed",reason=state==="cancelled"?"delivery_cancelled":null;
