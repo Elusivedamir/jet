@@ -112,6 +112,10 @@ const server=createServer(async(req,res)=>{
     if(req.method==="GET" && url.pathname==="/v1/business/campaigns") {
       json(res,200,await campaigns.listDrafts(user));return;
     }
+    const campaignStatus=url.pathname.match(/^\\/v1\\/business\\/campaigns\\/([^/]+)\\/status$/);
+    if(req.method==="GET" && campaignStatus) {
+      json(res,200,await campaigns.statusSummary(user,decodeURIComponent(campaignStatus[1]!)));return;
+    }
     const campaignPreview=url.pathname.match(/^\/v1\/business\/campaigns\/([^/]+)\/preview$/);
     if(req.method==="GET" && campaignPreview) {
       json(res,200,await campaigns.preview(user,decodeURIComponent(campaignPreview[1]!)));return;
