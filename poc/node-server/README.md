@@ -113,7 +113,7 @@ These endpoints are still part of the isolated PoC. Blocking/reporting, declined
 - GET /v1/me/inbox?folder=primary&limit=50 lists the authenticated recipient's primary inbox; use folder=business_offers for the separate business-offer folder.
 - Both folders are recipient-scoped. The cursor is the pair before_created_at and before_message_id; provide both or neither. Pages are ordered newest first with a stable timestamp-plus-ID cursor.
 - Ordinary messages are assigned to primary. Only internally classified business_offer messages are routed to business_offers; the public message-send endpoint does not accept a message class. The internal send path permits an offer only to one recipient in a direct conversation, and checks accepted contact, master preference and current per-business consent inside the same transaction that writes the message and outbox intent.
-- This folder is routing infrastructure, not an outbound campaign feature. No campaign creation or dispatch endpoint exists.
+- This folder is routing infrastructure, not an outbound campaign feature. Campaign drafts and audience previews are available, but no mass-campaign enqueue or dispatch endpoint exists. A cancelled business offer is hidden from recipient history, search, conversation preview, reactions, pins, forwards and event feeds until it has a durable recipient-inbox row.
 
 ## Business offer preferences and consent foundation (PoC)
 

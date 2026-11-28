@@ -38,11 +38,11 @@ export class Store {
         return m;
       }
       if (forwardedFrom !== null) {
-        const source = await c.query("SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id AND cm.account_id=$2 WHERE m.id=$1 AND m.deleted_at IS NULL", [forwardedFrom, sender]);
+        const source = await c.query("SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id AND cm.account_id=$2 WHERE m.id=$1 AND m.deleted_at IS NULL AND (m.message_class<>'business_offer' OR m.sender_id=$2 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$2))", [forwardedFrom, sender]);
         if (source.rowCount !== 1) throw new InvalidRequestError("forward source must be an active message visible to the sender");
       }
       if (replyTo !== null) {
-        const target = await c.query("SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND deleted_at IS NULL", [replyTo, conversation]);
+        const target = await c.query("SELECT 1 FROM messages m WHERE m.id=$1 AND m.conversation_id=$2 AND m.deleted_at IS NULL AND (m.message_class<>'business_offer' OR m.sender_id=$3 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$3))", [replyTo, conversation, sender]);
         if (target.rowCount !== 1) throw new InvalidRequestError("reply target must be an active message in this conversation");
       }
       const recipients = await c.query<{account_id:string}>(
@@ -115,7 +115,8 @@ export class Store {
     }
     const source=await this.pool.query<{payload:string}>(
       `SELECT m.payload FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id AND cm.account_id=$2
-       WHERE m.id=$1 AND m.deleted_at IS NULL`,[sourceMessage,account]);
+       WHERE m.id=$1 AND m.deleted_at IS NULL
+         AND (m.message_class<>'business_offer' OR m.sender_id=$2 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$2))`,[sourceMessage,account]);
     if(source.rowCount!==1) throw new NotMemberError();
     return this.send(account,targetConversation,operationKey,source.rows[0]!.payload,null,sourceMessage);
   }
@@ -132,9 +133,10 @@ export class Store {
               ts_rank_cd(to_tsvector('simple',m.payload),plainto_tsquery('simple',$2)) AS relevance
        FROM messages m
        WHERE m.conversation_id=$1 AND m.deleted_at IS NULL
+         AND (m.message_class<>'business_offer' OR m.sender_id=$4 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$4))
          AND to_tsvector('simple',m.payload) @@ plainto_tsquery('simple',$2)
        ORDER BY relevance DESC,m.position DESC
-       LIMIT $3`,[conversation,query.trim(),limit]);
+       LIMIT $3`,[conversation,query.trim(),limit,account]);
     return result.rows;
   }
 
@@ -143,8 +145,8 @@ export class Store {
     const member = await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
     if (member.rowCount !== 1) throw new NotMemberError();
     const result = await this.pool.query<Message>(
-      "SELECT id AS message_id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id,forwarded_from_message_id,edited_at,deleted_at FROM messages WHERE conversation_id=$1 AND position>$2 ORDER BY position LIMIT $3",
-      [conversation,after,limit]);
+      "SELECT m.id AS message_id,m.conversation_id,m.sender_id,m.operation_key,m.payload,m.position,m.reply_to_message_id,m.forwarded_from_message_id,m.edited_at,m.deleted_at FROM messages m WHERE m.conversation_id=$1 AND m.position>$2 AND (m.message_class<>'business_offer' OR m.sender_id=$4 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$4)) ORDER BY m.position LIMIT $3",
+      [conversation,after,limit,account]);
     return result.rows;
   }
 
@@ -333,7 +335,7 @@ export class Store {
       await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",[ "pins:"+conversation ]);
       const member=await c.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
       if(member.rowCount!==1) throw new NotMemberError();
-      const target=await c.query("SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND deleted_at IS NULL FOR UPDATE",[message,conversation]);
+      const target=await c.query("SELECT 1 FROM messages m WHERE m.id=$1 AND m.conversation_id=$2 AND m.deleted_at IS NULL AND (m.message_class<>'business_offer' OR m.sender_id=$3 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$3)) FOR UPDATE",[message,conversation,account]);
       if(target.rowCount!==1) throw new InvalidRequestError("only active messages in this conversation can be pinned");
       const count=await c.query<{n:number}>("SELECT count(*)::int AS n FROM conversation_pins WHERE conversation_id=$1",[conversation]);
       const exists=await c.query("SELECT 1 FROM conversation_pins WHERE conversation_id=$1 AND message_id=$2",[conversation,message]);
@@ -362,7 +364,7 @@ export class Store {
       `SELECT p.conversation_id,p.message_id,p.pinned_by,p.created_at,
               m.sender_id,m.payload,m.position,m.reply_to_message_id,m.forwarded_from_message_id
        FROM conversation_pins p JOIN messages m ON m.id=p.message_id
-       WHERE p.conversation_id=$1 ORDER BY p.created_at DESC,p.message_id`,[conversation]);
+       WHERE p.conversation_id=$1 AND (m.message_class<>'business_offer' OR m.sender_id=$2 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$2)) ORDER BY p.created_at DESC,p.message_id`,[conversation,account]);
     return result.rows;
   }
 
@@ -371,9 +373,11 @@ export class Store {
     const member=await this.pool.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND account_id=$2",[conversation,account]);
     if(member.rowCount!==1) throw new NotMemberError();
     const result=await this.pool.query(
-      `SELECT id AS event_id,event_type,message_id,payload,created_at
-       FROM conversation_event_log WHERE recipient_id=$1 AND conversation_id=$2 AND id>$3
-       ORDER BY id LIMIT $4`,
+      `SELECT e.id AS event_id,e.event_type,e.message_id,e.payload,e.created_at
+       FROM conversation_event_log e JOIN messages m ON m.id=e.message_id
+       WHERE e.recipient_id=$1 AND e.conversation_id=$2 AND e.id>$3
+         AND (m.message_class<>'business_offer' OR m.sender_id=$1 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$1))
+       ORDER BY e.id LIMIT $4`,
       [account,conversation,after,limit]
     );
     return result.rows;
@@ -384,7 +388,7 @@ export class Store {
     const length=Array.from(emoji).length;
     if(!account || !message || length<1 || length>8 || /[\\u0000-\\u001f\\u007f]/u.test(emoji)) throw new InvalidRequestError();
     const member=await this.pool.query(
-      "SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.id=$1 AND cm.account_id=$2",
+      "SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.id=$1 AND cm.account_id=$2 AND (m.message_class<>'business_offer' OR m.sender_id=$2 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$2))",
       [message,account]
     );
     if(member.rowCount!==1) throw new NotMemberError();
@@ -399,7 +403,7 @@ export class Store {
     const length=Array.from(emoji).length;
     if(!account || !message || length<1 || length>8 || /[\\u0000-\\u001f\\u007f]/u.test(emoji)) throw new InvalidRequestError();
     const member=await this.pool.query(
-      "SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.id=$1 AND cm.account_id=$2",
+      "SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.id=$1 AND cm.account_id=$2 AND (m.message_class<>'business_offer' OR m.sender_id=$2 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$2))",
       [message,account]
     );
     if(member.rowCount!==1) throw new NotMemberError();
@@ -414,11 +418,11 @@ export class Store {
        FROM message_reactions r
        JOIN messages m ON m.id=r.message_id
        JOIN conversation_members cm ON cm.conversation_id=m.conversation_id AND cm.account_id=$2
-       WHERE r.message_id=$1 GROUP BY r.emoji ORDER BY r.emoji`,
+       WHERE r.message_id=$1 AND (m.message_class<>'business_offer' OR m.sender_id=$2 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$2)) GROUP BY r.emoji ORDER BY r.emoji`,
       [message,account]
     );
     const member=await this.pool.query(
-      "SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.id=$1 AND cm.account_id=$2",
+      "SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id WHERE m.id=$1 AND cm.account_id=$2 AND (m.message_class<>'business_offer' OR m.sender_id=$2 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$2))",
       [message,account]
     );
     if(member.rowCount!==1) throw new NotMemberError();

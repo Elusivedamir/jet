@@ -23,6 +23,7 @@ Jetson Messenger is being developed from the approved product baseline. The owne
 - [Agent task 01 — message reliability](docs/agent/tasks/AGENT_TASK_01_MESSAGE_RELIABILITY.md)
 - [Agent task 02 — CRM and campaigns](docs/agent/tasks/AGENT_TASK_02_CRM_CAMPAIGNS.md)
 - [Agent task 03 — security, licenses and operations](docs/agent/tasks/AGENT_TASK_03_SECURITY_LICENSES_OPERATIONS.md)
+- [Business-offer consent, dispatch and recipient visibility invariants](docs/architecture/BUSINESS_OFFER_CONSENT_AND_DELIVERY.md)
 - [Consolidated discovery index — 1,185 candidates](docs/research/CONSOLIDATED_DISCOVERY_INDEX.md)
 - [Initial README screening](docs/research/INITIAL_README_SCREENING.md)
 - [Deep-dive backend comparison](docs/research/DEEP_DIVE_BACKEND_COMPARISON_01.md)
@@ -38,7 +39,7 @@ Jetson Messenger is being developed from the approved product baseline. The owne
 
 ## Current status
 
-**Implementation and verification.** The owner-approved primary backend direction is Node.js + TypeScript (ADR-0003). The Node/PostgreSQL message PoC has a green CI run #276, including clean dependency install, TypeScript build, PostgreSQL integration, hard crash/restart recovery, dependency audit, license inventory and Trivy. This remains a research PoC, not production-ready. Go and Kotlin remain comparison evidence, not alternate approved primary stacks. Production authentication, migrations, multi-device semantics, E2EE scope, backup/restore, sustained-load evidence and client implementation remain open. Detailed UI remains iterative.
+**Implementation and verification.** The owner-approved primary backend direction is Node.js + TypeScript (ADR-0003). On 2026-11-28, Node run [#46118309749](https://github.com/Elusivedamir/jet/actions/runs/46118309749) passed on revision `cd6012f`, including clean install, TypeScript build, PostgreSQL integration, production test-identity guard, crash/restart and shared contract/benchmark harness, npm audit/license inventory, Trivy and artifact upload. Recipient-visibility hardening is being verified on a newer branch head; do not attribute the prior green run to later commits. Go run [#46118309728](https://github.com/Elusivedamir/jet/actions/runs/46118309728) failed in the shared crash-recovery harness while waiting for the lost-response message row within 20 seconds. Kotlin run [#46118309731](https://github.com/Elusivedamir/jet/actions/runs/46118309731) passed compilation, PostgreSQL integration and crash/contract steps but failed the conservative license gate with 3 components marked `REVIEW_REQUIRED`. Go and Kotlin remain comparison evidence, not alternate approved primary stacks. This remains a research PoC, not production-ready. Production authentication, versioned migrations, multi-device semantics, E2EE scope, backup/restore, sustained-load evidence and client implementation remain open. Detailed UI remains iterative.
 
 Research up to 1,000 relevant public repositories in transparent tiers. No repository is adopted wholesale. Existing projects are learning sources only; choices require evidence and comparison against the business plan.
 

@@ -176,13 +176,13 @@ export class ContactsStore {
     }>(
       "SELECT d.conversation_id,d.kind,d.title,a.id AS peer_id,a.username AS peer_username,a.display_name AS peer_display_name," +
       "(SELECT count(*)::int FROM conversation_members cm WHERE cm.conversation_id=d.conversation_id) AS members_count," +
-      "latest.payload AS last_message,latest.created_at AS last_message_at,COALESCE(cc.last_position,0)::text AS last_position " +
+      "latest.payload AS last_message,latest.created_at AS last_message_at,COALESCE(latest.position,0)::text AS last_position " +
       "FROM conversation_details d " +
       "JOIN conversation_members mine ON mine.conversation_id=d.conversation_id AND mine.account_id=$1 " +
       "LEFT JOIN direct_conversations dc ON dc.conversation_id=d.conversation_id " +
       "LEFT JOIN accounts a ON d.kind='direct' AND a.id=CASE WHEN dc.account_low=$1 THEN dc.account_high ELSE dc.account_low END " +
       "LEFT JOIN conversation_counters cc ON cc.conversation_id=d.conversation_id " +
-      "LEFT JOIN LATERAL (SELECT payload,created_at FROM messages WHERE conversation_id=d.conversation_id ORDER BY position DESC LIMIT 1) latest ON true " +
+      "LEFT JOIN LATERAL (SELECT m.payload,m.created_at,m.position FROM messages m WHERE m.conversation_id=d.conversation_id AND (m.message_class<>'business_offer' OR m.sender_id=$1 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$1)) ORDER BY m.position DESC LIMIT 1) latest ON true " +
       "ORDER BY COALESCE(latest.created_at,d.created_at) DESC LIMIT 100",
       [accountId]
     );

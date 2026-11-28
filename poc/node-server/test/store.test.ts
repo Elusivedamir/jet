@@ -309,6 +309,14 @@ test("queued business offers are cancelled when consent or the master preference
  assert.equal(revokedInbox.rowCount,0);
  assert.equal(revokedState.rows[0]!.state,"cancelled");
  assert.equal(revokedState.rows[0]!.last_error,"business_offer_consent_revoked");
+ // A cancelled offer must be invisible through recipient-facing read surfaces.
+ const historyAfterRevoke=await store.history("bob","room-a",0);
+ assert.ok(!historyAfterRevoke.some(row=>row.message_id===revoked.message_id));
+ const searchAfterRevoke=await store.searchMessages("bob","room-a","queued before revocation");
+ assert.ok(!searchAfterRevoke.some(row=>row.message_id===revoked.message_id));
+ await assert.rejects(()=>store.forward("bob",revoked.message_id,"room-c","forward-cancelled-offer"),NotMemberError);
+ await assert.rejects(()=>store.addReaction("bob",revoked.message_id,"👍"),NotMemberError);
+ assert.ok(!(await store.pinnedMessages("bob","room-a")).some(row=>row.message_id===revoked.message_id));
 
  await pool.query("UPDATE business_consent_state SET status='granted' WHERE business_account_id='alice' AND recipient_id='bob'");
  await pool.query("UPDATE business_offer_preferences SET enabled=TRUE WHERE account_id='bob'");

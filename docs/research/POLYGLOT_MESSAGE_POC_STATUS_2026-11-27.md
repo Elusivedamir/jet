@@ -100,3 +100,18 @@ The shared harness now verifies negative history/SSE cursor rejection and that `
 The expanded candidate tests now cover: active-lease expiry rejection before reclaim, stale-token rejection after reclaim, parallel worker claims without duplicate row ownership, retry exhaustion, and transaction rollback when an injected outbox insert failure occurs. Go's 12 integration test functions ran 100 repetitions under the race detector. Node and Kotlin each ran 8 integration tests.
 
 Earlier failed intermediate CI runs were corrected, not hidden: Go formatting check failure and Kotlin test methods initially outside the test class. The exact final-head runs listed above are green. The decision remains Open: no production stack score/selection. Hard process-kill tests, complete committed lockfiles/checksums, SBOM/license inventory, production auth/security, sustained-load/resource measurements and timed maintenance-task comparison remain outstanding.
+
+
+## Current follow-up verification — 2026-11-28
+
+The current branch has moved beyond the earlier historical comparison results. On revision `cd6012f5d213e2ccb18f3e835b63ff028d2aedb0`:
+
+- Node [run #46118309749](https://github.com/Elusivedamir/jet/actions/runs/46118309749) — **PASS**. Clean install, TypeScript build, PostgreSQL integration, production test-identity spoofing guard, hard crash/restart, shared contract/benchmark, dependency audit/license inventory, Trivy and artifact upload all completed successfully.
+- Go [run #46118309728](https://github.com/Elusivedamir/jet/actions/runs/46118309728) — **FAIL** at the shared crash-recovery harness. The lost-response scenario did not produce the expected `messages` row within the harness's 20-second SQL wait. The log does not establish whether the defect is in the Go server or the fault-injection timing.
+- Kotlin [run #46118309731](https://github.com/Elusivedamir/jet/actions/runs/46118309731) — **FAIL** at the conservative CycloneDX license policy gate. The SBOM contained 42 components; 3 were classified `REVIEW_REQUIRED`. Compilation, PostgreSQL integration and crash/contract steps had completed before the license gate. The policy was not bypassed.
+
+Node business-offer consent gating was added after the earlier green run. The sender transaction now requires one eligible accepted-contact direct recipient, an enabled recipient master preference and a current per-business grant. Dispatch rechecks those permissions under transaction locks before creating the recipient inbox row and cancels ineligible outbox items.
+
+A subsequent visibility review identified that cancellation alone is insufficient if recipient-facing history reads directly from the shared `messages` table. Recipient reads must be gated on a durable `recipient_inbox` row for business-offer messages. The current branch adds this predicate to history, search, event feeds, reactions, pins, forwarding/replies and conversation previews; a regression test covers cancelled-offer leakage. The latest commit after this change requires fresh CI evidence.
+
+The three language PoCs are not interchangeable production implementations. Only the Node TypeScript path is the owner-approved primary direction. No language selection is inferred from old benchmark tables. No merge or release authorization is implied.
