@@ -345,7 +345,7 @@ const server=createServer(async(req,res)=>{
       else if(e.code==="preference_disabled") json(res,409,{error:"enable business offers before granting sender consent"});
       else json(res,404,{error:"accepted contact not found"});
     }
-    if(e instanceof CrmError) {
+    else if(e instanceof CrmError) {
       if(e.code==="invalid") json(res,400,{error:"invalid CRM request"});
       else if(e.code==="forbidden") json(res,403,{error:"CRM operation not permitted"});
       else json(res,404,{error:"CRM customer not found"});
