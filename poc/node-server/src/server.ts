@@ -116,6 +116,10 @@ const server=createServer(async(req,res)=>{
     if(req.method==="GET" && campaignStatus) {
       json(res,200,await campaigns.statusSummary(user,decodeURIComponent(campaignStatus[1]!)));return;
     }
+    const campaignCancel=url.pathname.match(/^\/v1\/business\/campaigns\/([^/]+)$/);
+    if(req.method==="DELETE" && campaignCancel) {
+      json(res,200,await campaigns.cancelCampaign(user,decodeURIComponent(campaignCancel[1]!)));return;
+    }
     const campaignPreview=url.pathname.match(/^\/v1\/business\/campaigns\/([^/]+)\/preview$/);
     if(req.method==="GET" && campaignPreview) {
       json(res,200,await campaigns.preview(user,decodeURIComponent(campaignPreview[1]!)));return;
@@ -342,7 +346,9 @@ const server=createServer(async(req,res)=>{
     json(res,404,{error:"not found"});
   } catch(e) {
     if(e instanceof CampaignError) {
-      if(e.code==="invalid") json(res,400,{error:"invalid campaign draft"});
+      if(e.code==="invalid") json(res,400,{error:"invalid campaign request"});
+      else if(e.code==="not_entitled") json(res,403,{error:"campaigns are not enabled for this business"});
+      else if(e.code==="conflict") json(res,409,{error:"campaign cannot be cancelled in its current state"});
       else json(res,404,{error:"campaign not found"});
     }
     else if(e instanceof ConsentError) {
