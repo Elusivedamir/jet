@@ -33,7 +33,7 @@ export class CampaignStore {
     if(!campaign) throw new CampaignError("not_found");
     const result=await this.pool.query<CampaignAudienceRow>(
       "SELECT c.person_id,a.username,a.display_name,c.status AS customer_status, CASE WHEN ct.account_low IS NULL THEN 'excluded' WHEN COALESCE(p.enabled,FALSE)=FALSE THEN 'excluded' WHEN COALESCE(s.status,'revoked')<>'granted' THEN 'excluded' ELSE 'eligible' END AS eligibility, CASE WHEN ct.account_low IS NULL THEN 'contact_not_accepted' WHEN COALESCE(p.enabled,FALSE)=FALSE THEN 'global_preference_off' WHEN COALESCE(s.status,'revoked')<>'granted' THEN 'business_consent_missing' ELSE NULL END AS exclusion_reason FROM crm_customers c JOIN accounts a ON a.id=c.person_id LEFT JOIN contacts ct ON ct.account_low=LEAST(c.business_account_id,c.person_id) AND ct.account_high=GREATEST(c.business_account_id,c.person_id) LEFT JOIN business_offer_preferences p ON p.account_id=c.person_id LEFT JOIN business_consent_state s ON s.business_account_id=c.business_account_id AND s.recipient_id=c.person_id WHERE c.business_account_id=$1 ORDER BY eligibility DESC,a.username,c.person_id
-      ,[businessAccountId]);
+      [businessAccountId]);
     const recipients=result.rows;
     const eligible=recipients.filter(row=>row.eligibility==="eligible").length;
     return {campaign,total:recipients.length,eligible,excluded:recipients.length-eligible,recipients};
