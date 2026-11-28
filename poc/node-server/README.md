@@ -19,7 +19,8 @@
 - Logout: `POST /v1/auth/logout` with the same Bearer token.
 - Usernames are normalized to lowercase and restricted to 3–24 ASCII letters, digits or underscore. Passwords must be 12–128 characters; display names 1–48 characters.
 - Passwords are salted and hashed with Node.js scrypt; plaintext passwords are never persisted. Sessions use 256-bit random opaque tokens; only SHA-256 token digests are stored. Sessions expire after 30 days and logout revokes the token.
-- Access tokens are returned only at registration/login and must be treated as secrets by clients. This PoC uses Bearer tokens; it does not yet implement refresh tokens, device/session management, login throttling, password reset, email/phone verification, MFA or account recovery.
+- Login attempts are throttled in PostgreSQL by a SHA-256 key of the normalized username: ten attempts are allowed per 15-minute window; the next attempt receives HTTP 429 and a 15-minute cooldown. A successful login clears that username bucket; stale buckets older than one day are pruned on login. This is a per-username control only, not IP/device/global abuse protection.
+- Access tokens are returned only at registration/login and must be treated as secrets by clients. This PoC uses Bearer tokens; it does not yet implement refresh tokens, device/session management, IP-based login throttling, password reset, email/phone verification, MFA or account recovery.
 
 ## Run
 
