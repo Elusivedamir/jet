@@ -1,7 +1,7 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import pg from "pg";
 const {Pool}=pg;
 import {AuthStore,AuthError} from "../src/auth.js";
@@ -45,6 +45,24 @@ test("login rejects wrong passwords and logout revokes the session",async()=>{
  assert.equal((await auth.authenticate(login.token))?.id,created.account.id);
  await auth.logout(login.token);
  assert.equal(await auth.authenticate(login.token),null);
+});
+
+test("login throttling blocks after ten attempts and resets after the window",async()=>{
+ const username="throttle_"+randomBytes(5).toString("hex");
+ const password="valid passphrase for throttling";
+ const created=await auth.register(username,password,"Throttle User");
+ for(let attempt=0;attempt<10;attempt++){
+  await assert.rejects(()=>auth.login(username,"incorrect password"),e=>e instanceof AuthError&&e.code==="credentials");
+ }
+ await assert.rejects(()=>auth.login(username,password),e=>e instanceof AuthError&&e.code==="rate_limited");
+ const key=createHash("sha256").update(username,"utf8").digest("hex");
+ const blocked=await pool.query("SELECT attempts,blocked_until FROM auth_login_limits WHERE username_key=$1",[key]);
+ assert.equal(blocked.rows[0]!.attempts,11);assert.ok(blocked.rows[0]!.blocked_until instanceof Date);
+ await pool.query("UPDATE auth_login_limits SET window_started_at=now()-interval '16 minutes',blocked_until=NULL WHERE username_key=$1",[key]);
+ const login=await auth.login(username,password);
+ assert.equal((await auth.authenticate(login.token))?.id,created.account.id);
+ const remaining=await pool.query("SELECT count(*)::int AS n FROM auth_login_limits WHERE username_key=$1",[key]);
+ assert.equal(remaining.rows[0]!.n,0);
 });
 
 test("registration enforces username and password policy",async()=>{
