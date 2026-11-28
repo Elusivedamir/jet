@@ -168,3 +168,29 @@ INSERT INTO conversation_details(conversation_id,kind,title,created_by)
 SELECT dc.conversation_id,'direct',NULL,dc.account_low
 FROM direct_conversations dc
 ON CONFLICT(conversation_id) DO NOTHING;
+
+
+CREATE TABLE IF NOT EXISTS crm_customers (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  business_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  person_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'new'
+    CHECK (status IN ('new','active','follow_up','customer','archived')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (business_account_id,person_id),
+  CHECK (business_account_id <> person_id)
+);
+CREATE INDEX IF NOT EXISTS crm_customers_account_status_idx
+  ON crm_customers(business_account_id,status,updated_at DESC);
+CREATE TABLE IF NOT EXISTS crm_notes (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  customer_id TEXT NOT NULL REFERENCES crm_customers(id) ON DELETE CASCADE,
+  business_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  author_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  body TEXT NOT NULL CHECK (char_length(body) BETWEEN 1 AND 4000),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (business_account_id = author_id)
+);
+CREATE INDEX IF NOT EXISTS crm_notes_customer_idx
+  ON crm_notes(business_account_id,customer_id,created_at DESC);
