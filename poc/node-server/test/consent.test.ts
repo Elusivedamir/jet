@@ -61,6 +61,14 @@ test("only recipient can grant/revoke per-business consent and dispatch eligibil
   await consent.setOfferPreference(recipient,false);
   assert.equal(await consent.isEligibleForBusinessOffers(business,recipient),false);
   assert.equal((await consent.getBusinessConsent(recipient,business))?.status,"revoked");
+  const events=await pool.query(
+    "SELECT action,source,actor_id FROM business_consent_events WHERE recipient_id=$1 ORDER BY version",
+    [recipient]
+  );
+  assert.deepEqual(events.rows.map(row=>[row.action,row.source,row.actor_id]),[
+    ["granted","user_settings",recipient],
+    ["revoked","global_preference_off",recipient]
+  ]);
   await consent.setOfferPreference(recipient,true);
   assert.equal(await consent.isEligibleForBusinessOffers(business,recipient),false,
     "re-enabling the master switch must not restore revoked sender consents");
