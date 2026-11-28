@@ -53,7 +53,7 @@ This distinction is essential because the message row and outbox intent are comm
 
 ## Campaign draft boundary
 
-The current campaign API supports only draft creation, draft listing and audience preview. Preview is a point-in-time estimate. There is no campaign enqueue, schedule, send, retry or mass-send endpoint. Any future campaign dispatcher must create one durable job per eligible recipient, recheck and lock current consent when enqueuing, recheck again at actual delivery, use stable per-campaign/per-recipient idempotency, and cancel jobs that lose eligibility before delivery. External email, SMS, third-party channels and public outbound APIs are out of scope for this PoC.
+The current campaign API supports only draft creation, draft listing and audience preview. Preview is a point-in-time estimate. There is no campaign enqueue, schedule, send, retry or mass-send endpoint. A proposed per-recipient queue and delivery reconciliation design is documented in [CAMPAIGN_DISPATCH_DRAFT.md](CAMPAIGN_DISPATCH_DRAFT.md), but remains unimplemented and is not an approved ADR. Any future campaign dispatcher must create one durable job per eligible recipient, recheck and lock current consent when enqueuing, recheck again at actual delivery, use stable per-campaign/per-recipient idempotency, and cancel jobs that lose eligibility before delivery. External email, SMS, third-party channels and public outbound APIs are out of scope for this PoC.
 
 ## Current limitations
 

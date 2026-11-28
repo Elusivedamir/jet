@@ -120,3 +120,16 @@ The three language PoCs are not interchangeable production implementations. Only
 ### Crash-harness client-disconnect semantics — 2026-11-28
 
 The third lost-acceptance-response case now keeps the HTTP socket open until the harness independently observes the committed message row in PostgreSQL, then closes the socket without consuming the response and hard-kills the server. This removes an ambiguous race in which an immediate client close could cancel a request before the database commit, especially for handlers that propagate request cancellation into database operations. The test now specifically exercises a committed request whose acceptance response is discarded, rather than an arbitrary early disconnect. Exact-head Go/Node/Kotlin reruns are required before treating the revised harness as passing.
+
+
+## Latest exact-head CI after consent visibility and harness hardening — 2026-11-28
+
+Exact revision: `21da0f3a94425e1ac2944cbb0818a9e7a6556a80`.
+
+- Node [run #46120065775](https://github.com/Elusivedamir/jet/actions/runs/46120065775) — **PASS**. Clean install, TypeScript build, PostgreSQL integration (including cancelled-offer visibility in history/search/events/pins/conversation preview), production test-identity guard, all hard crash/restart cases, shared contract/benchmark, npm audit/license inventory, Trivy and artifact upload.
+- Go [run #46120065807](https://github.com/Elusivedamir/jet/actions/runs/46120065807) — **PASS**. Dependency graph/checksums, formatting/static analysis, PostgreSQL integration/race tests, direct build, all hard crash/restart cases including lost acceptance response after commit, shared contract/benchmark, supply-chain scan, Trivy and artifact upload.
+- Kotlin [run #46120065781](https://github.com/Elusivedamir/jet/actions/runs/46120065781) — **FAIL at the conservative license gate only**. Compilation, committed Maven dependency graph verification, PostgreSQL integration, hard crash/restart and shared contract/benchmark passed. The 42-component SBOM has three `REVIEW_REQUIRED` components: `logback-classic:1.5.18` (EPL-1.0/LGPL), `logback-core:1.5.18` (EPL-1.0/LGPL), and `jakarta.annotation-api:2.1.1` (EPL-2.0/GPL-2.0-with-classpath-exception). The fail-closed policy remains enabled; no license was silently allow-listed.
+
+The shared lost-acceptance-response harness was hardened: it now keeps the HTTP socket open until PostgreSQL independently confirms the message commit, closes without reading the acceptance response, then kills/restarts the server. This passed on Go and Node. The earlier failure was caused by an ambiguous test timing window; the corrected harness now tests the intended post-commit response-loss boundary.
+
+Campaign dispatch is still not implemented. A separate design draft now describes per-recipient jobs, leases/fencing, idempotent message creation, outbox reconciliation, consent rechecks and acceptance tests. It does not authorize or expose a send endpoint.

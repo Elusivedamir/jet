@@ -83,7 +83,7 @@ Direct and multi-recipient conversation fan-out are supported by this PoC. Reque
 - List drafts owned by the authenticated business account: `GET /v1/business/campaigns`.
 - Preview a draft's CRM audience: `GET /v1/business/campaigns/{campaign_id}/preview`. The response separates eligible and excluded recipients and gives exclusion reasons: `global_preference_off`, `business_consent_missing`, or `contact_not_accepted`.
 - Preview is a point-in-time estimate, not a reservation or send authorization. Consent may change immediately afterward; any future dispatcher must recheck and lock eligibility inside the same transaction that creates durable delivery intents.
-- Campaigns are draft-only. There is deliberately no edit, schedule, enqueue, send, retry or external-channel endpoint yet. No message is sent by creating or previewing a draft. Subscription entitlement and billing are not enforced in this PoC.
+- Campaigns are draft-only. There is deliberately no edit, schedule, enqueue, send, retry or external-channel endpoint yet. No message is sent by creating or previewing a draft. Subscription entitlement and billing are not enforced in this PoC. The proposed durable per-recipient queue, worker lease, idempotency and outbox reconciliation are documented in [CAMPAIGN_DISPATCH_DRAFT.md](../../docs/architecture/CAMPAIGN_DISPATCH_DRAFT.md); that document is a design proposal, not implemented behavior.
 
 ## Contacts and personal conversations
 
