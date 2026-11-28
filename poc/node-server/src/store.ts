@@ -179,7 +179,7 @@ export class Store {
         [item.id,item.message_id,item.recipient_id,item.lease_token]
       );
       if(lease.rowCount!==1) throw new Error("outbox lease lost");
-      const message=await c.query<{sender_id:string;conversation_id:string;message_class:string;deleted_at:Date|null}>(
+      const message=await c.query<{sender_id:string;conversation_id:string;message_class:string;deleted_at:Date|null;operation_key:string}>(
         "SELECT sender_id,conversation_id,message_class,deleted_at,operation_key FROM messages WHERE id=$1 FOR SHARE",
         [item.message_id]
       );
