@@ -60,6 +60,15 @@ export class CampaignStore {
    await c.query("COMMIT");return {campaign_id:campaignId,queued,skipped,replayed:false};
   }catch(e){await c.query("ROLLBACK");throw e;}finally{c.release();}
  }
+ async updateDraft(owner:string,campaignId:string,titleInput:string,bodyInput:string):Promise<CampaignDraft>{
+  const title=titleInput.trim(),body=bodyInput.trim();
+  if(!owner||!campaignId||title.length<1||title.length>100||body.length<1||body.length>4000)throw new CampaignError("invalid");
+  const r=await this.pool.query<CampaignDraft>("UPDATE business_campaigns SET title=$3,body=$4,updated_at=now() WHERE id=$1 AND business_account_id=$2 AND status='draft' RETURNING id,business_account_id,title,body,status,created_at,updated_at",[campaignId,owner,title,body]);
+  if(r.rowCount===1)return r.rows[0]!;
+  const exists=await this.pool.query("SELECT 1 FROM business_campaigns WHERE id=$1 AND business_account_id=$2",[campaignId,owner]);
+  if(!exists.rowCount)throw new CampaignError("not_found");
+  throw new CampaignError("conflict");
+ }
  async cancelCampaign(owner:string,campaignId:string):Promise<{campaign_id:string;cancelled:number;in_flight:number;replayed:boolean}>{
   if(!owner||!campaignId)throw new CampaignError("invalid");
   const client=await this.pool.connect();
