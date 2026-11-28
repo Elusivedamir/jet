@@ -21,6 +21,7 @@ before(async()=>{
  for(const person of [optedIn,globalOff,noGrant]){
   const conversation=randomUUID();await pool.query("INSERT INTO conversations(id) VALUES($1)",[conversation]);
   const pair=[business,person].sort();await pool.query("INSERT INTO direct_conversations(account_low,account_high,conversation_id) VALUES($1,$2,$3)",[...pair,conversation]);
+  await pool.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES($1,$2),($1,$3)",[conversation,business,person]);
  }
  await pool.query("INSERT INTO business_entitlements(business_account_id,campaigns_enabled) VALUES($1,TRUE)",[business]);
  await consent.setOfferPreference(globalOff,false);await consent.setOfferPreference(noGrant,true);await consent.setOfferPreference(noConversation,true);await consent.setBusinessConsent(noConversation,business,true);
