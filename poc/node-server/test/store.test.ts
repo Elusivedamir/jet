@@ -251,3 +251,26 @@ test("full-text search is conversation-scoped, member-only and excludes deleted 
  await assert.rejects(()=>store.searchMessages("bob","room-a","x"),InvalidRequestError);
  await assert.rejects(()=>store.searchMessages("bob","room-a","launch plan",51),InvalidRequestError);
 });
+
+
+test("business offers are isolated in their own inbox folder with stable pagination",async()=>{
+ const standard=await store.send("alice","room-a","folder-standard","ordinary message");
+ const offer=await store.send("alice","room-a","folder-offer","opted-in offer",null,null,"business_offer");
+ const retry=await store.send("alice","room-a","folder-offer","opted-in offer",null,null,"business_offer");
+ assert.equal(retry.message_id,offer.message_id);
+ await assert.rejects(()=>store.send("alice","room-a","folder-offer","opted-in offer"),ConflictError);
+ const claimed=await store.claim(200,5000); for(const item of claimed) await store.dispatch(item);
+ const primary=await store.listInbox("bob","primary"), offers=await store.listInbox("bob","business_offers");
+ assert.ok(primary.some(row=>row.message_id===standard.message_id)); assert.ok(!primary.some(row=>row.message_id===offer.message_id));
+ assert.deepEqual(offers.map(row=>row.message_id),[offer.message_id]); assert.equal(offers[0]!.folder,"business_offers");
+ assert.equal((await store.listInbox("carol","business_offers")).length,0);
+ await assert.rejects(()=>store.listInbox("mallory","business_offers"),InvalidRequestError);
+});
+
+test("global inbox cursor uses timestamp and message id together",async()=>{
+ await store.send("alice","room-a","folder-page-a","first",null,null,"business_offer"); await store.send("alice","room-a","folder-page-b","second",null,null,"business_offer");
+ const claimed=await store.claim(200,5000); for(const item of claimed) await store.dispatch(item);
+ const page=await store.listInbox("bob","business_offers",null,null,1); assert.equal(page.length,1);
+ const next=await store.listInbox("bob","business_offers",page[0]!.created_at.toISOString(),page[0]!.message_id,10); assert.equal(next.length,1); assert.notEqual(page[0]!.message_id,next[0]!.message_id);
+ await assert.rejects(()=>store.listInbox("bob","business_offers",page[0]!.created_at.toISOString(),null,10),InvalidRequestError);
+});

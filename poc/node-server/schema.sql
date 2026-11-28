@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS messages (
   sender_id TEXT NOT NULL, operation_key TEXT NOT NULL, payload TEXT NOT NULL,
   position BIGINT NOT NULL CHECK (position > 0),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  message_class TEXT NOT NULL DEFAULT 'standard' CHECK (message_class IN ('standard','business_offer')),
   reply_to_message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
   forwarded_from_message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
   UNIQUE (sender_id, operation_key), UNIQUE (conversation_id, position)
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS delivery_outbox (
 CREATE TABLE IF NOT EXISTS recipient_inbox (
   message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
   recipient_id TEXT NOT NULL, conversation_id TEXT NOT NULL, position BIGINT NOT NULL,
+  folder TEXT NOT NULL DEFAULT 'primary' CHECK (folder IN ('primary','business_offers')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (message_id, recipient_id),
   UNIQUE (recipient_id, conversation_id, position)
@@ -78,7 +80,10 @@ CREATE TABLE IF NOT EXISTS delivery_receipts (
   PRIMARY KEY (message_id, recipient_id),
   FOREIGN KEY (message_id, recipient_id) REFERENCES recipient_inbox(message_id, recipient_id) ON DELETE CASCADE
 );
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_class TEXT NOT NULL DEFAULT 'standard' CHECK (message_class IN ('standard','business_offer'));
+ALTER TABLE recipient_inbox ADD COLUMN IF NOT EXISTS folder TEXT NOT NULL DEFAULT 'primary' CHECK (folder IN ('primary','business_offers'));
 CREATE INDEX IF NOT EXISTS recipient_inbox_cursor_idx ON recipient_inbox(recipient_id, conversation_id, position);
+CREATE INDEX IF NOT EXISTS recipient_inbox_folder_cursor_idx ON recipient_inbox(recipient_id,folder,created_at DESC,message_id DESC);
 CREATE INDEX IF NOT EXISTS delivery_outbox_pending_idx ON delivery_outbox(state, available_at, lease_until, id);
 CREATE INDEX IF NOT EXISTS messages_conversation_position_idx ON messages(conversation_id, position);
 

@@ -75,7 +75,7 @@ Direct and multi-recipient conversation fan-out are supported by this PoC. Reque
 - Add an internal note: `POST /v1/business/customers/{customer_id}/notes` with `{"body":"Call back next Tuesday"}`.
 - List notes: `GET /v1/business/customers/{customer_id}/notes`.
 - Customer cards can only be created for accepted contacts. Customer and note queries are scoped to the authenticated business account; another account cannot read or modify the card.
-- This is the first CRM data slice only. Business subscription entitlement, team roles, custom fields, segmentation, consent/preferences, campaigns and billing are not implemented. No campaign dispatch is exposed by this API.
+- This is the first CRM data slice only. Business subscription entitlement, team roles, custom fields, segmentation, campaigns and billing are not implemented. Consent and recipient preference controls are documented separately below. No campaign dispatch is exposed by this API.
 
 ## Contacts and personal conversations
 
@@ -98,6 +98,14 @@ Direct and multi-recipient conversation fan-out are supported by this PoC. Reque
 
 These endpoints are still part of the isolated PoC. Blocking/reporting, declined-request notifications and history UX, privacy controls, discovery ranking, abuse throttling and production migrations remain future work.
 
+
+
+## Recipient inbox folders (PoC)
+
+- GET /v1/me/inbox?folder=primary&limit=50 lists the authenticated recipient's primary inbox; use folder=business_offers for the separate business-offer folder.
+- Both folders are recipient-scoped. The cursor is the pair before_created_at and before_message_id; provide both or neither. Pages are ordered newest first with a stable timestamp-plus-ID cursor.
+- Ordinary messages are assigned to primary. Only internally classified business_offer messages are routed to business_offers; the public message-send endpoint does not accept a message class.
+- This folder is routing infrastructure, not an outbound campaign feature. No campaign creation or dispatch endpoint exists.
 
 ## Business offer preferences and consent foundation (PoC)
 

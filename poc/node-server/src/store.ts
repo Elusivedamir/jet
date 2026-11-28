@@ -14,8 +14,8 @@ export class InvalidRequestError extends Error {}
 export class Store {
   constructor(readonly pool: PoolType) {}
 
-  async send(sender: string, conversation: string, key: string, payload: string, replyTo: string | null = null, forwardedFrom: string | null = null): Promise<Message> {
-    if (!sender || !conversation || !key || !payload || (replyTo !== null && (!replyTo || replyTo.length > 128)) || (forwardedFrom !== null && (!forwardedFrom || forwardedFrom.length > 128)) || (replyTo !== null && forwardedFrom !== null)) throw new InvalidRequestError();
+  async send(sender: string, conversation: string, key: string, payload: string, replyTo: string | null = null, forwardedFrom: string | null = null, messageClass: "standard" | "business_offer" = "standard"): Promise<Message> {
+    if (!['standard','business_offer'].includes(messageClass) || !sender || !conversation || !key || !payload || (replyTo !== null && (!replyTo || replyTo.length > 128)) || (forwardedFrom !== null && (!forwardedFrom || forwardedFrom.length > 128)) || (replyTo !== null && forwardedFrom !== null)) throw new InvalidRequestError();
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
@@ -28,12 +28,12 @@ export class Store {
       if (member.rows[0]!.kind === "channel" && !["owner","admin"].includes(member.rows[0]!.role)) {
         throw new ForbiddenError("only channel owners and admins can publish");
       }
-      const prior = await c.query<Message>(
-        "SELECT id AS message_id, conversation_id, sender_id, operation_key, payload, position, reply_to_message_id, forwarded_from_message_id FROM messages WHERE sender_id=$1 AND operation_key=$2",
+      const prior = await c.query<Message & {message_class:string}>(
+        "SELECT id AS message_id, conversation_id, sender_id, operation_key, payload, position, reply_to_message_id, forwarded_from_message_id, message_class FROM messages WHERE sender_id=$1 AND operation_key=$2",
         [sender, key]);
       if (prior.rowCount) {
         const m = prior.rows[0]!;
-        if (m.conversation_id !== conversation || m.payload !== payload || (m.reply_to_message_id ?? null) !== replyTo || (m.forwarded_from_message_id ?? null) !== forwardedFrom) throw new ConflictError();
+        if (m.conversation_id !== conversation || m.payload !== payload || m.message_class !== messageClass || (m.reply_to_message_id ?? null) !== replyTo || (m.forwarded_from_message_id ?? null) !== forwardedFrom) throw new ConflictError();
         await c.query("COMMIT");
         return m;
       }
@@ -50,8 +50,8 @@ export class Store {
         [conversation]);
       const position = counter.rows[0]!.last_position;
       const id = randomUUID();
-      await c.query("INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id,forwarded_from_message_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
-        [id, conversation, sender, key, payload, position, replyTo, forwardedFrom]);
+      await c.query("INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id,forwarded_from_message_id,message_class) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+        [id, conversation, sender, key, payload, position, replyTo, forwardedFrom, messageClass]);
       const recipients = await c.query<{account_id:string}>(
         "SELECT account_id FROM conversation_members WHERE conversation_id=$1 AND account_id<>$2 ORDER BY account_id",
         [conversation, sender]);
@@ -63,7 +63,7 @@ export class Store {
         [id, recipients.rows.map((recipient) => recipient.account_id)]
       );
       await c.query("COMMIT");
-      return {message_id:id,conversation_id:conversation,sender_id:sender,operation_key:key,payload,position,reply_to_message_id:replyTo,forwarded_from_message_id:forwardedFrom};
+      return {message_id:id,conversation_id:conversation,sender_id:sender,operation_key:key,payload,position,reply_to_message_id:replyTo,forwarded_from_message_id:forwardedFrom,message_class:messageClass};
     } catch (e) {
       await c.query("ROLLBACK");
       throw e;
@@ -135,8 +135,8 @@ export class Store {
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
-      await c.query(`INSERT INTO recipient_inbox(message_id,recipient_id,conversation_id,position)
-        SELECT id,$2,conversation_id,position FROM messages WHERE id=$1
+      await c.query(`INSERT INTO recipient_inbox(message_id,recipient_id,conversation_id,position,folder)
+        SELECT id,$2,conversation_id,position,CASE WHEN message_class='business_offer' THEN 'business_offers' ELSE 'primary' END FROM messages WHERE id=$1
         ON CONFLICT(message_id,recipient_id) DO NOTHING`,[item.message_id,item.recipient_id]);
       const done = await c.query(`UPDATE delivery_outbox SET state='completed',completed_at=now(),lease_until=NULL,lease_token=NULL
         WHERE id=$1 AND state='processing' AND lease_token=$2 AND lease_until>clock_timestamp()`,[item.id,item.lease_token]);
@@ -164,6 +164,13 @@ export class Store {
       FROM recipient_inbox i JOIN messages m ON m.id=i.message_id
       WHERE i.recipient_id=$1 AND i.conversation_id=$2 AND i.position>$3
       ORDER BY i.position LIMIT $4`,[account,conversation,after,limit]);
+    return result.rows;
+  }
+
+  async listInbox(account:string,folder:"primary"|"business_offers",beforeCreatedAt:string|null=null,beforeMessageId:string|null=null,limit=50) {
+    if(!account || !["primary","business_offers"].includes(folder) || !Number.isSafeInteger(limit) || limit<1 || limit>100 || ((beforeCreatedAt===null)!==(beforeMessageId===null))) throw new InvalidRequestError();
+    if(beforeCreatedAt!==null && (!Number.isFinite(Date.parse(beforeCreatedAt)) || !beforeMessageId || beforeMessageId.length>128)) throw new InvalidRequestError();
+    const result=await this.pool.query(`SELECT m.id AS message_id,m.conversation_id,m.sender_id,a.username AS sender_username,a.display_name AS sender_display_name,m.payload,m.position,m.created_at,m.edited_at,m.deleted_at,m.reply_to_message_id,m.forwarded_from_message_id,i.folder FROM recipient_inbox i JOIN messages m ON m.id=i.message_id JOIN accounts a ON a.id=m.sender_id WHERE i.recipient_id=$1 AND i.folder=$2 AND ($3::timestamptz IS NULL OR (m.created_at,m.id)<($3::timestamptz,$4::text)) ORDER BY m.created_at DESC,m.id DESC LIMIT $5`,[account,folder,beforeCreatedAt,beforeMessageId,limit]);
     return result.rows;
   }
 

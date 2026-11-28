@@ -202,6 +202,14 @@ const server=createServer(async(req,res)=>{
       const group=await contacts.createGroup(user,requiredString(input,"title",80),input.usernames as string[]);
       json(res,201,group);return;
     }
+    if(req.method==="GET" && url.pathname==="/v1/me/inbox") {
+      const folder=url.searchParams.get("folder")??"primary";
+      if(folder!=="primary" && folder!=="business_offers") throw new InvalidRequestError();
+      const beforeCreatedAt=url.searchParams.get("before_created_at"), beforeMessageId=url.searchParams.get("before_message_id");
+      const limit=Number(url.searchParams.get("limit")??50);
+      if(!Number.isSafeInteger(limit)||limit<1||limit>100 || ((beforeCreatedAt===null)!==(beforeMessageId===null))) throw new InvalidRequestError();
+      json(res,200,await store.listInbox(user,folder,beforeCreatedAt,beforeMessageId,limit));return;
+    }
     if(req.method==="GET" && url.pathname==="/v1/conversations") {
       json(res,200,await contacts.conversations(user));return;
     }
