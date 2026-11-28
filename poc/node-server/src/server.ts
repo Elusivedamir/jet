@@ -91,7 +91,7 @@ const server=createServer(async(req,res)=>{
       const input=await body(req);
       json(res,201,await crm.createCustomer(user,requiredString(input,"username",24)));return;
     }
-    const crmNotes=url.pathname.match(/^\\/v1\\/business\\/customers\\/([^/]+)\\/notes$/);
+    const crmNotes=url.pathname.match(/^\/v1\/business\/customers\/([^/]+)\/notes$/);
     if(req.method==="GET" && crmNotes) {
       json(res,200,await crm.listNotes(user,decodeURIComponent(crmNotes[1]!)));return;
     }
@@ -99,7 +99,7 @@ const server=createServer(async(req,res)=>{
       const input=await body(req);
       json(res,201,await crm.addNote(user,decodeURIComponent(crmNotes[1]!),requiredString(input,"body",4000)));return;
     }
-    const crmCustomer=url.pathname.match(/^\\/v1\\/business\\/customers\\/([^/]+)$/);
+    const crmCustomer=url.pathname.match(/^\/v1\/business\/customers\/([^/]+)$/);
     if(req.method==="PATCH" && crmCustomer) {
       const input=await body(req);
       json(res,200,await crm.updateStatus(user,decodeURIComponent(crmCustomer[1]!),requiredString(input,"status",24)));return;
