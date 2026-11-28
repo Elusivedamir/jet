@@ -64,6 +64,18 @@ test("campaign status summary is tenant-scoped and reports durable job states",a
  await pool.query("UPDATE business_campaigns SET status='completed',updated_at=now() WHERE id=$1",[draft.id]);
 });
 
+test("campaign drafts are editable only by their owner and only before enqueue",async()=>{
+ const draft=await campaigns.createDraft(business,"Original title","Original body");
+ const updated=await campaigns.updateDraft(business,draft.id,"Updated title","Updated body");
+ assert.equal(updated.title,"Updated title");assert.equal(updated.body,"Updated body");assert.equal(updated.status,"draft");
+ await assert.rejects(()=>campaigns.updateDraft(outsider,draft.id,"Intruder","No"),e=>e instanceof CampaignError&&e.code==="not_found");
+ await assert.rejects(()=>campaigns.updateDraft(business,draft.id," ","No"),e=>e instanceof CampaignError&&e.code==="invalid");
+ await campaigns.enqueueDraft(business,draft.id,"edit-before-send");
+ await assert.rejects(()=>campaigns.updateDraft(business,draft.id,"Too late","No mutation"),e=>e instanceof CampaignError&&e.code==="conflict");
+ const unchanged=await campaigns.statusSummary(business,draft.id);
+ assert.equal(unchanged.campaign.title,"Updated title");assert.equal(unchanged.campaign.body,"Updated body");
+});
+
 test("campaign cancellation is owner-scoped, idempotent and fences not-yet-started work",async()=>{
  const queuedDraft=await campaigns.createDraft(business,"Cancel queued campaign","No recipient should be dispatched");
  await campaigns.enqueueDraft(business,queuedDraft.id,"cancel-queued");
