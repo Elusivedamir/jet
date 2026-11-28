@@ -135,8 +135,8 @@ test("campaign leases fence stale workers and reconcile only a delivery-pending 
  const activeCampaign=await pool.query("SELECT status FROM business_campaigns WHERE id=$1",[campaignId]);assert.equal(activeCampaign.rows[0]!.status,"sending");
  const messageId=randomUUID();
  const draft=await pool.query("SELECT conversation_id FROM business_campaign_jobs WHERE id=$1",[job.id]);
- await pool.query("INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position) VALUES($1,$2,$3,$4,'campaign test',1)",[messageId,draft.rows[0]!.conversation_id,business,"test:"+messageId]);
-  await pool.query("INSERT INTO conversation_counters(conversation_id,last_position) VALUES($1,1) ON CONFLICT(conversation_id) DO UPDATE SET last_position=GREATEST(conversation_counters.last_position,EXCLUDED.last_position)",[draft.rows[0]!.conversation_id]);
+ const counter=await pool.query<{last_position:string}>("INSERT INTO conversation_counters(conversation_id,last_position) VALUES($1,1) ON CONFLICT(conversation_id) DO UPDATE SET last_position=conversation_counters.last_position+1 RETURNING last_position",[draft.rows[0]!.conversation_id]);
+ await pool.query("INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position) VALUES($1,$2,$3,$4,'campaign test',$5)",[messageId,draft.rows[0]!.conversation_id,business,"test:"+messageId,counter.rows[0]!.last_position]);
  await campaigns.attachMessage(job.id,job.lease_token,messageId);
  await assert.rejects(()=>campaigns.attachMessage(job.id,job.lease_token,messageId),e=>e instanceof CampaignError&&e.code==="conflict");
  await campaigns.reconcileDelivery(job.id,messageId,"completed");
