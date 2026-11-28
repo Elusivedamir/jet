@@ -15,7 +15,7 @@ before(async()=>{
  const schema=await readFile(new URL("../schema.sql",import.meta.url),"utf8");
  for(const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
  await pool.query("TRUNCATE business_campaign_jobs,business_entitlements,business_campaigns,business_consent_events,business_consent_state,business_offer_preference_events,business_offer_preferences,crm_notes,crm_customers,contacts,direct_conversations,conversations,sessions,accounts CASCADE");
- await pool.query("INSERT INTO accounts(id,username,password_hash,display_name) VALUES($1,\u0027biz\u0027,\u0027hash\u0027,\u0027Business\u0027),($2,\u0027optedin\u0027,\u0027hash\u0027,\u0027Opted In\u0027),($3,\u0027globaloff\u0027,\u0027hash\u0027,\u0027Global Off\u0027),($4,\u0027nogrant\u0027,\u0027hash\u0027,\u0027No Grant\u0027),($5,\u0027outsider\u0027,\u0027hash\u0027,\u0027Outsider\u0027)",[business,optedIn,globalOff,noGrant,noConversation,outsider]);
+ await pool.query("INSERT INTO accounts(id,username,password_hash,display_name) VALUES($1,\u0027biz\u0027,\u0027hash\u0027,\u0027Business\u0027),($2,\u0027optedin\u0027,\u0027hash\u0027,\u0027Opted In\u0027),($3,\u0027globaloff\u0027,\u0027hash\u0027,\u0027Global Off\u0027),($4,\u0027nogrant\u0027,\u0027hash\u0027,\u0027No Grant\u0027),($5,\u0027noconversation\u0027,\u0027hash\u0027,\u0027No Conversation\u0027),($6,\u0027outsider\u0027,\u0027hash\u0027,\u0027Outsider\u0027)",[business,optedIn,globalOff,noGrant,noConversation,outsider]);
  for(const person of [optedIn,globalOff,noGrant,noConversation]){const pair=[business,person].sort();await pool.query("INSERT INTO contacts(account_low,account_high) VALUES($1,$2)",pair);await pool.query("INSERT INTO crm_customers(business_account_id,person_id) VALUES($1,$2)",[business,person]);}
  await consent.setOfferPreference(optedIn,true);await consent.setBusinessConsent(optedIn,business,true);
  for(const person of [optedIn,globalOff,noGrant]){
@@ -40,7 +40,8 @@ test("audience preview includes only contacts with both recipient-controlled gat
  const byId=new Map(preview.recipients.map(row=>[row.person_id,row]));
  assert.equal(byId.get(optedIn)?.eligibility,"eligible");
  assert.equal(byId.get(globalOff)?.exclusion_reason,"global_preference_off");
- assert.equal(byId.get(noGrant)?.exclusion_reason,"business_consent_missing");\n assert.equal(byId.get(noConversation)?.exclusion_reason,"direct_conversation_missing");
+ assert.equal(byId.get(noGrant)?.exclusion_reason,"business_consent_missing");
+ assert.equal(byId.get(noConversation)?.exclusion_reason,"direct_conversation_missing");
  assert.ok(!preview.recipients.some(row=>row.person_id===outsider));
 });
 test("campaign enqueue fails closed without entitlement and is idempotent per recipient",async()=>{
