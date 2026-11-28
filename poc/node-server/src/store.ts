@@ -45,6 +45,47 @@ export class Store {
         const target = await c.query("SELECT 1 FROM messages WHERE id=$1 AND conversation_id=$2 AND deleted_at IS NULL", [replyTo, conversation]);
         if (target.rowCount !== 1) throw new InvalidRequestError("reply target must be an active message in this conversation");
       }
+      const recipients = await c.query<{account_id:string}>(
+        "SELECT account_id FROM conversation_members WHERE conversation_id=$1 AND account_id<>$2 ORDER BY account_id",
+        [conversation, sender]);
+      if ((recipients.rowCount ?? recipients.rows.length) < 1) {
+        throw new InvalidRequestError("conversation requires at least one recipient besides the sender");
+      }
+      if (messageClass === "business_offer") {
+        // Business offers are single-recipient direct messages only. The consent locks
+        // stay in this transaction through message + outbox insertion.
+        if (recipients.rows.length !== 1) throw new ForbiddenError("business offers require one eligible direct recipient");
+        const recipient = recipients.rows[0]!.account_id;
+        const direct = await c.query(
+          "SELECT 1 FROM direct_conversations WHERE conversation_id=$1 AND account_low=LEAST($2::text,$3::text) AND account_high=GREATEST($2::text,$3::text)",
+          [conversation,sender,recipient]
+        );
+        if (!direct.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
+        const low = sender < recipient ? sender : recipient;
+        const high = sender < recipient ? recipient : sender;
+        // Check contact existence before reading preference state; then lock in the
+        // same preference -> consent -> contact order used by consent mutations.
+        const visibleContact = await c.query(
+          "SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2",
+          [low,high]
+        );
+        if (!visibleContact.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
+        const preference = await c.query<{enabled:boolean}>(
+          "SELECT enabled FROM business_offer_preferences WHERE account_id=$1 FOR UPDATE",
+          [recipient]
+        );
+        if (!preference.rowCount || !preference.rows[0]!.enabled) throw new ForbiddenError("business offer recipient is not eligible");
+        const consent = await c.query<{status:string}>(
+          "SELECT status FROM business_consent_state WHERE business_account_id=$1 AND recipient_id=$2 FOR UPDATE",
+          [sender,recipient]
+        );
+        if (!consent.rowCount || consent.rows[0]!.status !== "granted") throw new ForbiddenError("business offer recipient is not eligible");
+        const lockedContact = await c.query(
+          "SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2 FOR KEY SHARE",
+          [low,high]
+        );
+        if (!lockedContact.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
+      }
       const counter = await c.query<{last_position:string}>(
         "INSERT INTO conversation_counters(conversation_id,last_position) VALUES($1,1) ON CONFLICT(conversation_id) DO UPDATE SET last_position=conversation_counters.last_position+1 RETURNING last_position",
         [conversation]);
@@ -52,12 +93,6 @@ export class Store {
       const id = randomUUID();
       await c.query("INSERT INTO messages(id,conversation_id,sender_id,operation_key,payload,position,reply_to_message_id,forwarded_from_message_id,message_class) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
         [id, conversation, sender, key, payload, position, replyTo, forwardedFrom, messageClass]);
-      const recipients = await c.query<{account_id:string}>(
-        "SELECT account_id FROM conversation_members WHERE conversation_id=$1 AND account_id<>$2 ORDER BY account_id",
-        [conversation, sender]);
-      if ((recipients.rowCount ?? recipients.rows.length) < 1) {
-        throw new InvalidRequestError("conversation requires at least one recipient besides the sender");
-      }
       await c.query(
         "INSERT INTO delivery_outbox(message_id,recipient_id) SELECT $1, unnest($2::text[])",
         [id, recipients.rows.map((recipient) => recipient.account_id)]

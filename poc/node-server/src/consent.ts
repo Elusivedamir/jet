@@ -80,17 +80,26 @@ export class ConsentStore {
       await c.query("BEGIN");
       const low=recipientId<businessAccountId?recipientId:businessAccountId;
       const high=recipientId<businessAccountId?businessAccountId:recipientId;
+      // Keep the same lock order as dispatch: preference -> consent -> contact.
+      // The unlocked contact precheck avoids exposing preference state to non-contacts.
+      const visibleContact=await c.query(
+        "SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2",[low,high]
+      );
+      if(!visibleContact.rowCount) throw new ConsentError("not_found");
+      const preference=await c.query(
+        "SELECT enabled FROM business_offer_preferences WHERE account_id=$1 FOR UPDATE",
+        [recipientId]
+      );
+      if(granted && (!preference.rowCount || !preference.rows[0]!.enabled))
+        throw new ConsentError("preference_disabled");
+      await c.query(
+        "SELECT status FROM business_consent_state WHERE business_account_id=$1 AND recipient_id=$2 FOR UPDATE",
+        [businessAccountId,recipientId]
+      );
       const contact=await c.query(
         "SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2 FOR KEY SHARE",[low,high]
       );
       if(!contact.rowCount) throw new ConsentError("not_found");
-      if(granted) {
-        const preference=await c.query(
-          "SELECT 1 FROM business_offer_preferences WHERE account_id=$1 AND enabled=TRUE FOR SHARE",
-          [recipientId]
-        );
-        if(!preference.rowCount) throw new ConsentError("preference_disabled");
-      }
       const status=granted?"granted":"revoked";
       const source="user_settings";
       const state=await c.query<{version:string}>(
@@ -149,18 +158,20 @@ export class ConsentStore {
   // Row locks prevent a concurrent opt-out or contact removal between eligibility
   // evaluation and durable enqueue.
   async lockEligibilityForDispatch(client:PoolClient,businessAccountId:string,recipientId:string):Promise<boolean> {
-    const result=await client.query(
-      `SELECT 1
-       FROM business_offer_preferences p
-       JOIN business_consent_state s
-         ON s.recipient_id=p.account_id AND s.business_account_id=$1 AND s.status='granted'
-       JOIN contacts c
-         ON c.account_low=LEAST($1,$2) AND c.account_high=GREATEST($1,$2)
-       WHERE p.account_id=$2 AND p.enabled=TRUE
-       FOR SHARE OF p,s,c`,
+    const preference=await client.query<{enabled:boolean}>(
+      "SELECT enabled FROM business_offer_preferences WHERE account_id=$1 FOR UPDATE",[recipientId]
+    );
+    if(!preference.rowCount || !preference.rows[0]!.enabled) return false;
+    const consent=await client.query<{status:string}>(
+      "SELECT status FROM business_consent_state WHERE business_account_id=$1 AND recipient_id=$2 FOR UPDATE",
       [businessAccountId,recipientId]
     );
-    return !!result.rowCount;
+    if(!consent.rowCount || consent.rows[0]!.status!=="granted") return false;
+    const contact=await client.query(
+      "SELECT 1 FROM contacts WHERE account_low=LEAST($1::text,$2::text) AND account_high=GREATEST($1::text,$2::text) FOR KEY SHARE",
+      [businessAccountId,recipientId]
+    );
+    return !!contact.rowCount;
   }
 
   // Campaign workers must call this at dispatch time, not rely on a preview snapshot.

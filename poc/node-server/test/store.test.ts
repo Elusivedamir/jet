@@ -12,7 +12,12 @@ before(async()=>{
  for(const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
  await pool.query("TRUNCATE delivery_receipts,recipient_inbox,delivery_outbox,messages,conversation_counters,conversation_members,conversations CASCADE");
  await pool.query("INSERT INTO conversations(id) VALUES('room-a'),('room-b'),('room-group'),('room-c')");
+ await pool.query("INSERT INTO accounts(id,username,password_hash,display_name) VALUES ('alice','store_alice','test-hash','Alice'),('bob','store_bob','test-hash','Bob'),('carol','store_carol','test-hash','Carol') ON CONFLICT(id) DO NOTHING");
  await pool.query("INSERT INTO conversation_members(conversation_id,account_id) VALUES('room-a','alice'),('room-a','bob'),('room-b','alice'),('room-b','carol'),('room-group','alice'),('room-group','bob'),('room-group','carol'),('room-c','bob'),('room-c','carol')");
+ await pool.query("INSERT INTO contacts(account_low,account_high) VALUES('alice','bob'),('bob','carol') ON CONFLICT DO NOTHING");
+ await pool.query("INSERT INTO direct_conversations(account_low,account_high,conversation_id) VALUES('alice','bob','room-a'),('alice','carol','room-b'),('bob','carol','room-c') ON CONFLICT DO NOTHING");
+ await pool.query("INSERT INTO business_offer_preferences(account_id,enabled) VALUES('bob',TRUE),('carol',TRUE) ON CONFLICT(account_id) DO UPDATE SET enabled=TRUE");
+ await pool.query("INSERT INTO business_consent_state(business_account_id,recipient_id,status,policy_version,source,version) VALUES('alice','bob','granted','2026-01','user_settings',1),('bob','carol','granted','2026-01','user_settings',1) ON CONFLICT(business_account_id,recipient_id) DO UPDATE SET status='granted',source='user_settings',version=business_consent_state.version+1");
 });
 after(async()=>pool.end());
 
@@ -253,12 +258,28 @@ test("full-text search is conversation-scoped, member-only and excludes deleted 
 });
 
 
-test("business offers are isolated in their own inbox folder with stable pagination",async()=>{
+test("business offers are consent-gated, direct-only, idempotent and isolated in their inbox folder",async()=>{
  const standard=await store.send("alice","room-a","folder-standard","ordinary message");
  const offer=await store.send("alice","room-a","folder-offer","opted-in offer",null,null,"business_offer");
  const retry=await store.send("alice","room-a","folder-offer","opted-in offer",null,null,"business_offer");
  assert.equal(retry.message_id,offer.message_id);
  await assert.rejects(()=>store.send("alice","room-a","folder-offer","opted-in offer"),ConflictError);
+ // A successful idempotent retry remains safe after consent is later revoked.
+ await pool.query("UPDATE business_consent_state SET status='revoked' WHERE business_account_id='alice' AND recipient_id='bob'");
+ const afterRevoke=await store.send("alice","room-a","folder-offer","opted-in offer",null,null,"business_offer");
+ assert.equal(afterRevoke.message_id,offer.message_id);
+ await assert.rejects(()=>store.send("alice","room-a","folder-new-revoked","new offer",null,null,"business_offer"),ForbiddenError);
+ await pool.query("UPDATE business_consent_state SET status='granted' WHERE business_account_id='alice' AND recipient_id='bob'");
+ await pool.query("UPDATE business_offer_preferences SET enabled=FALSE WHERE account_id='bob'");
+ await assert.rejects(()=>store.send("alice","room-a","folder-pref-off","blocked",null,null,"business_offer"),ForbiddenError);
+ await pool.query("UPDATE business_offer_preferences SET enabled=TRUE WHERE account_id='bob'");
+ await pool.query("DELETE FROM business_consent_state WHERE business_account_id='alice' AND recipient_id='bob'");
+ await assert.rejects(()=>store.send("alice","room-a","folder-no-grant","blocked",null,null,"business_offer"),ForbiddenError);
+ await pool.query("INSERT INTO business_consent_state(business_account_id,recipient_id,status,policy_version,source,version) VALUES('alice','bob','granted','2026-01','user_settings',1)");
+ await pool.query("DELETE FROM contacts WHERE account_low='alice' AND account_high='bob'");
+ await assert.rejects(()=>store.send("alice","room-a","folder-no-contact","blocked",null,null,"business_offer"),ForbiddenError);
+ await pool.query("INSERT INTO contacts(account_low,account_high) VALUES('alice','bob')");
+ await assert.rejects(()=>store.send("alice","room-group","folder-group","blocked",null,null,"business_offer"),ForbiddenError);
  const claimed=await store.claim(200,5000); for(const item of claimed) await store.dispatch(item);
  const primary=await store.listInbox("bob","primary"), offers=await store.listInbox("bob","business_offers");
  assert.ok(primary.some(row=>row.message_id===standard.message_id)); assert.ok(!primary.some(row=>row.message_id===offer.message_id));
