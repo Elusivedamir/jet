@@ -35,6 +35,7 @@ Replaying the same enqueue key for an already queued/sending/completed campaign 
 ## Worker, idempotency and reconciliation
 
 - The internal worker claims work with `FOR UPDATE SKIP LOCKED`, a 60-second lease and a per-job fencing token.
+- Claims atomically reserve a token from a PostgreSQL-backed per-business token bucket shared across worker instances. Defaults are a burst capacity of 10 and refill of one dispatch per second; a depleted budget leaves jobs queued until tokens refill. Only one job is claimed per call, so a larger batch parameter cannot bypass the budget.
 - It processes one job per iteration. Stale lease tokens cannot attach a message or mutate a reclaimed job.
 - The worker calls the existing internal `Store.send` business-offer path using a stable campaign/recipient operation key. If the worker crashes after message commit but before attaching the message ID, retry returns the original message rather than creating a duplicate.
 - Transient failures use bounded exponential retry, with a maximum of eight attempts. Eligibility failures are terminal skips. Infrastructure loop failures back off up to 15 seconds.
@@ -64,13 +65,13 @@ Not available over HTTP:
 - Activate entitlements or manage billing.
 - Change message classification to `business_offer`.
 
-The internal queue primitive is not a user-facing send feature. Do not expose it until entitlement/billing activation, explicit confirmation UX, per-business and global rate caps, abuse controls, cancellation semantics and operational monitoring have been reviewed and tested.
+The internal queue primitive is not a user-facing send feature. Do not expose it until entitlement/billing activation, explicit confirmation UX, global platform-wide rate caps, abuse controls, cancellation semantics and operational monitoring have been reviewed and tested.
 
 ## Known gaps / release blockers
 
 - No public enqueue/confirmation endpoint or campaign UI.
 - No production billing or entitlement activation workflow.
-- No global/distributed per-business rate limiting or campaign abuse controls.
+- The per-business database token bucket is implemented, but no global platform-wide rate ceiling, adaptive abuse detection, campaign content moderation or operator kill switch exists.
 - No user-facing campaign cancellation. In particular, delivery-pending cancellation needs a transactional design before a cancel control is exposed.
 - No production-grade operational dashboard, alerting or sustained-load evidence.
 - PoC migrations/rollback and production readiness remain incomplete.
