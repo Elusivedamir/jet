@@ -214,4 +214,4 @@ Implemented in the Node TypeScript branch:
 - Transient campaign-worker errors use bounded exponential retry, terminal after eight attempts. Delivery-pending jobs reconcile against recipient-specific outbox state; a campaign completes only when all jobs are terminal.
 - The server starts the internal campaign worker alongside the message delivery worker. There is still no public enqueue route, no billing/entitlement activation path, no campaign cancellation UI, no rate-cap/abuse-control layer and no production readiness claim.
 
-Known limitation: the current enqueue audience query includes only CRM recipients with an existing direct conversation. CRM contacts without a direct conversation are not enqueued. Resolve this before any user-facing campaign flow.
+Audience preview and enqueue now explicitly classify CRM contacts without a direct conversation as excluded, with the reason direct_conversation_missing; they are included in excluded counts and never silently omitted.
