@@ -202,6 +202,34 @@ CREATE TABLE IF NOT EXISTS business_campaigns (
 );
 CREATE INDEX IF NOT EXISTS business_campaigns_owner_idx ON business_campaigns(business_account_id,updated_at DESC);
 
+ALTER TABLE business_campaigns DROP CONSTRAINT IF EXISTS business_campaigns_status_check;
+ALTER TABLE business_campaigns ADD CONSTRAINT business_campaigns_status_check CHECK (status IN ('draft','queued','sending','completed','cancelled'));
+ALTER TABLE business_campaigns ADD COLUMN IF NOT EXISTS enqueue_key TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS business_campaigns_enqueue_key_idx ON business_campaigns(business_account_id,enqueue_key) WHERE enqueue_key IS NOT NULL;
+CREATE TABLE IF NOT EXISTS business_entitlements (
+ business_account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+ campaigns_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS business_campaign_jobs (
+ id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+ campaign_id TEXT NOT NULL REFERENCES business_campaigns(id) ON DELETE CASCADE,
+ business_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+ recipient_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+ conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+ status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','processing','delivery_pending','sent','skipped','failed','cancelled')),
+ operation_key TEXT NOT NULL UNIQUE,
+ message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,
+ attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count>=0),
+ available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ lease_until TIMESTAMPTZ, lease_token TEXT, skip_reason TEXT, last_error TEXT,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), completed_at TIMESTAMPTZ,
+ UNIQUE(campaign_id,recipient_id), CHECK(business_account_id<>recipient_id)
+);
+CREATE INDEX IF NOT EXISTS business_campaign_jobs_claim_idx ON business_campaign_jobs(status,available_at,lease_until,created_at);
+CREATE INDEX IF NOT EXISTS business_campaign_jobs_owner_idx ON business_campaign_jobs(business_account_id,campaign_id,status);
+
+
 CREATE TABLE IF NOT EXISTS crm_notes (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   customer_id TEXT NOT NULL REFERENCES crm_customers(id) ON DELETE CASCADE,

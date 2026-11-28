@@ -187,3 +187,18 @@ This is a draft, not an accepted ADR. Implementation begins only after:
 6. exact-head CI is green.
 
 Until then, campaigns remain draft-only and preview-only.
+
+
+## Implementation progress — internal queue foundation
+
+The Node PoC now has a fail-closed internal queue foundation:
+- business_entitlements defaults to no campaign entitlement; no public activation endpoint exists.
+- business_campaign_jobs stores one durable row per campaign/recipient with a unique pair and stable operation key.
+- enqueueDraft locks the campaign, requires an active internal entitlement, recomputes CRM candidates and locks recipient preference -> per-business consent -> contact before inserting jobs.
+- Enqueue is idempotent for the same campaign key.
+- claimJobs uses FOR UPDATE SKIP LOCKED, expiring leases and a per-claim fencing token.
+- attachMessage rejects stale leases; reconcileDelivery maps outbox completion/cancellation/terminal failure to sent/skipped/failed.
+
+This is not yet a usable campaign-send feature. There is no HTTP enqueue route, no entitlement activation/billing path, no campaign worker calling the message store, no bounded campaign retry loop and no campaign cancellation UI. The existing delivery worker still owns the final consent re-check and inbox insertion. These are explicit release blockers.
+
+New tests cover fail-closed entitlement, recipient-level job creation, idempotent enqueue, lease fencing and delivery reconciliation.
