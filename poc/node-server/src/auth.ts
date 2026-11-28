@@ -14,7 +14,7 @@ export type PublicAccount={id:string;username:string;display_name:string;created
 export type AuthResult={account:PublicAccount;token:string;expires_at:Date};
 
 export class AuthError extends Error {
-  constructor(readonly code:"invalid"|"exists"|"credentials"|"unauthorized") {super(code);}
+  constructor(readonly code:"invalid"|"exists"|"credentials"|"unauthorized"|"rate_limited") {super(code);}
 }
 
 function tokenDigest(token:string):string {
@@ -72,6 +72,28 @@ export class AuthStore {
   async login(usernameInput:string,password:string):Promise<AuthResult> {
     const username=usernameInput.trim().toLowerCase();
     if(!/^[a-zA-Z0-9_]{3,24}$/.test(username)||password.length<1||password.length>128) throw new AuthError("credentials");
+    const usernameKey=createHash("sha256").update(username,"utf8").digest("hex");
+    // Bound storage for arbitrary usernames while retaining a durable, atomic bucket per normalized username.
+    await this.pool.query("DELETE FROM auth_login_limits WHERE updated_at<now()-interval '1 day'");
+    const rate=await this.pool.query<{blocked:boolean}>(`INSERT INTO auth_login_limits(username_key,window_started_at,attempts,updated_at)
+      VALUES($1,now(),1,now())
+      ON CONFLICT(username_key) DO UPDATE SET
+        attempts=CASE
+          WHEN auth_login_limits.blocked_until>now() THEN auth_login_limits.attempts
+          WHEN auth_login_limits.window_started_at<=now()-interval '15 minutes' THEN 1
+          ELSE auth_login_limits.attempts+1 END,
+        window_started_at=CASE
+          WHEN auth_login_limits.blocked_until>now() THEN auth_login_limits.window_started_at
+          WHEN auth_login_limits.window_started_at<=now()-interval '15 minutes' THEN now()
+          ELSE auth_login_limits.window_started_at END,
+        blocked_until=CASE
+          WHEN auth_login_limits.blocked_until>now() THEN auth_login_limits.blocked_until
+          WHEN auth_login_limits.window_started_at<=now()-interval '15 minutes' THEN NULL
+          WHEN auth_login_limits.attempts>=10 THEN now()+interval '15 minutes'
+          ELSE NULL END,
+        updated_at=now()
+      RETURNING COALESCE(blocked_until>now(),FALSE) AS blocked`,[usernameKey]);
+    if(rate.rows[0]!.blocked)throw new AuthError("rate_limited");
     const result=await this.pool.query<PublicAccount & {password_hash:string}>(
       "SELECT id,username,display_name,created_at,password_hash FROM accounts WHERE username=$1",[username]);
     const row=result.rows[0];
@@ -80,6 +102,7 @@ export class AuthStore {
     const expires=(await this.pool.query<{expires_at:Date}>(
       "INSERT INTO sessions(token_hash,account_id,expires_at) VALUES($1,$2,now()+($3 * interval '1 day')) RETURNING expires_at",
       [tokenDigest(token),row.id,SESSION_TTL_DAYS])).rows[0]!.expires_at;
+    await this.pool.query("DELETE FROM auth_login_limits WHERE username_key=$1",[usernameKey]);
     const {password_hash:_,...account}=row;
     return {account,token,expires_at:expires};
   }
