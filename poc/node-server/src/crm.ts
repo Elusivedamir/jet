@@ -37,7 +37,7 @@ export class CrmStore {
       if (!personId || personId === businessAccountId) throw new CrmError("not_found");
       const low = businessAccountId < personId ? businessAccountId : personId;
       const high = businessAccountId < personId ? personId : businessAccountId;
-      const contact = await c.query("SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2",[low,high]);
+      const contact = await c.query("SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2 FOR KEY SHARE",[low,high]);
       if (!contact.rowCount) throw new CrmError("not_found");
       const result = await c.query<CrmCustomer>(
         `INSERT INTO crm_customers(business_account_id,person_id)
@@ -51,7 +51,7 @@ export class CrmStore {
         `SELECT a.username,a.display_name,dc.conversation_id
          FROM accounts a LEFT JOIN direct_conversations dc
            ON dc.account_low=$1 AND dc.account_high=$2
-         WHERE a.id=$2`,[low,high]
+         WHERE a.id=$3`,[low,high,personId]
       );
       await c.query("COMMIT");
       return {...card,username:profile.rows[0]!.username,display_name:profile.rows[0]!.display_name,conversation_id:profile.rows[0]!.conversation_id};
