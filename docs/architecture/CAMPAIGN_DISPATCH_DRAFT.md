@@ -34,7 +34,7 @@ Replaying the same enqueue key for an already queued/sending/completed campaign 
 
 ## Worker, idempotency and reconciliation
 
-- The internal worker claims work with `FOR UPDATE SKIP LOCKED`, a 60-second lease and a per-job fencing token.
+- The internal worker claims work with `FOR UPDATE SKIP LOCKED`, a 60-second lease and a per-job fencing token. The token, not wall-clock lease expiry alone, authorizes message attachment: if the lease expired but no replacement worker claimed the job, the original token may still attach its already-committed message; once another worker claims it, the token changes and the stale worker is fenced out.
 - Claims atomically reserve a token from a PostgreSQL-backed per-business token bucket shared across worker instances. Defaults are a burst capacity of 10 and refill of one dispatch per second; a depleted budget leaves jobs queued until tokens refill. Only one job is claimed per call, so a larger batch parameter cannot bypass the budget.
 - It processes one job per iteration. Stale lease tokens cannot attach a message or mutate a reclaimed job.
 - The worker calls the existing internal `Store.send` business-offer path using a stable campaign/recipient operation key. If the worker crashes after message commit but before attaching the message ID, retry returns the original message rather than creating a duplicate.
@@ -79,7 +79,7 @@ The internal queue primitive is not a user-facing send feature. Do not expose it
 
 ## Acceptance coverage
 
-Current Node tests cover fail-closed entitlement, recipient eligibility, missing direct conversations, archived-customer exclusion, enqueue idempotency, tenant ownership integrity, worker lease fencing, bounded retry, message-creation archive recheck, final-delivery archive cancellation, outbox reconciliation, per-business token-bucket exhaustion, owner-scoped campaign cancellation, transactionally fenced send-vs-cancel ordering, recovery of committed-but-unattached messages during cancellation and draft-edit state/ownership guards. Exact-head CI is required for every change; a passing Node/Go lane does not imply Kotlin license-policy approval.
+Current Node tests cover fail-closed entitlement, recipient eligibility, missing direct conversations, archived-customer exclusion, enqueue idempotency, tenant ownership integrity, worker lease fencing, bounded retry, message-creation archive recheck, final-delivery archive cancellation, outbox reconciliation, per-business token-bucket exhaustion, owner-scoped campaign cancellation, transactionally fenced send-vs-cancel ordering, recovery of committed-but-unattached messages during cancellation, token-safe attachment after lease expiry and draft-edit state/ownership guards. Exact-head CI is required for every change; a passing Node/Go lane does not imply Kotlin license-policy approval.
 
 ## Decision
 
