@@ -119,7 +119,7 @@ export class CampaignStore {
     await this.attachMessage(job.id,job.lease_token,message.message_id);submitted++;
    }catch(error){
     if(error instanceof ForbiddenError){
-     const r=await this.pool.query("UPDATE business_campaign_jobs SET status='skipped',skip_reason='consent_or_contact_not_eligible',completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() WHERE id=$1 AND status='processing' AND lease_token=$2 AND lease_until>clock_timestamp()",[job.id,job.lease_token]);
+     const r=await this.pool.query("UPDATE business_campaign_jobs j SET status=CASE WHEN EXISTS(SELECT 1 FROM business_campaigns c WHERE c.id=j.campaign_id AND c.status='cancelled') THEN 'cancelled' ELSE 'skipped' END,skip_reason=CASE WHEN EXISTS(SELECT 1 FROM business_campaigns c WHERE c.id=j.campaign_id AND c.status='cancelled') THEN 'campaign_cancelled' ELSE 'consent_or_contact_not_eligible' END,completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() WHERE j.id=$1 AND j.status='processing' AND j.lease_token=$2 AND j.lease_until>clock_timestamp()",[job.id,job.lease_token]);
      if(r.rowCount===1)skipped++;
     }else{
      const terminal=job.attempt_count>=8,delay=terminal?0:Math.min(2**job.attempt_count,256)*1000;
