@@ -101,17 +101,11 @@ export class CampaignStore {
  }
  async statusSummary(businessAccountId:string,campaignId:string):Promise<{campaign:CampaignDraft;jobs:{queued:number;processing:number;delivery_pending:number;sent:number;skipped:number;failed:number;cancelled:number;total:number};updated_at:Date|null}>{
   if(!businessAccountId||!campaignId)throw new CampaignError("invalid");
-  const campaign=await this.pool.query<CampaignDraft>("SELECT id,business_account_id,title,body,status,created_at,updated_at FROM business_campaigns WHERE id=$1 AND business_account_id=$2",[campaignId,businessAccountId]);
-  if(!campaign.rows[0])throw new CampaignError("not_found");
-  const counts=await this.pool.query<{status:string;count:number;updated_at:Date|null}>("SELECT status,count(*)::int AS count,max(updated_at) AS updated_at FROM business_campaign_jobs WHERE campaign_id=$1 AND business_account_id=$2 GROUP BY status",[campaignId,businessAccountId]);
-  const jobs={queued:0,processing:0,delivery_pending:0,sent:0,skipped:0,failed:0,cancelled:0,total:0};
-  let updatedAt:Date|null=null;
-  for(const row of counts.rows){
-   if(row.status in jobs && row.status!=="total") jobs[row.status as keyof Omit<typeof jobs,"total">]=row.count;
-   jobs.total+=row.count;
-   if(row.updated_at&&(!updatedAt||row.updated_at>updatedAt))updatedAt=row.updated_at;
-  }
-  return {campaign:campaign.rows[0],jobs,updated_at:updatedAt};
+  type SummaryRow=CampaignDraft&{queued:number;processing:number;delivery_pending:number;sent:number;skipped:number;failed:number;cancelled:number;total:number;last_job_update:Date|null};
+  const result=await this.pool.query<SummaryRow>("SELECT c.id,c.business_account_id,c.title,c.body,c.status,c.created_at,c.updated_at,count(j.id)::int AS total,count(j.id) FILTER(WHERE j.status='queued')::int AS queued,count(j.id) FILTER(WHERE j.status='processing')::int AS processing,count(j.id) FILTER(WHERE j.status='delivery_pending')::int AS delivery_pending,count(j.id) FILTER(WHERE j.status='sent')::int AS sent,count(j.id) FILTER(WHERE j.status='skipped')::int AS skipped,count(j.id) FILTER(WHERE j.status='failed')::int AS failed,count(j.id) FILTER(WHERE j.status='cancelled')::int AS cancelled,max(j.updated_at) AS last_job_update FROM business_campaigns c LEFT JOIN business_campaign_jobs j ON j.campaign_id=c.id AND j.business_account_id=c.business_account_id WHERE c.id=$1 AND c.business_account_id=$2 GROUP BY c.id",[campaignId,businessAccountId]);
+  const row=result.rows[0];if(!row)throw new CampaignError("not_found");
+  const {queued,processing,delivery_pending,sent,skipped,failed,cancelled,total,last_job_update,...campaign}=row;
+  return {campaign,jobs:{queued,processing,delivery_pending,sent,skipped,failed,cancelled,total},updated_at:last_job_update};
  }
  async runWorker(store:Store,signal:AbortSignal):Promise<void>{
   let delayMs=500;
