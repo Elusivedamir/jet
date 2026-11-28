@@ -67,6 +67,16 @@ Direct and multi-recipient conversation fan-out are supported by this PoC. Reque
 - Owners and admins can publish. Subscribers can read the channel and receive durable fan-out but cannot publish. Channel posts use the same transactional outbox and recipient inbox as other conversations.
 - Private invite codes are high-entropy random values; only their SHA-256 digests are stored. The raw code is returned once at creation.
 
+## Business CRM foundation (PoC)
+
+- Add an existing accepted contact to the business user's CRM: `POST /v1/business/customers` with `{"username":"bob"}`.
+- List the authenticated business user's customer cards: `GET /v1/business/customers`. Each card includes the linked Jetson person, current status and stable direct-conversation ID when one exists.
+- Change a card status: `PATCH /v1/business/customers/{customer_id}` with `{"status":"follow_up"}`. Supported statuses: `new`, `active`, `follow_up`, `customer`, `archived`.
+- Add an internal note: `POST /v1/business/customers/{customer_id}/notes` with `{"body":"Call back next Tuesday"}`.
+- List notes: `GET /v1/business/customers/{customer_id}/notes`.
+- Customer cards can only be created for accepted contacts. Customer and note queries are scoped to the authenticated business account; another account cannot read or modify the card.
+- This is the first CRM data slice only. Business subscription entitlement, team roles, custom fields, segmentation, consent/preferences, campaigns and billing are not implemented. No campaign dispatch is exposed by this API.
+
 ## Contacts and personal conversations
 
 - Search users by username or display-name prefix: `GET /v1/users/search?q=bo` (minimum two characters; results are limited to 20 and exclude the current account).
