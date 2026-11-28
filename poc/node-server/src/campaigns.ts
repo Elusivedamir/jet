@@ -140,9 +140,24 @@ export class CampaignStore {
   return {claimed:jobs.length,submitted,skipped,retried,failed};
  }
  async reconcilePending():Promise<number>{
+  // Sweep expired leases for cancelled campaigns. Lock campaign rows first, in
+  // the same order as cancellation and Store.send, so a committed message is
+  // recovered before an unstarted job is fenced as cancelled.
+  const client=await this.pool.connect();let swept=0;
+  try{
+   await client.query("BEGIN");
+   const locked=await client.query<{id:string}>("SELECT c.id FROM business_campaigns c WHERE c.status='cancelled' AND EXISTS(SELECT 1 FROM business_campaign_jobs j WHERE j.campaign_id=c.id AND j.status='processing' AND j.lease_until<=clock_timestamp()) ORDER BY c.updated_at,c.id LIMIT 50 FOR UPDATE OF c SKIP LOCKED");
+   const ids=locked.rows.map(row=>row.id);
+   if(ids.length){
+    const recovered=await client.query("UPDATE business_campaign_jobs j SET status='delivery_pending',message_id=m.id,lease_until=NULL,lease_token=NULL,updated_at=now() FROM messages m WHERE j.campaign_id=ANY($1::text[]) AND j.status='processing' AND j.lease_until<=clock_timestamp() AND m.sender_id=j.business_account_id AND m.operation_key=j.operation_key",[ids]);
+    const abandoned=await client.query("UPDATE business_campaign_jobs SET status='cancelled',skip_reason='campaign_cancelled',completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() WHERE campaign_id=ANY($1::text[]) AND status='processing' AND lease_until<=clock_timestamp()",[ids]);
+    swept=(recovered.rowCount??0)+(abandoned.rowCount??0);
+   }
+   await client.query("COMMIT");
+  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
   const r=await this.pool.query("UPDATE business_campaign_jobs j SET status=CASE o.state WHEN 'completed' THEN 'sent' WHEN 'cancelled' THEN 'skipped' WHEN 'terminal_failure' THEN 'failed' END,skip_reason=CASE WHEN o.state='cancelled' THEN COALESCE(o.last_error,'delivery_cancelled') ELSE j.skip_reason END,completed_at=now(),updated_at=now() FROM delivery_outbox o WHERE j.status='delivery_pending' AND j.message_id=o.message_id AND j.recipient_id=o.recipient_id AND o.state IN ('completed','cancelled','terminal_failure') RETURNING j.campaign_id");
   await this.pool.query("UPDATE business_campaigns c SET status='completed',updated_at=now() WHERE c.status IN ('queued','sending') AND NOT EXISTS(SELECT 1 FROM business_campaign_jobs j WHERE j.campaign_id=c.id AND j.status NOT IN ('sent','skipped','failed','cancelled'))");
-  return r.rowCount??0;
+  return swept+(r.rowCount??0);
  }
  async statusSummary(businessAccountId:string,campaignId:string):Promise<{campaign:CampaignDraft;jobs:{queued:number;processing:number;delivery_pending:number;sent:number;skipped:number;failed:number;cancelled:number;total:number};updated_at:Date|null}>{
   if(!businessAccountId||!campaignId)throw new CampaignError("invalid");
