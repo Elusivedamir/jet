@@ -1,6 +1,6 @@
 # Campaign dispatch — architecture draft
 
-<badge>Draft — design only</badge>
+**Draft — design only; no implementation or send endpoint is authorized by this document.**
 
 **Status:** proposal for review; not implemented.  
 **Primary implementation target:** Node.js + TypeScript with PostgreSQL.  
