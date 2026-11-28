@@ -60,6 +60,33 @@ export class CampaignStore {
    await c.query("COMMIT");return {campaign_id:campaignId,queued,skipped,replayed:false};
   }catch(e){await c.query("ROLLBACK");throw e;}finally{c.release();}
  }
+ async cancelCampaign(owner:string,campaignId:string):Promise<{campaign_id:string;cancelled:number;in_flight:number;replayed:boolean}>{
+  if(!owner||!campaignId)throw new CampaignError("invalid");
+  const client=await this.pool.connect();
+  try{
+   await client.query("BEGIN");
+   const result=await client.query<{status:string}>("SELECT status FROM business_campaigns WHERE id=$1 AND business_account_id=$2 FOR UPDATE",[campaignId,owner]);
+   if(result.rowCount!==1)throw new CampaignError("not_found");
+   const current=result.rows[0]!.status;
+   if(current==="completed")throw new CampaignError("conflict");
+   if(current==="cancelled"){
+    const counts=await client.query<{cancelled:number;in_flight:number}>("SELECT count(*) FILTER(WHERE status='cancelled')::int AS cancelled,count(*) FILTER(WHERE status IN ('processing','delivery_pending'))::int AS in_flight FROM business_campaign_jobs WHERE campaign_id=$1",[campaignId]);
+    await client.query("COMMIT");
+    return {campaign_id:campaignId,cancelled:counts.rows[0]!.cancelled,in_flight:counts.rows[0]!.in_flight,replayed:true};
+   }
+   await client.query("UPDATE business_campaigns SET status='cancelled',updated_at=now() WHERE id=$1 AND business_account_id=$2",[campaignId,owner]);
+   const changed=await client.query("UPDATE business_campaign_jobs SET status='cancelled',skip_reason='campaign_cancelled',completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() WHERE campaign_id=$1 AND status='queued'",[campaignId]);
+   const active=await client.query<{n:number}>("SELECT count(*)::int AS n FROM business_campaign_jobs WHERE campaign_id=$1 AND status IN ('processing','delivery_pending')",[campaignId]);
+   await client.query("COMMIT");
+   return {campaign_id:campaignId,cancelled:changed.rowCount??0,in_flight:active.rows[0]!.n,replayed:false};
+  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+ }
+ async mayDispatch(job:CampaignJob):Promise<boolean>{
+  const r=await this.pool.query<{campaign_status:string}>("SELECT c.status AS campaign_status FROM business_campaign_jobs j JOIN business_campaigns c ON c.id=j.campaign_id WHERE j.id=$1 AND j.status='processing' AND j.lease_token=$2 AND j.lease_until>clock_timestamp()",[job.id,job.lease_token]);
+  if(r.rowCount===1&&["queued","sending"].includes(r.rows[0]!.campaign_status))return true;
+  await this.pool.query("UPDATE business_campaign_jobs j SET status='cancelled',skip_reason='campaign_cancelled',completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() FROM business_campaigns c WHERE j.id=$1 AND j.campaign_id=c.id AND j.status='processing' AND j.lease_token=$2 AND c.status='cancelled'",[job.id,job.lease_token]);
+  return false;
+ }
  async claimJobs(limit=20,leaseMs=60000):Promise<CampaignJob[]>{
   if(!Number.isSafeInteger(limit)||limit<1||limit>100||!Number.isSafeInteger(leaseMs)||leaseMs<1000||leaseMs>120000)throw new CampaignError("invalid");
   // Lock and spend a shared per-business token; one job per claim prevents batch bypass.
@@ -79,7 +106,7 @@ export class CampaignStore {
   const jobs=await this.claimJobs(limit,60000);let submitted=0,skipped=0,retried=0,failed=0;
   for(const job of jobs){
    try{
-    const message=await store.send(job.business_account_id,job.conversation_id,job.operation_key,job.body,null,null,"business_offer");
+    if(!(await this.mayDispatch(job))){skipped++;continue;}\n    const message=await store.send(job.business_account_id,job.conversation_id,job.operation_key,job.body,null,null,"business_offer");
     await this.attachMessage(job.id,job.lease_token,message.message_id);submitted++;
    }catch(error){
     if(error instanceof ForbiddenError){
