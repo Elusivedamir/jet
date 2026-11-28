@@ -82,3 +82,31 @@ test("campaign worker sends through the message outbox and reconciles after inbo
  const campaign=await pool.query("SELECT status FROM business_campaigns WHERE id=$1",[draft.id]);
  assert.equal(campaign.rows[0]!.status,"completed");
 });
+
+test("campaign worker skips a queued recipient whose consent is revoked before message creation",async()=>{
+ const draft=await campaigns.createDraft(business,"Revoked before send","Should not be sent");
+ await campaigns.enqueueDraft(business,draft.id,"revoked-before-send");
+ await consent.setBusinessConsent(optedIn,business,false);
+ const result=await campaigns.processBatch(store,10);
+ assert.equal(result.claimed,1);assert.equal(result.skipped,1);
+ const job=await pool.query("SELECT status FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id]);
+ assert.equal(job.rows[0]!.status,"skipped");
+ const messages=await pool.query("SELECT count(*)::int AS n FROM messages WHERE sender_id=$1 AND operation_key=$2",[business,"campaign:"+draft.id+":"+optedIn]);
+ assert.equal(messages.rows[0]!.n,0);
+ await consent.setBusinessConsent(optedIn,business,true);
+});
+
+test("campaign worker crash after message commit reuses the same message on the next lease",async()=>{
+ const draft=await campaigns.createDraft(business,"Crash recovery","Exactly once logical send");
+ await campaigns.enqueueDraft(business,draft.id,"crash-recovery");
+ const first=(await campaigns.claimJobs(1,1000))[0]!;assert.ok(first);
+ const original=await store.send(business,first.conversation_id,first.operation_key,first.body,null,null,"business_offer");
+ await pool.query("UPDATE business_campaign_jobs SET lease_until=now()-interval '1 second' WHERE id=$1",[first.id]);
+ const second=(await campaigns.claimJobs(1,15000))[0]!;assert.ok(second);
+ assert.notEqual(first.lease_token,second.lease_token);
+ const replay=await store.send(business,second.conversation_id,second.operation_key,second.body,null,null,"business_offer");
+ assert.equal(replay.message_id,original.message_id);
+ await campaigns.attachMessage(second.id,second.lease_token,replay.message_id);
+ const counts=await pool.query("SELECT (SELECT count(*) FROM messages WHERE sender_id=$1 AND operation_key=$2)::int AS messages,(SELECT count(*) FROM delivery_outbox WHERE message_id=$3)::int AS outbox",[business,second.operation_key,original.message_id]);
+ assert.equal(counts.rows[0]!.messages,1);assert.equal(counts.rows[0]!.outbox,1);
+});
