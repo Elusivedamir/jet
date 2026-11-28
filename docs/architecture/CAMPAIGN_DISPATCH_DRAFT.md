@@ -59,26 +59,27 @@ Available over HTTP:
 - Create/list campaign drafts.
 - Preview a draft's audience and exclusion reasons.
 - Read a tenant-scoped campaign status summary with durable per-job counts. This is read-only and cannot enqueue or retry jobs.
+- Cancel an owned campaign with an idempotent DELETE operation. Queued jobs are cancelled immediately; leased jobs are checked against the campaign state before `Store.send`. Work already inside the send transaction or already attached to the delivery outbox is in flight and may complete; the API reports this count.
 
 Not available over HTTP:
-- Enqueue, send, schedule, retry or cancel campaigns.
+- Enqueue, send, schedule or manually retry campaigns.
 - Activate entitlements or manage billing.
 - Change message classification to `business_offer`.
 
-The internal queue primitive is not a user-facing send feature. Do not expose it until entitlement/billing activation, explicit confirmation UX, global platform-wide rate caps, abuse controls, cancellation semantics and operational monitoring have been reviewed and tested.
+The internal queue primitive is not a user-facing send feature. Do not expose it until entitlement/billing activation, explicit confirmation UX, global platform-wide rate caps, abuse controls, campaign scheduling semantics and operational monitoring have been reviewed and tested.
 
 ## Known gaps / release blockers
 
 - No public enqueue/confirmation endpoint or campaign UI.
 - No production billing or entitlement activation workflow.
 - The per-business database token bucket is implemented, but no global platform-wide rate ceiling, adaptive abuse detection, campaign content moderation or operator kill switch exists.
-- No user-facing campaign cancellation. In particular, delivery-pending cancellation needs a transactional design before a cancel control is exposed.
+- Cancellation does not recall a message already committed to the transactional outbox or delivered to a recipient inbox. A separate retract/recall workflow is not implemented.
 - No production-grade operational dashboard, alerting or sustained-load evidence.
 - PoC migrations/rollback and production readiness remain incomplete.
 
 ## Acceptance coverage
 
-Current Node tests cover fail-closed entitlement, recipient eligibility, missing direct conversations, archived-customer exclusion, enqueue idempotency, tenant ownership integrity, worker lease fencing, bounded retry, message-creation archive recheck, final-delivery archive cancellation and outbox reconciliation. Exact-head CI is required for every change; a passing Node/Go lane does not imply Kotlin license-policy approval.
+Current Node tests cover fail-closed entitlement, recipient eligibility, missing direct conversations, archived-customer exclusion, enqueue idempotency, tenant ownership integrity, worker lease fencing, bounded retry, message-creation archive recheck, final-delivery archive cancellation, outbox reconciliation, per-business token-bucket exhaustion and owner-scoped campaign cancellation. Exact-head CI is required for every change; a passing Node/Go lane does not imply Kotlin license-policy approval.
 
 ## Decision
 
