@@ -70,7 +70,7 @@ test("campaign worker sends through the message outbox and reconciles after inbo
  const queued=await campaigns.enqueueDraft(business,draft.id,"worker-once");
  assert.equal(queued.queued,1);
  const batch=await campaigns.processBatch(store,10);
- assert.equal(batch.claimed,1);assert.equal(batch.submitted,1);
+ assert.equal(batch.claimed,1);assert.equal(batch.submitted,1,JSON.stringify({batch,job:(await pool.query("SELECT status,last_error,skip_reason FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id])).rows[0]}));
  const job=await pool.query("SELECT message_id,status FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id]);
  assert.equal(job.rows[0]!.status,"delivery_pending");assert.ok(job.rows[0]!.message_id);
  const outbox=await store.claim(10,15000);
