@@ -56,7 +56,7 @@ The same preference -> consent -> contact -> CRM lock order is used at the relev
 ## API boundary
 
 Available over HTTP:
-- Create/list campaign drafts.
+- Create/list campaign drafts; edit title/body only while status is `draft` (owner-scoped, atomic state guard).
 - Preview a draft's audience and exclusion reasons.
 - Read a tenant-scoped campaign status summary with durable per-job counts. This is read-only and cannot enqueue or retry jobs.
 - Cancel an owned campaign with an idempotent DELETE operation. Queued jobs are cancelled immediately; leased jobs are checked against the campaign state before `Store.send`. Work already inside the send transaction or already attached to the delivery outbox is in flight and may complete; the API reports this count.
@@ -79,7 +79,7 @@ The internal queue primitive is not a user-facing send feature. Do not expose it
 
 ## Acceptance coverage
 
-Current Node tests cover fail-closed entitlement, recipient eligibility, missing direct conversations, archived-customer exclusion, enqueue idempotency, tenant ownership integrity, worker lease fencing, bounded retry, message-creation archive recheck, final-delivery archive cancellation, outbox reconciliation, per-business token-bucket exhaustion and owner-scoped campaign cancellation. Exact-head CI is required for every change; a passing Node/Go lane does not imply Kotlin license-policy approval.
+Current Node tests cover fail-closed entitlement, recipient eligibility, missing direct conversations, archived-customer exclusion, enqueue idempotency, tenant ownership integrity, worker lease fencing, bounded retry, message-creation archive recheck, final-delivery archive cancellation, outbox reconciliation, per-business token-bucket exhaustion, owner-scoped campaign cancellation and draft-edit state/ownership guards. Exact-head CI is required for every change; a passing Node/Go lane does not imply Kotlin license-policy approval.
 
 ## Decision
 
