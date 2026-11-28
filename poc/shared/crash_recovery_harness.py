@@ -83,13 +83,18 @@ def stop_server(process, log, hard=False):
 
 
 def post_without_reading_response(base, path, account, payload):
-    """Send a complete HTTP request, then close without reading its response."""
+    """Send a complete HTTP request and return without consuming the response.
+
+    The caller keeps the socket open until PostgreSQL confirms the commit, then
+    closes it without reading the response. This avoids turning an immediate
+    client disconnect into an HTTP request-cancellation race before commit.
+    """
     parsed = urllib.parse.urlsplit(base)
     connection = HTTPConnection(parsed.hostname, parsed.port, timeout=5)
     body = json.dumps(payload).encode()
     connection.request("POST", path, body=body,
                        headers={"Content-Type": "application/json", "X-Test-Account": account})
-    connection.close()
+    return connection
 
 
 def wait_for_sql_value(database_url, sql, timeout=20):
@@ -377,12 +382,17 @@ def main():
           INSERT INTO conversation_members(conversation_id,account_id)
             VALUES ('{lost_conversation}','alice'),('{lost_conversation}','bob');
         """)
-        post_without_reading_response(args.base_url,
+        lost_response_connection = post_without_reading_response(args.base_url,
             f"/v1/conversations/{lost_conversation}/messages", "alice",
             {"operation_key": lost_operation_key, "payload": lost_payload})
-        committed_message_id = wait_for_sql_value(args.database_url,
-            f"SELECT id FROM messages WHERE sender_id='alice' AND operation_key='{lost_operation_key}'",
-            timeout=20)
+        try:
+            committed_message_id = wait_for_sql_value(args.database_url,
+                f"SELECT id FROM messages WHERE sender_id='alice' AND operation_key='{lost_operation_key}'",
+                timeout=20)
+        finally:
+            # Close only after commit is independently confirmed; never consume
+            # the HTTP response, so the client still loses the acceptance result.
+            lost_response_connection.close()
         # The client closes without reading the server's acceptance response.
         stop_server(process, log, hard=True)
         process = None

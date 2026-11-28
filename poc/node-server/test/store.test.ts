@@ -319,7 +319,7 @@ test("queued business offers are cancelled when consent or the master preference
  assert.ok((await store.pinnedMessages("alice","room-a")).some(row=>row.message_id===revoked.message_id));
  const historyAfterRevoke=await store.history("bob","room-a",0);
  assert.ok(!historyAfterRevoke.some(row=>row.message_id===revoked.message_id));
- const searchAfterRevoke=await store.searchMessages("bob","room-a","queued before revocation");
+ const searchAfterRevoke=await store.searchMessages("bob","room-a","edited cancelled offer hidden");
  assert.ok(!searchAfterRevoke.some(row=>row.message_id===revoked.message_id));
  await assert.rejects(()=>store.forward("bob",revoked.message_id,"room-c","forward-cancelled-offer"),NotMemberError);
  await assert.rejects(()=>store.addReaction("bob",revoked.message_id,"👍"),NotMemberError);
