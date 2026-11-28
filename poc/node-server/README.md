@@ -97,3 +97,15 @@ Direct and multi-recipient conversation fan-out are supported by this PoC. Reque
 - Search exposes only public username/display-name fields; contact and request endpoints require an authenticated account.
 
 These endpoints are still part of the isolated PoC. Blocking/reporting, declined-request notifications and history UX, privacy controls, discovery ranking, abuse throttling and production migrations remain future work.
+
+
+## Business offer preferences and consent foundation (PoC)
+
+- `GET /v1/me/business-offers` returns the recipient's master preference. It is **off by default**.
+- `PUT /v1/me/business-offers` with `{"enabled":true|false}` changes that master preference.
+- `GET /v1/me/business-consents` lists the authenticated recipient's per-business consent state.
+- `PUT /v1/me/business-consents` with `{"business_account_id":"...","granted":true|false}` records or revokes explicit consent for one accepted contact. Only the recipient's authenticated account can perform the change.
+- The master preference is only a global gate; enabling it does not grant consent to any business. Granting per-business consent is rejected while the master preference is off.
+- Turning the master preference off revokes all active per-business grants and writes immutable consent events. Turning it back on does not resurrect those grants.
+- `ConsentStore.isEligibleForBusinessOffers` checks the master preference, current per-business grant and accepted-contact relationship together. A future campaign dispatcher must call this at dispatch time, not trust a campaign preview.
+- This is a consent data/API foundation only. No campaign creation, queue, dispatch, offer-folder UI, business subscription entitlement, legal compliance determination or market-specific retention policy is implemented.

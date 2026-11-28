@@ -194,3 +194,54 @@ CREATE TABLE IF NOT EXISTS crm_notes (
 );
 CREATE INDEX IF NOT EXISTS crm_notes_customer_idx
   ON crm_notes(business_account_id,customer_id,created_at DESC);
+
+
+-- Recipient-controlled business offer gate and auditable per-business consent.
+-- Global preference is a master switch; it never grants consent to any business.
+CREATE TABLE IF NOT EXISTS business_offer_preferences (
+  account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  version BIGINT NOT NULL DEFAULT 1 CHECK (version > 0),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS business_offer_preference_events (
+  id BIGSERIAL PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  enabled BOOLEAN NOT NULL,
+  version BIGINT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (account_id,version)
+);
+CREATE INDEX IF NOT EXISTS business_offer_preference_events_account_idx
+  ON business_offer_preference_events(account_id,created_at DESC);
+
+CREATE TABLE IF NOT EXISTS business_consent_state (
+  business_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  recipient_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  status TEXT NOT NULL CHECK (status IN ('granted','revoked')),
+  policy_version TEXT NOT NULL CHECK (char_length(policy_version) BETWEEN 1 AND 64),
+  source TEXT NOT NULL CHECK (source IN ('user_settings','business_profile','global_preference_off')),
+  version BIGINT NOT NULL CHECK (version > 0),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (business_account_id,recipient_id),
+  CHECK (business_account_id <> recipient_id)
+);
+CREATE INDEX IF NOT EXISTS business_consent_state_recipient_idx
+  ON business_consent_state(recipient_id,status,business_account_id);
+
+CREATE TABLE IF NOT EXISTS business_consent_events (
+  id BIGSERIAL PRIMARY KEY,
+  business_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  recipient_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  action TEXT NOT NULL CHECK (action IN ('granted','revoked')),
+  policy_version TEXT NOT NULL CHECK (char_length(policy_version) BETWEEN 1 AND 64),
+  source TEXT NOT NULL CHECK (source IN ('user_settings','business_profile','global_preference_off')),
+  actor_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  version BIGINT NOT NULL CHECK (version > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (business_account_id,recipient_id,version),
+  CHECK (business_account_id <> recipient_id),
+  CHECK (actor_id = recipient_id)
+);
+CREATE INDEX IF NOT EXISTS business_consent_events_recipient_idx
+  ON business_consent_events(recipient_id,created_at DESC);

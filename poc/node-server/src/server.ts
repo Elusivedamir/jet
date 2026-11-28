@@ -6,6 +6,7 @@ import { AuthStore, AuthError } from "./auth.js";
 import { ContactsStore, ContactError } from "./contacts.js";
 import { ChannelsStore, ChannelError } from "./channels.js";
 import { CrmStore, CrmError } from "./crm.js";
+import { ConsentStore, ConsentError } from "./consent.js";
 
 const pool = new Pool({connectionString:process.env.DATABASE_URL});
 const store = new Store(pool);
@@ -13,6 +14,7 @@ const auth = new AuthStore(pool);
 const contacts = new ContactsStore(pool);
 const channels = new ChannelsStore(pool);
 const crm = new CrmStore(pool);
+const consent = new ConsentStore(pool);
 const schema = await (await import("node:fs/promises")).readFile(new URL("../schema.sql",import.meta.url),"utf8");
 for (const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
 const abort = new AbortController();
@@ -83,6 +85,22 @@ const server=createServer(async(req,res)=>{
       const token=bearer(req);
       if(token)await auth.logout(token);
       res.writeHead(204,{"cache-control":"no-store"});res.end();return;
+    }
+    if(req.method==="GET" && url.pathname==="/v1/me/business-offers") {
+      json(res,200,await consent.getOfferPreference(user));return;
+    }
+    if(req.method==="PUT" && url.pathname==="/v1/me/business-offers") {
+      const input=await body(req);
+      if(typeof input.enabled!=="boolean") throw new InvalidRequestError();
+      json(res,200,await consent.setOfferPreference(user,input.enabled));return;
+    }
+    if(req.method==="GET" && url.pathname==="/v1/me/business-consents") {
+      json(res,200,await consent.listBusinessConsents(user));return;
+    }
+    if(req.method==="PUT" && url.pathname==="/v1/me/business-consents") {
+      const input=await body(req);
+      if(typeof input.granted!=="boolean") throw new InvalidRequestError();
+      json(res,200,await consent.setBusinessConsent(user,requiredString(input,"business_account_id",128),input.granted));return;
     }
     if(req.method==="GET" && url.pathname==="/v1/business/customers") {
       json(res,200,await crm.listCustomers(user));return;
@@ -297,6 +315,11 @@ const server=createServer(async(req,res)=>{
     }
     json(res,404,{error:"not found"});
   } catch(e) {
+    if(e instanceof ConsentError) {
+      if(e.code==="invalid") json(res,400,{error:"invalid business consent request"});
+      else if(e.code==="preference_disabled") json(res,409,{error:"enable business offers before granting sender consent"});
+      else json(res,404,{error:"accepted contact not found"});
+    }
     if(e instanceof CrmError) {
       if(e.code==="invalid") json(res,400,{error:"invalid CRM request"});
       else if(e.code==="forbidden") json(res,403,{error:"CRM operation not permitted"});
