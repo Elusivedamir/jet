@@ -62,3 +62,21 @@ test("campaign leases fence stale workers and reconcile only a delivery-pending 
  await campaigns.reconcileDelivery(job.id,messageId,"completed");
  const state=await pool.query("SELECT status FROM business_campaign_jobs WHERE id=$1",[job.id]);assert.equal(state.rows[0]!.status,"sent");
 });
+
+test("campaign worker sends through the message outbox and reconciles after inbox delivery",async()=>{
+ const draft=await campaigns.createDraft(business,"Worker integration","Campaign message");
+ const queued=await campaigns.enqueueDraft(business,draft.id,"worker-once");
+ assert.equal(queued.queued,1);
+ const batch=await campaigns.processBatch(store,10);
+ assert.equal(batch.claimed,1);assert.equal(batch.submitted,1);
+ const job=await pool.query("SELECT message_id,status FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id]);
+ assert.equal(job.rows[0]!.status,"delivery_pending");assert.ok(job.rows[0]!.message_id);
+ const outbox=await store.claim(10,15000);
+ const delivery=outbox.find(x=>x.message_id===job.rows[0]!.message_id);
+ assert.ok(delivery);await store.dispatch(delivery!);
+ assert.equal(await campaigns.reconcilePending(),1);
+ const final=await pool.query("SELECT status FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id]);
+ assert.equal(final.rows[0]!.status,"sent");
+ const campaign=await pool.query("SELECT status FROM business_campaigns WHERE id=$1",[draft.id]);
+ assert.equal(campaign.rows[0]!.status,"completed");
+});

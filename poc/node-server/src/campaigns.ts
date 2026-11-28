@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { Pool as PoolType } from "pg";
 import { Store, ForbiddenError } from "./store.js";
 export type CampaignDraft = { id:string; business_account_id:string; title:string; body:string; status:"draft"|"queued"|"sending"|"completed"|"cancelled"; created_at:Date; updated_at:Date };

@@ -1,10 +1,10 @@
 # Campaign dispatch — architecture draft
 
-**Draft — design only; no implementation or send endpoint is authorized by this document.**
+**Draft — internal worker implementation exists; no public enqueue/send endpoint is authorized.**
 
-**Status:** proposal for review; not implemented.  
+**Status:** partial implementation in Node.js/TypeScript PoC; not production-ready.  
 **Primary implementation target:** Node.js + TypeScript with PostgreSQL.  
-**Current product/API boundary:** campaign drafts and audience preview only. No enqueue, scheduling, mass-send, retry or dispatch endpoint exists.
+**Current product/API boundary:** drafts and audience preview are public; enqueue and dispatch are internal primitives only. No public mass-send endpoint exists.
 
 ## 1. Goals
 
@@ -19,7 +19,7 @@ Design an internal Jetson Business campaign pipeline that:
 
 ## 2. Non-goals for this draft
 
-- Implementing campaign queue tables, workers or endpoints.
+- Public campaign enqueue/send endpoints or external delivery channels.
 - Defining subscription prices, trial terms or billing integration.
 - Legal advice or a claim of jurisdiction-specific consent compliance.
 - External marketing integrations.
@@ -202,3 +202,16 @@ The Node PoC now has a fail-closed internal queue foundation:
 This is not yet a usable campaign-send feature. There is no HTTP enqueue route, no entitlement activation/billing path, no campaign worker calling the message store, no bounded campaign retry loop and no campaign cancellation UI. The existing delivery worker still owns the final consent re-check and inbox insertion. These are explicit release blockers.
 
 New tests cover fail-closed entitlement, recipient-level job creation, idempotent enqueue, lease fencing and delivery reconciliation.
+
+
+## 7. Implemented PoC boundary (2026-11-28)
+
+Implemented in the Node TypeScript branch:
+- Durable per-recipient queue and fail-closed business entitlement gate.
+- Idempotent enqueue and per-job lease/fencing token.
+- Internal campaign worker calls the existing Store.send business_offer path with a stable campaign/recipient operation key. If the worker crashes after message commit, the same operation key returns the original message on retry.
+- Consent/contact is checked in the message transaction and again by the delivery worker immediately before recipient inbox insertion. Ineligible jobs are skipped; cancelled outbox deliveries reconcile as skipped.
+- Transient campaign-worker errors use bounded exponential retry, terminal after eight attempts. Delivery-pending jobs reconcile against recipient-specific outbox state; a campaign completes only when all jobs are terminal.
+- The server starts the internal campaign worker alongside the message delivery worker. There is still no public enqueue route, no billing/entitlement activation path, no campaign cancellation UI, no rate-cap/abuse-control layer and no production readiness claim.
+
+Known limitation: the current enqueue audience query includes only CRM recipients with an existing direct conversation. CRM contacts without a direct conversation are not enqueued. Resolve this before any user-facing campaign flow.
