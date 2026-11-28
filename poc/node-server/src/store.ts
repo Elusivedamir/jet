@@ -37,6 +37,13 @@ export class Store {
         await c.query("COMMIT");
         return m;
       }
+      if(messageClass==="business_offer" && key.startsWith("campaign:")) {
+        // Serialize the send transaction against campaign cancellation. If this
+        // share lock wins, the send is in-flight; if cancellation wins, no new
+        // campaign message can be committed.
+        const campaign=await c.query<{status:string}>("SELECT status FROM business_campaigns WHERE id=split_part($1,':',2) AND business_account_id=$2 FOR SHARE",[key,sender]);
+        if(campaign.rowCount!==1 || !["queued","sending"].includes(campaign.rows[0]!.status)) throw new ForbiddenError("campaign is cancelled or unavailable");
+      }
       if (forwardedFrom !== null) {
         const source = await c.query("SELECT 1 FROM messages m JOIN conversation_members cm ON cm.conversation_id=m.conversation_id AND cm.account_id=$2 WHERE m.id=$1 AND m.deleted_at IS NULL AND (m.message_class<>'business_offer' OR m.sender_id=$2 OR EXISTS(SELECT 1 FROM recipient_inbox i WHERE i.message_id=m.id AND i.recipient_id=$2))", [forwardedFrom, sender]);
         if (source.rowCount !== 1) throw new InvalidRequestError("forward source must be an active message visible to the sender");
