@@ -85,9 +85,14 @@ export class CampaignStore {
    }
    await client.query("UPDATE business_campaigns SET status='cancelled',updated_at=now() WHERE id=$1 AND business_account_id=$2",[campaignId,owner]);
    const changed=await client.query("UPDATE business_campaign_jobs SET status='cancelled',skip_reason='campaign_cancelled',completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() WHERE campaign_id=$1 AND status='queued'",[campaignId]);
+   // Recover a message committed by a worker that crashed before attaching its message_id.
+   // The campaign-row lock above serializes this lookup against Store.send's campaign FOR SHARE lock.
+   await client.query("UPDATE business_campaign_jobs j SET status='delivery_pending',message_id=m.id,lease_until=NULL,lease_token=NULL,updated_at=now() FROM messages m WHERE j.campaign_id=$1 AND j.status='processing' AND j.lease_until<=clock_timestamp() AND m.sender_id=j.business_account_id AND m.operation_key=j.operation_key",[campaignId]);
+   // Expired leases with no committed message were never accepted; fence them as cancelled.
+   const abandoned=await client.query("UPDATE business_campaign_jobs SET status='cancelled',skip_reason='campaign_cancelled',completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() WHERE campaign_id=$1 AND status='processing' AND lease_until<=clock_timestamp()",[campaignId]);
    const active=await client.query<{n:number}>("SELECT count(*)::int AS n FROM business_campaign_jobs WHERE campaign_id=$1 AND status IN ('processing','delivery_pending')",[campaignId]);
    await client.query("COMMIT");
-   return {campaign_id:campaignId,cancelled:changed.rowCount??0,in_flight:active.rows[0]!.n,replayed:false};
+   return {campaign_id:campaignId,cancelled:(changed.rowCount??0)+(abandoned.rowCount??0),in_flight:active.rows[0]!.n,replayed:false};
   }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
  }
  async mayDispatch(job:CampaignJob):Promise<"ready"|"cancelled"|"stale">{
