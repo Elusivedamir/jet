@@ -5,9 +5,10 @@ import {readFile} from "node:fs/promises";
 import pg from "pg";
 const {Pool}=pg;
 import {CampaignStore,CampaignError} from "../src/campaigns.js";
+import {Store} from "../src/store.js";
 import {ConsentStore} from "../src/consent.js";
 const pool=new Pool({connectionString:process.env.TEST_DATABASE_URL});
-const campaigns=new CampaignStore(pool),consent=new ConsentStore(pool);
+const campaigns=new CampaignStore(pool),consent=new ConsentStore(pool),store=new Store(pool);
 const business=randomUUID(),optedIn=randomUUID(),globalOff=randomUUID(),noGrant=randomUUID(),outsider=randomUUID();
 let campaignId="";
 before(async()=>{

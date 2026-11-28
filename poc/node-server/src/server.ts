@@ -21,6 +21,7 @@ const schema = await (await import("node:fs/promises")).readFile(new URL("../sch
 for (const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
 const abort = new AbortController();
 void store.runWorker(abort.signal);
+void campaigns.runWorker(store,abort.signal);
 
 function bearer(req:IncomingMessage):string {
   const value=req.headers.authorization;

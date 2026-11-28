@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { Pool as PoolType } from "pg";
+import { Store, ForbiddenError } from "./store.js";
 export type CampaignDraft = { id:string; business_account_id:string; title:string; body:string; status:"draft"|"queued"|"sending"|"completed"|"cancelled"; created_at:Date; updated_at:Date };
 export type CampaignAudienceRow = { person_id:string; username:string; display_name:string; customer_status:string; eligibility:"eligible"|"excluded"; exclusion_reason:string|null };
-export type CampaignJob = { id:string; campaign_id:string; business_account_id:string; recipient_id:string; conversation_id:string; status:string; operation_key:string; attempt_count:number; lease_token:string };
+export type CampaignJob = { id:string; campaign_id:string; business_account_id:string; recipient_id:string; conversation_id:string; body:string; status:string; operation_key:string; attempt_count:number; lease_token:string };
 export class CampaignError extends Error { constructor(readonly code:"invalid"|"not_found"|"not_entitled"|"conflict") { super(code); } }
 export class CampaignStore {
  constructor(readonly pool:PoolType) {}
@@ -58,8 +59,7 @@ export class CampaignStore {
  }
  async claimJobs(limit=20,leaseMs=15000):Promise<CampaignJob[]>{
   if(!Number.isSafeInteger(limit)||limit<1||limit>100||!Number.isSafeInteger(leaseMs)||leaseMs<1000||leaseMs>120000)throw new CampaignError("invalid");
-  const token=randomUUID();
-  const r=await this.pool.query<CampaignJob>("WITH candidates AS (SELECT id FROM business_campaign_jobs WHERE available_at<=now() AND (status='queued' OR (status='processing' AND lease_until<now())) ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT $1) UPDATE business_campaign_jobs j SET status='processing',attempt_count=j.attempt_count+1,lease_until=now()+($2*interval '1 millisecond'),lease_token=$3,updated_at=now() FROM candidates WHERE j.id=candidates.id RETURNING j.id,j.campaign_id,j.business_account_id,j.recipient_id,j.conversation_id,j.status,j.operation_key,j.attempt_count,j.lease_token",[limit,leaseMs,token]);return r.rows;
+  const r=await this.pool.query<CampaignJob>("WITH candidates AS (SELECT j.id FROM business_campaign_jobs j JOIN business_campaigns c ON c.id=j.campaign_id WHERE c.status IN ('queued','sending') AND j.available_at<=now() AND (j.status='queued' OR (j.status='processing' AND j.lease_until<now())) ORDER BY j.created_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT $1) UPDATE business_campaign_jobs j SET status='processing',attempt_count=j.attempt_count+1,lease_until=now()+($2*interval '1 millisecond'),lease_token=gen_random_uuid()::text,updated_at=now() FROM candidates,business_campaigns c WHERE j.id=candidates.id AND c.id=j.campaign_id RETURNING j.id,j.campaign_id,j.business_account_id,j.recipient_id,j.conversation_id,c.body,j.status,j.operation_key,j.attempt_count,j.lease_token",[limit,leaseMs]);return r.rows;
  }
  async attachMessage(jobId:string,token:string,messageId:string):Promise<void>{
   const r=await this.pool.query("UPDATE business_campaign_jobs SET status='delivery_pending',message_id=$3,lease_until=NULL,lease_token=NULL,updated_at=now() WHERE id=$1 AND status='processing' AND lease_token=$2 AND lease_until>clock_timestamp()",[jobId,token,messageId]);if(r.rowCount!==1)throw new CampaignError("conflict");
@@ -67,5 +67,35 @@ export class CampaignStore {
  async reconcileDelivery(jobId:string,messageId:string,state:"completed"|"cancelled"|"terminal_failure"):Promise<void>{
   const status=state==="completed"?"sent":state==="cancelled"?"skipped":"failed",reason=state==="cancelled"?"delivery_cancelled":null;
   const r=await this.pool.query("UPDATE business_campaign_jobs SET status=$3,skip_reason=$4,completed_at=now(),updated_at=now() WHERE id=$1 AND message_id=$2 AND status='delivery_pending'",[jobId,messageId,status,reason]);if(r.rowCount!==1)throw new CampaignError("conflict");
+ }
+ async processBatch(store:Store,limit=20):Promise<{claimed:number;submitted:number;skipped:number;retried:number}> {
+  const jobs=await this.claimJobs(limit);let submitted=0,skipped=0,retried=0;
+  for(const job of jobs){
+   try{
+    const message=await store.send(job.business_account_id,job.conversation_id,job.operation_key,job.body,null,null,"business_offer");
+    await this.attachMessage(job.id,job.lease_token,message.message_id);submitted++;
+   }catch(error){
+    if(error instanceof ForbiddenError){
+     const r=await this.pool.query("UPDATE business_campaign_jobs SET status='skipped',skip_reason='consent_or_contact_not_eligible',completed_at=now(),lease_until=NULL,lease_token=NULL,updated_at=now() WHERE id=$1 AND status='processing' AND lease_token=$2 AND lease_until>clock_timestamp()",[job.id,job.lease_token]);
+     if(r.rowCount===1)skipped++;
+    }else{
+     const terminal=job.attempt_count>=8,delay=terminal?0:Math.min(2**job.attempt_count,256)*1000;
+     const r=await this.pool.query("UPDATE business_campaign_jobs SET status=$3,available_at=now()+($4*interval '1 millisecond'),lease_until=NULL,lease_token=NULL,last_error=$5,completed_at=CASE WHEN $3='failed' THEN now() ELSE NULL END,updated_at=now() WHERE id=$1 AND status='processing' AND lease_token=$2 AND lease_until>clock_timestamp()",[job.id,job.lease_token,terminal?'failed':'queued',delay,String(error).slice(0,500)]);
+     if(r.rowCount===1)retried++;
+    }
+   }
+  }
+  return {claimed:jobs.length,submitted,skipped,retried};
+ }
+ async reconcilePending():Promise<number>{
+  const r=await this.pool.query("UPDATE business_campaign_jobs j SET status=CASE o.state WHEN 'completed' THEN 'sent' WHEN 'cancelled' THEN 'skipped' WHEN 'terminal_failure' THEN 'failed' END,skip_reason=CASE WHEN o.state='cancelled' THEN COALESCE(o.last_error,'delivery_cancelled') ELSE j.skip_reason END,completed_at=now(),updated_at=now() FROM delivery_outbox o WHERE j.status='delivery_pending' AND j.message_id=o.message_id AND j.recipient_id=o.recipient_id AND o.state IN ('completed','cancelled','terminal_failure') RETURNING j.campaign_id");
+  await this.pool.query("UPDATE business_campaigns c SET status='completed',updated_at=now() WHERE c.status IN ('queued','sending') AND NOT EXISTS(SELECT 1 FROM business_campaign_jobs j WHERE j.campaign_id=c.id AND j.status NOT IN ('sent','skipped','failed','cancelled'))");
+  return r.rowCount??0;
+ }
+ async runWorker(store:Store,signal:AbortSignal):Promise<void>{
+  while(!signal.aborted){
+   try{await this.processBatch(store,20);await this.reconcilePending();}catch{/* leases recover after transient failures */}
+   await new Promise(resolve=>setTimeout(resolve,500));
+  }
  }
 }
