@@ -14,7 +14,7 @@ The latest run's CI step confirms that the policy check failed after generating 
 | `logback-core` | 1.5.18 | EPL-1.0; GNU Lesser General Public License | Review required |
 | `jakarta.annotation-api` | 2.1.1 | EPL-2.0; GPL-2.0-with-classpath-exception | Review required |
 
-The follow-up POM excludes the default logging starter and Jakarta annotation API from the web/JDBC starter graph, and adds Spring Boot's Log4j2 starter. The regenerated dependency tree (70 components) confirms that `logback-classic`, `logback-core`, `spring-boot-starter-logging` and `jakarta.annotation-api` are absent; it contains `log4j-api`, `log4j-core`, `log4j-jul`, `log4j-slf4j2-impl` and `spring-boot-starter-log4j2` instead. These new components still require the exact-head SBOM license check.
+The follow-up POM excludes the default logging starter and adds Spring Boot's Log4j2 starter. This removes `logback-classic`, `logback-core` and `spring-boot-starter-logging`; the resolved graph contains `log4j-api`, `log4j-core`, `log4j-jul`, `log4j-slf4j2-impl` and `spring-boot-starter-log4j2` instead. The first attempt also excluded `jakarta.annotation-api`, but the exact runtime crash/restart test proved Tomcat requires `jakarta.annotation.PostConstruct` at startup. The dependency has therefore been restored as an explicit runtime dependency. The expected remaining license review is now limited to `jakarta.annotation-api` 2.1.1; the exact-head SBOM gate must confirm.
 
 ## Engineering follow-up
 
@@ -28,4 +28,4 @@ The follow-up POM excludes the default logging starter and Jakarta annotation AP
 
 The default allow-list in `poc/shared/license_policy_check.py` intentionally contains a small set of permissive licenses. Copyleft, custom, missing and unrecognized declarations require review. Do not disable the gate, broaden the allow-list, or add blanket exceptions merely to obtain a green build.
 
-This is an automated engineering inventory, not legal advice. The previous Kotlin exact-head run was **not license-policy green**. The Log4j2 dependency change is intended to remove the flagged dependencies, but Kotlin remains unverified until the new exact-head policy check passes. Node and Go passing does not waive the Kotlin gate.
+This is an automated engineering inventory, not legal advice. The previous Kotlin exact-head run was **not license-policy green**. The Log4j2 change removes the two Logback components, but `jakarta.annotation-api` remains required by embedded Tomcat and requires a documented legal/product decision. Kotlin is not release-green until this is resolved. Node and Go passing does not waive the Kotlin gate.
