@@ -7,6 +7,7 @@ import { ContactsStore, ContactError } from "./contacts.js";
 import { ChannelsStore, ChannelError } from "./channels.js";
 import { CrmStore, CrmError } from "./crm.js";
 import { ConsentStore, ConsentError } from "./consent.js";
+import { CampaignStore, CampaignError } from "./campaigns.js";
 
 const pool = new Pool({connectionString:process.env.DATABASE_URL});
 const store = new Store(pool);
@@ -15,6 +16,7 @@ const contacts = new ContactsStore(pool);
 const channels = new ChannelsStore(pool);
 const crm = new CrmStore(pool);
 const consent = new ConsentStore(pool);
+const campaigns = new CampaignStore(pool);
 const schema = await (await import("node:fs/promises")).readFile(new URL("../schema.sql",import.meta.url),"utf8");
 for (const statement of schema.split(";").map(s=>s.trim()).filter(Boolean)) await pool.query(statement);
 const abort = new AbortController();
@@ -101,6 +103,17 @@ const server=createServer(async(req,res)=>{
       const input=await body(req);
       if(typeof input.granted!=="boolean") throw new InvalidRequestError();
       json(res,200,await consent.setBusinessConsent(user,requiredString(input,"business_account_id",128),input.granted));return;
+    }
+    if(req.method==="POST" && url.pathname==="/v1/business/campaigns") {
+      const input=await body(req);
+      json(res,201,await campaigns.createDraft(user,requiredString(input,"title",100),requiredString(input,"body",4000)));return;
+    }
+    if(req.method==="GET" && url.pathname==="/v1/business/campaigns") {
+      json(res,200,await campaigns.listDrafts(user));return;
+    }
+    const campaignPreview=url.pathname.match(/^\/v1\/business\/campaigns\/([^/]+)\/preview$/);
+    if(req.method==="GET" && campaignPreview) {
+      json(res,200,await campaigns.preview(user,decodeURIComponent(campaignPreview[1]!)));return;
     }
     if(req.method==="GET" && url.pathname==="/v1/business/customers") {
       json(res,200,await crm.listCustomers(user));return;
@@ -323,7 +336,11 @@ const server=createServer(async(req,res)=>{
     }
     json(res,404,{error:"not found"});
   } catch(e) {
-    if(e instanceof ConsentError) {
+    if(e instanceof CampaignError) {
+      if(e.code==="invalid") json(res,400,{error:"invalid campaign draft"});
+      else json(res,404,{error:"campaign not found"});
+    }
+    else if(e instanceof ConsentError) {
       if(e.code==="invalid") json(res,400,{error:"invalid business consent request"});
       else if(e.code==="preference_disabled") json(res,409,{error:"enable business offers before granting sender consent"});
       else json(res,404,{error:"accepted contact not found"});
