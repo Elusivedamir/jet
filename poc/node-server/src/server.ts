@@ -303,7 +303,6 @@ const server=createServer(async(req,res)=>{
       else json(res,404,{error:"CRM customer not found"});
     }
     else if(e instanceof ChannelError) {
-    if(e instanceof ChannelError) {
       if(e.code==="invalid") json(res,400,{error:"invalid channel data"});
       else if(e.code==="exists") json(res,409,{error:"channel slug unavailable"});
       else if(e.code==="forbidden") json(res,403,{error:"channel operation not permitted"});
