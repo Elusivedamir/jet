@@ -382,6 +382,7 @@ const server=createServer(async(req,res)=>{
     else if(e instanceof AuthError) {
       if(e.code==="exists")json(res,409,{error:"username unavailable"});
       else if(e.code==="invalid")json(res,400,{error:"invalid registration data"});
+      else if(e.code==="rate_limited") json(res,429,{error:"too many login attempts; try again later"});
       else json(res,401,{error:"invalid credentials"});
     }
     else if(e instanceof ConflictError) json(res,409,{error:"operation key conflict"});
