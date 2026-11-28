@@ -1,4 +1,4 @@
-import type { Pool as PoolType } from "pg";
+import type { Pool as PoolType, PoolClient } from "pg";
 
 export type BusinessOfferPreference = { account_id:string; enabled:boolean; version:number; updated_at:Date };
 export type BusinessConsent = {
@@ -25,7 +25,8 @@ export class ConsentStore {
       `SELECT account_id,enabled,version,updated_at
        FROM business_offer_preferences WHERE account_id=$1`,[accountId]
     );
-    return result.rows[0]??{account_id:accountId,enabled:false,version:0,updated_at:new Date(0)};
+    const row=result.rows[0];
+    return row?{...row,version:Number(row.version)}:{account_id:accountId,enabled:false,version:0,updated_at:new Date(0)};
   }
 
   async setOfferPreference(accountId:string,enabled:boolean):Promise<BusinessOfferPreference> {
@@ -42,7 +43,7 @@ export class ConsentStore {
            updated_at=now()
          RETURNING account_id,enabled,version,updated_at`,[accountId,enabled]
       );
-      const preference=result.rows[0]!;
+      const preference={...result.rows[0]!,version:Number(result.rows[0]!.version)};
       await c.query(
         "INSERT INTO business_offer_preference_events(account_id,enabled,version) VALUES($1,$2,$3)",
         [accountId,enabled,preference.version]
@@ -127,7 +128,8 @@ export class ConsentStore {
        WHERE s.recipient_id=$1 AND s.business_account_id=$2`,
       [recipientId,businessAccountId]
     );
-    return result.rows[0]??null;
+    const row=result.rows[0];
+    return row?{...row,version:Number(row.version)}:null;
   }
 
   async listBusinessConsents(recipientId:string):Promise<BusinessConsent[]> {
@@ -140,7 +142,25 @@ export class ConsentStore {
        WHERE s.recipient_id=$1 ORDER BY s.updated_at DESC,s.business_account_id`,
       [recipientId]
     );
-    return result.rows;
+    return result.rows.map(row=>({...row,version:Number(row.version)}));
+  }
+
+  // Call inside the same transaction that inserts the campaign delivery intent.
+  // Row locks prevent a concurrent opt-out or contact removal between eligibility
+  // evaluation and durable enqueue.
+  async lockEligibilityForDispatch(client:PoolClient,businessAccountId:string,recipientId:string):Promise<boolean> {
+    const result=await client.query(
+      `SELECT 1
+       FROM business_offer_preferences p
+       JOIN business_consent_state s
+         ON s.recipient_id=p.account_id AND s.business_account_id=$1 AND s.status='granted'
+       JOIN contacts c
+         ON c.account_low=LEAST($1,$2) AND c.account_high=GREATEST($1,$2)
+       WHERE p.account_id=$2 AND p.enabled=TRUE
+       FOR SHARE OF p,s,c`,
+      [businessAccountId,recipientId]
+    );
+    return !!result.rowCount;
   }
 
   // Campaign workers must call this at dispatch time, not rely on a preview snapshot.
