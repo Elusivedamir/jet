@@ -113,10 +113,11 @@ test("campaign cancellation is owner-scoped, idempotent and fences not-yet-start
  const firstCancel=await campaigns.cancelCampaign(business,staleDraft.id);
  assert.equal(firstCancel.in_flight,1);
  await pool.query("UPDATE business_campaign_jobs SET lease_until=now()-interval '1 second' WHERE id=$1",[staleLease.id]);
- const replayedCancel=await campaigns.cancelCampaign(business,staleDraft.id);
- assert.equal(replayedCancel.replayed,true);assert.equal(replayedCancel.cancelled,1);assert.equal(replayedCancel.in_flight,0);
+ await campaigns.reconcilePending();
  const staleState=await pool.query("SELECT status FROM business_campaign_jobs WHERE id=$1",[staleLease.id]);
  assert.equal(staleState.rows[0]!.status,"cancelled");
+ const replayedCancel=await campaigns.cancelCampaign(business,staleDraft.id);
+ assert.equal(replayedCancel.replayed,true);assert.equal(replayedCancel.cancelled,1);assert.equal(replayedCancel.in_flight,0);
  const completedDraft=await campaigns.createDraft(business,"Already completed","Terminal campaign");
  await pool.query("UPDATE business_campaigns SET status='completed' WHERE id=$1",[completedDraft.id]);
  await assert.rejects(()=>campaigns.cancelCampaign(business,completedDraft.id),e=>e instanceof CampaignError&&e.code==="conflict");
