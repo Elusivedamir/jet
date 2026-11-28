@@ -245,6 +245,7 @@ CREATE TABLE IF NOT EXISTS business_campaign_jobs (
 );
 CREATE INDEX IF NOT EXISTS business_campaign_jobs_claim_idx ON business_campaign_jobs(status,available_at,lease_until,created_at);
 CREATE INDEX IF NOT EXISTS business_campaign_jobs_owner_idx ON business_campaign_jobs(business_account_id,campaign_id,status);
+CREATE INDEX IF NOT EXISTS business_campaign_jobs_cancelled_lease_idx ON business_campaign_jobs(campaign_id,lease_until) WHERE status='processing';
 ALTER TABLE business_campaign_jobs DROP CONSTRAINT IF EXISTS business_campaign_jobs_campaign_owner_fkey;
 ALTER TABLE business_campaign_jobs ADD CONSTRAINT business_campaign_jobs_campaign_owner_fkey
  FOREIGN KEY(campaign_id,business_account_id) REFERENCES business_campaigns(id,business_account_id) ON DELETE CASCADE;
