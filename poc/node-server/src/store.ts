@@ -83,6 +83,8 @@ export class Store {
           [sender,recipient]
         );
         if (!lockedContact.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
+        const crmCustomer = await c.query("SELECT 1 FROM crm_customers WHERE business_account_id=$1 AND person_id=$2 AND status<>'archived' FOR SHARE",[sender,recipient]);
+        if (!crmCustomer.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
       }
       const counter = await c.query<{last_position:string}>(
         "INSERT INTO conversation_counters(conversation_id,last_position) VALUES($1,1) ON CONFLICT(conversation_id) DO UPDATE SET last_position=conversation_counters.last_position+1 RETURNING last_position",
@@ -204,6 +206,10 @@ export class Store {
               [row.sender_id,item.recipient_id]
             );
             if(!contact.rowCount) cancelReason="business_offer_contact_removed";
+            else {
+              const crmCustomer=await c.query("SELECT 1 FROM crm_customers WHERE business_account_id=$1 AND person_id=$2 AND status<>'archived' FOR SHARE",[row.sender_id,item.recipient_id]);
+              if(!crmCustomer.rowCount) cancelReason="business_offer_customer_archived";
+            }
           }
         }
       }

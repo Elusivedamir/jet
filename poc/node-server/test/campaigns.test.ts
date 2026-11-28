@@ -150,3 +150,34 @@ test("campaign job schema enforces the owning business account",async()=>{
  const conversation=await pool.query("SELECT conversation_id FROM direct_conversations WHERE account_low=LEAST($1::text,$2::text) AND account_high=GREATEST($1::text,$2::text)",[business,optedIn]);
  await assert.rejects(()=>pool.query("INSERT INTO business_campaign_jobs(campaign_id,business_account_id,recipient_id,conversation_id,operation_key) VALUES($1,$2,$3,$4,$5)",[draft.id,outsider,optedIn,conversation.rows[0]!.conversation_id,"tenant-mismatch:"+draft.id]));
 });
+
+test("archiving a CRM customer after enqueue prevents campaign message creation",async()=>{
+ const draft=await campaigns.createDraft(business,"Archive before send","Must not reach archived customer");
+ await campaigns.enqueueDraft(business,draft.id,"archive-before-send");
+ await pool.query("UPDATE crm_customers SET status='archived' WHERE business_account_id=$1 AND person_id=$2",[business,optedIn]);
+ const result=await campaigns.processBatch(store,1);
+ assert.equal(result.skipped,1);
+ const job=await pool.query("SELECT status FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id]);
+ assert.equal(job.rows[0]!.status,"skipped");
+ const messages=await pool.query("SELECT count(*)::int AS n FROM messages WHERE sender_id=$1 AND operation_key=$2",[business,"campaign:"+draft.id+":"+optedIn]);
+ assert.equal(messages.rows[0]!.n,0);
+ await pool.query("UPDATE crm_customers SET status='active' WHERE business_account_id=$1 AND person_id=$2",[business,optedIn]);
+});
+
+test("archiving a CRM customer after enqueue but before inbox delivery cancels the offer",async()=>{
+ const draft=await campaigns.createDraft(business,"Archive before delivery","Must not appear in inbox");
+ await campaigns.enqueueDraft(business,draft.id,"archive-before-delivery");
+ const batch=await campaigns.processBatch(store,1);
+ assert.equal(batch.submitted,1);
+ const job=await pool.query("SELECT message_id,conversation_id FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id]);
+ await pool.query("UPDATE crm_customers SET status='archived' WHERE business_account_id=$1 AND person_id=$2",[business,optedIn]);
+ const outbox=await store.claim(10,15000);
+ const delivery=outbox.find(x=>x.message_id===job.rows[0]!.message_id);
+ assert.ok(delivery);await store.dispatch(delivery!);
+ const inbox=await pool.query("SELECT count(*)::int AS n FROM recipient_inbox WHERE message_id=$1 AND recipient_id=$2",[job.rows[0]!.message_id,optedIn]);
+ assert.equal(inbox.rows[0]!.n,0);
+ assert.equal(await campaigns.reconcilePending(),1);
+ const state=await pool.query("SELECT status FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id]);
+ assert.equal(state.rows[0]!.status,"skipped");
+ await pool.query("UPDATE crm_customers SET status='active' WHERE business_account_id=$1 AND person_id=$2",[business,optedIn]);
+});

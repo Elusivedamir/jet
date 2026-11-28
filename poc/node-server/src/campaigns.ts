@@ -49,6 +49,8 @@ export class CampaignStore {
     if(!s.rowCount||s.rows[0]!.status!=="granted"){skipped++;continue;}
     const ct=await c.query("SELECT 1 FROM contacts WHERE account_low=LEAST($1::text,$2::text) AND account_high=GREATEST($1::text,$2::text) FOR KEY SHARE",[owner,a.recipient_id]);
     if(!ct.rowCount){skipped++;continue;}
+    const crm=await c.query("SELECT 1 FROM crm_customers WHERE business_account_id=$1 AND person_id=$2 AND status<>'archived' FOR SHARE",[owner,a.recipient_id]);
+    if(!crm.rowCount){skipped++;continue;}
     const op="campaign:"+campaignId+":"+a.recipient_id;
     const ins=await c.query("INSERT INTO business_campaign_jobs(campaign_id,business_account_id,recipient_id,conversation_id,operation_key) VALUES($1,$2,$3,$4,$5) ON CONFLICT(campaign_id,recipient_id) DO NOTHING",[campaignId,owner,a.recipient_id,a.conversation_id,op]);
     if(ins.rowCount===1)queued++;
