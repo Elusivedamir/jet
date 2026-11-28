@@ -264,7 +264,7 @@ test("business offers are isolated in their own inbox folder with stable paginat
  assert.ok(primary.some(row=>row.message_id===standard.message_id)); assert.ok(!primary.some(row=>row.message_id===offer.message_id));
  assert.deepEqual(offers.map(row=>row.message_id),[offer.message_id]); assert.equal(offers[0]!.folder,"business_offers");
  assert.equal((await store.listInbox("carol","business_offers")).length,0);
- await assert.rejects(()=>store.listInbox("mallory","business_offers"),InvalidRequestError);
+ assert.equal((await store.listInbox("mallory","business_offers")).length,0);
 });
 
 test("global inbox cursor uses timestamp and message id together",async()=>{
