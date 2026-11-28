@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS delivery_outbox (
   message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
   recipient_id TEXT NOT NULL,
   state TEXT NOT NULL DEFAULT 'pending'
-    CHECK (state IN ('pending','processing','retry_wait','completed','terminal_failure')),
+    CHECK (state IN ('pending','processing','retry_wait','completed','cancelled','terminal_failure')),
   attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
   lease_until TIMESTAMPTZ, lease_token TEXT, available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_error TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), completed_at TIMESTAMPTZ,

@@ -78,12 +78,11 @@ export class ConsentStore {
     const c=await this.pool.connect();
     try {
       await c.query("BEGIN");
-      const low=recipientId<businessAccountId?recipientId:businessAccountId;
-      const high=recipientId<businessAccountId?businessAccountId:recipientId;
       // Keep the same lock order as dispatch: preference -> consent -> contact.
       // The unlocked contact precheck avoids exposing preference state to non-contacts.
       const visibleContact=await c.query(
-        "SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2",[low,high]
+        "SELECT 1 FROM contacts WHERE account_low=LEAST($1::text,$2::text) AND account_high=GREATEST($1::text,$2::text)",
+        [recipientId,businessAccountId]
       );
       if(!visibleContact.rowCount) throw new ConsentError("not_found");
       const preference=await c.query(
@@ -97,7 +96,8 @@ export class ConsentStore {
         [businessAccountId,recipientId]
       );
       const contact=await c.query(
-        "SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2 FOR KEY SHARE",[low,high]
+        "SELECT 1 FROM contacts WHERE account_low=LEAST($1::text,$2::text) AND account_high=GREATEST($1::text,$2::text) FOR KEY SHARE",
+        [recipientId,businessAccountId]
       );
       if(!contact.rowCount) throw new ConsentError("not_found");
       const status=granted?"granted":"revoked";

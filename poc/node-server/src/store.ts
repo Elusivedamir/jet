@@ -61,13 +61,11 @@ export class Store {
           [conversation,sender,recipient]
         );
         if (!direct.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
-        const low = sender < recipient ? sender : recipient;
-        const high = sender < recipient ? recipient : sender;
         // Check contact existence before reading preference state; then lock in the
         // same preference -> consent -> contact order used by consent mutations.
         const visibleContact = await c.query(
-          "SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2",
-          [low,high]
+          "SELECT 1 FROM contacts WHERE account_low=LEAST($1::text,$2::text) AND account_high=GREATEST($1::text,$2::text)",
+          [sender,recipient]
         );
         if (!visibleContact.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
         const preference = await c.query<{enabled:boolean}>(
@@ -81,8 +79,8 @@ export class Store {
         );
         if (!consent.rowCount || consent.rows[0]!.status !== "granted") throw new ForbiddenError("business offer recipient is not eligible");
         const lockedContact = await c.query(
-          "SELECT 1 FROM contacts WHERE account_low=$1 AND account_high=$2 FOR KEY SHARE",
-          [low,high]
+          "SELECT 1 FROM contacts WHERE account_low=LEAST($1::text,$2::text) AND account_high=GREATEST($1::text,$2::text) FOR KEY SHARE",
+          [sender,recipient]
         );
         if (!lockedContact.rowCount) throw new ForbiddenError("business offer recipient is not eligible");
       }
@@ -170,9 +168,56 @@ export class Store {
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
+      const lease=await c.query(
+        "SELECT 1 FROM delivery_outbox WHERE id=$1 AND message_id=$2 AND recipient_id=$3 AND state='processing' AND lease_token=$4 AND lease_until>clock_timestamp() FOR UPDATE",
+        [item.id,item.message_id,item.recipient_id,item.lease_token]
+      );
+      if(lease.rowCount!==1) throw new Error("outbox lease lost");
+      const message=await c.query<{sender_id:string;conversation_id:string;message_class:string;deleted_at:Date|null}>(
+        "SELECT sender_id,conversation_id,message_class,deleted_at FROM messages WHERE id=$1 FOR SHARE",
+        [item.message_id]
+      );
+      if(message.rowCount!==1) throw new Error("outbox message missing");
+      const row=message.rows[0]!;
+      let cancelReason:string|null=row.deleted_at?"message_deleted_before_delivery":null;
+      if(!cancelReason && row.message_class==="business_offer") {
+        // Re-check at the delivery boundary. Preference -> consent -> contact is
+        // the same lock order as opt-out and consent mutations.
+        const preference=await c.query<{enabled:boolean}>(
+          "SELECT enabled FROM business_offer_preferences WHERE account_id=$1 FOR UPDATE",
+          [item.recipient_id]
+        );
+        if(!preference.rowCount || !preference.rows[0]!.enabled) {
+          cancelReason="business_offer_preference_disabled";
+        } else {
+          const consent=await c.query<{status:string}>(
+            "SELECT status FROM business_consent_state WHERE business_account_id=$1 AND recipient_id=$2 FOR UPDATE",
+            [row.sender_id,item.recipient_id]
+          );
+          if(!consent.rowCount || consent.rows[0]!.status!=="granted") {
+            cancelReason="business_offer_consent_revoked";
+          } else {
+            const contact=await c.query(
+              "SELECT 1 FROM contacts WHERE account_low=LEAST($1::text,$2::text) AND account_high=GREATEST($1::text,$2::text) FOR KEY SHARE",
+              [row.sender_id,item.recipient_id]
+            );
+            if(!contact.rowCount) cancelReason="business_offer_contact_removed";
+          }
+        }
+      }
+      if(cancelReason) {
+        const cancelled=await c.query(
+          "UPDATE delivery_outbox SET state='cancelled',completed_at=now(),lease_until=NULL,lease_token=NULL,last_error=$3 WHERE id=$1 AND state='processing' AND lease_token=$2 AND lease_until>clock_timestamp()",
+          [item.id,item.lease_token,cancelReason]
+        );
+        if(cancelled.rowCount!==1) throw new Error("outbox lease lost");
+        await c.query("COMMIT");
+        return;
+      }
       await c.query(`INSERT INTO recipient_inbox(message_id,recipient_id,conversation_id,position,folder)
-        SELECT id,$2,conversation_id,position,CASE WHEN message_class='business_offer' THEN 'business_offers' ELSE 'primary' END FROM messages WHERE id=$1
-        ON CONFLICT(message_id,recipient_id) DO NOTHING`,[item.message_id,item.recipient_id]);
+        VALUES($1,$2,$3,(SELECT position FROM messages WHERE id=$1),CASE WHEN $4='business_offer' THEN 'business_offers' ELSE 'primary' END)
+        ON CONFLICT(message_id,recipient_id) DO NOTHING`,
+        [item.message_id,item.recipient_id,row.conversation_id,row.message_class]);
       const done = await c.query(`UPDATE delivery_outbox SET state='completed',completed_at=now(),lease_until=NULL,lease_token=NULL
         WHERE id=$1 AND state='processing' AND lease_token=$2 AND lease_until>clock_timestamp()`,[item.id,item.lease_token]);
       if (done.rowCount !== 1) throw new Error("outbox lease lost");

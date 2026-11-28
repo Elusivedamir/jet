@@ -295,3 +295,30 @@ test("global inbox cursor uses timestamp and message id together",async()=>{
  const next=await store.listInbox("carol","business_offers",page[0]!.created_at.toISOString(),page[0]!.message_id,10); assert.equal(next.length,1); assert.notEqual(page[0]!.message_id,next[0]!.message_id);
  await assert.rejects(()=>store.listInbox("carol","business_offers",page[0]!.created_at.toISOString(),null,10),InvalidRequestError);
 });
+
+
+test("queued business offers are cancelled when consent or the master preference is revoked before dispatch",async()=>{
+ await pool.query("UPDATE business_offer_preferences SET enabled=TRUE WHERE account_id='bob'");
+ await pool.query("UPDATE business_consent_state SET status='granted' WHERE business_account_id='alice' AND recipient_id='bob'");
+ const revoked=await store.send("alice","room-a","dispatch-revoke-consent","offer queued before revocation",null,null,"business_offer");
+ await pool.query("UPDATE business_consent_state SET status='revoked' WHERE business_account_id='alice' AND recipient_id='bob'");
+ const firstBatch=await store.claim(500,5000);
+ for(const item of firstBatch) await store.dispatch(item);
+ const revokedInbox=await pool.query("SELECT 1 FROM recipient_inbox WHERE message_id=$1 AND recipient_id='bob'",[revoked.message_id]);
+ const revokedState=await pool.query("SELECT state,last_error FROM delivery_outbox WHERE message_id=$1 AND recipient_id='bob'",[revoked.message_id]);
+ assert.equal(revokedInbox.rowCount,0);
+ assert.equal(revokedState.rows[0]!.state,"cancelled");
+ assert.equal(revokedState.rows[0]!.last_error,"business_offer_consent_revoked");
+
+ await pool.query("UPDATE business_consent_state SET status='granted' WHERE business_account_id='alice' AND recipient_id='bob'");
+ await pool.query("UPDATE business_offer_preferences SET enabled=TRUE WHERE account_id='bob'");
+ const optedOut=await store.send("alice","room-a","dispatch-master-optout","offer queued before master opt-out",null,null,"business_offer");
+ await pool.query("UPDATE business_offer_preferences SET enabled=FALSE WHERE account_id='bob'");
+ const secondBatch=await store.claim(500,5000);
+ for(const item of secondBatch) await store.dispatch(item);
+ const optedOutInbox=await pool.query("SELECT 1 FROM recipient_inbox WHERE message_id=$1 AND recipient_id='bob'",[optedOut.message_id]);
+ const optedOutState=await pool.query("SELECT state,last_error FROM delivery_outbox WHERE message_id=$1 AND recipient_id='bob'",[optedOut.message_id]);
+ assert.equal(optedOutInbox.rowCount,0);
+ assert.equal(optedOutState.rows[0]!.state,"cancelled");
+ assert.equal(optedOutState.rows[0]!.last_error,"business_offer_preference_disabled");
+});
