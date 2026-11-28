@@ -57,6 +57,7 @@ The same preference -> consent -> contact -> CRM lock order is used at the relev
 Available over HTTP:
 - Create/list campaign drafts.
 - Preview a draft's audience and exclusion reasons.
+- Read a tenant-scoped campaign status summary with durable per-job counts. This is read-only and cannot enqueue or retry jobs.
 
 Not available over HTTP:
 - Enqueue, send, schedule, retry or cancel campaigns.
