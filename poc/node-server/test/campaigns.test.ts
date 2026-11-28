@@ -144,3 +144,9 @@ test("campaign enqueue idempotency key remains replayable after worker claims th
  const jobs=await pool.query("SELECT count(*)::int AS n FROM business_campaign_jobs WHERE campaign_id=$1",[draft.id]);
  assert.equal(jobs.rows[0]!.n,1);
 });
+
+test("campaign job schema enforces the owning business account",async()=>{
+ const draft=await campaigns.createDraft(business,"Tenant integrity","Tenant mismatch must fail");
+ const conversation=await pool.query("SELECT conversation_id FROM direct_conversations WHERE account_low=LEAST($1::text,$2::text) AND account_high=GREATEST($1::text,$2::text)",[business,optedIn]);
+ await assert.rejects(()=>pool.query("INSERT INTO business_campaign_jobs(campaign_id,business_account_id,recipient_id,conversation_id,operation_key) VALUES($1,$2,$3,$4,$5)",[draft.id,outsider,optedIn,conversation.rows[0]!.conversation_id,"tenant-mismatch:"+draft.id]));
+});

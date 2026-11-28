@@ -201,6 +201,7 @@ CREATE TABLE IF NOT EXISTS business_campaigns (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS business_campaigns_owner_idx ON business_campaigns(business_account_id,updated_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS business_campaigns_id_owner_uq ON business_campaigns(id,business_account_id);
 
 ALTER TABLE business_campaigns DROP CONSTRAINT IF EXISTS business_campaigns_status_check;
 ALTER TABLE business_campaigns ADD CONSTRAINT business_campaigns_status_check CHECK (status IN ('draft','queued','sending','completed','cancelled'));
@@ -228,6 +229,9 @@ CREATE TABLE IF NOT EXISTS business_campaign_jobs (
 );
 CREATE INDEX IF NOT EXISTS business_campaign_jobs_claim_idx ON business_campaign_jobs(status,available_at,lease_until,created_at);
 CREATE INDEX IF NOT EXISTS business_campaign_jobs_owner_idx ON business_campaign_jobs(business_account_id,campaign_id,status);
+ALTER TABLE business_campaign_jobs DROP CONSTRAINT IF EXISTS business_campaign_jobs_campaign_owner_fkey;
+ALTER TABLE business_campaign_jobs ADD CONSTRAINT business_campaign_jobs_campaign_owner_fkey
+ FOREIGN KEY(campaign_id,business_account_id) REFERENCES business_campaigns(id,business_account_id) ON DELETE CASCADE;
 
 
 CREATE TABLE IF NOT EXISTS crm_notes (
